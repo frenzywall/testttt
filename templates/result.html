@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Management Notice</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #475569;
+            --success-color: #16a34a;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --background-color: #f0f5ff;
+            --surface-color: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f0f5ff 0%, #e0eaff 100%);
+            min-height: 100vh;
+        }
+
+        /* Enhanced Navigation with Glassmorphism */
+        .nav-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .nav-header:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .nav-logo i {
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.8rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: var(--primary-color);
+        }
+
+        .nav-link i {
+            font-size: 1.2rem;
+        }
+
+        /* Add floating animation to logo */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .nav-logo {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Add subtle hover effect to container */
+        .container {
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+
+        /* Modern Container */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            background: var(--surface-color);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        /* Modern Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        /* Modern Table */
+        table {
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: var(--primary-color);
+            color: #000000 !important; /* Force black color */
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            position: relative; /* For policy icon positioning */
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        /* Info Modal */
+        .info-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .info-content {
+            background: var(--surface-color);
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .primary-btn {
+            background-color: #007BFF;
+            color: white;
+        }
+        .secondary-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        .success-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .editable {
+            background-color: #fff3cd;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 50px auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        pre {
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        /* Add toggle switch styles */
+        .tz-toggle {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* New styles for the marquee and disclaimer */
+        .disclaimer-marquee {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            margin-bottom: 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+        }
+
+        .disclaimer-text {
+            animation: marquee 20s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Enhanced modal styles */
+        .modal-content {
+            background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .email-viewer {
+            display: grid;
+            gap: 20px;
+        }
+
+        .email-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .email-meta {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 100px;
+        }
+
+        .email-body {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .modal-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .tool-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Enhanced time conversion warning */
+        .time-conversion-warning {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+
+        /* Add styles for the downloaded HTML */
+        .download-container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .policy-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #475569;
+            color: white;
+            font-size: 12px;
+            cursor: help;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .policy-tooltip {
+            visibility: hidden;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            width: 200px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .policy-icon:hover + .policy-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        @media print {
+            .policy-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Enhanced Navigation Header -->
+    <header class="nav-header">
+        <nav class="nav-container">
+            <a href="https://internal.ericsson.com/" class="nav-logo">
+                <i class='bx bx-mail-send'></i>
+                Change Weekened Table
+            </a>
+            <div class="nav-links">
+                <a href="https://internal.ericsson.com/" class="nav-link">
+                    <i class='bx bx-home-alt'></i>
+                    Home
+                </a>
+                <a href="#" class="nav-link" id="howItWorksBtn">
+                    <i class='bx bx-info-circle'></i>
+                    How it Works
+                </a>
+                <a href="#" class="nav-link">
+                    <i class='bx bx-shield-quarter'></i>
+                    Policy
+                </a>
+                <a href="#" class="nav-link">
+                    <i class='bx bx-user'></i>
+                    About
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- How It Works Modal -->
+    <div id="infoModal" class="info-modal">
+        <div class="info-content">
+            <span class="close">&times;</span>
+            <h2>How It Works</h2>
+            <div class="info-steps">
+                <div class="step">
+                    <h3>1. Email Upload</h3>
+                    <p>Upload your .msg format email containing maintenance window information.</p>
+                </div>
+                <div class="step">
+                    <h3>2. AI Processing</h3>
+                    <p>Our AI model analyzes the email content to identify:</p>
+                    <ul>
+                        <li>Affected services</li>
+                        <li>Maintenance windows</li>
+                        <li>Impact assessments</li>
+                    </ul>
+                </div>
+                <div class="step">
+                    <h3>3. Time Conversion</h3>
+                    <p>Convert maintenance windows between Sweden time (CET/CEST) and IST with our built-in converter.</p>
+                </div>
+                <div class="step">
+                    <h3>4. Review & Export</h3>
+                    <p>Review the processed information, make any necessary edits, and export as HTML for sharing.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="header">
+            <h1>{{ header_title }}</h1>
+            <div class="actions">
+                <button class="btn primary-btn" id="downloadHtml">
+                    <i class="fas fa-download"></i> Download HTML
+                </button>
+                <button class="btn secondary-btn" id="viewOriginal">
+                    <i class="fas fa-envelope"></i> View Original Email
+                </button>
+                <button class="btn success-btn" id="addRow">
+                    <i class="fas fa-plus"></i> Add Row
+                </button>
+            </div>
+        </div>
+
+        <!-- Enhanced timezone toggle with warning -->
+        <div class="tz-toggle">
+            <label class="switch">
+                <input type="checkbox" id="tzToggle">
+                <span class="slider"></span>
+            </label>
+            <span>Show times in IST</span>
+            <div class="time-conversion-warning">
+                <strong>⚠️ WARNING:</strong> Time conversion will only work correctly if the times are in HH:MM format without dates. Please ensure there are no dates in the time fields before converting.
+            </div>
+        </div>
+
+        <table id="changeTable">
+            <thead>
+                <tr>
+                    <th>Affected Service/Servers</th>
+                    <th>Date</th>
+                    <th>Start Time-IST</th>
+                    <th>End Time-IST</th>
+                    <th>Comments</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in data.services %}
+                <tr>
+                    <td>{{ service.name }}</td>
+                    <td>{{ data.date }}</td>
+                    <td>{{ service.start_time }}</td>
+                    <td>{{ service.end_time }}</td>
+                    <td>{{ service.comments }}</td>
+                    <td>
+                        <button class="btn secondary-btn edit-btn">Edit</button>
+                        <button class="btn success-btn save-btn" style="display: none;">Save</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Enhanced Email Modal -->
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            
+            <div class="modal-toolbar">
+                <button class="tool-btn primary-btn" id="copyEmail">
+                    <i class="fas fa-copy"></i> Copy All
+                </button>
+                <button class="tool-btn secondary-btn" id="downloadText">
+                    <i class="fas fa-file-download"></i> Download as Text
+                </button>
+                <button class="tool-btn" id="toggleWordWrap">
+                    <i class="fas fa-align-left"></i> Toggle Word Wrap
+                </button>
+                <button class="tool-btn" id="increaseFontSize">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="tool-btn" id="decreaseFontSize">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+            </div>
+
+            <div class="email-viewer">
+                <div class="email-header">
+                    <div class="email-meta">
+                        <span class="meta-label">Subject:</span>
+                        <span>{{ data.original_subject }}</span>
+                        <span class="meta-label">Date:</span>
+                        <span>{{ data.date }}</span>
+                    </div>
+                </div>
+                <div class="email-body" id="emailBody">{{ data.original_body }}</div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Add Luxon library for timezone conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
+    <script>
+        // Modal handling
+        const modal = document.getElementById('emailModal');
+        const viewOriginalBtn = document.getElementById('viewOriginal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        viewOriginalBtn.onclick = function() {
+            modal.style.display = "block";
+        }
+
+        closeBtn.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Table editing functionality
+        document.getElementById('addRow').addEventListener('click', function() {
+            const tbody = document.querySelector('tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td contenteditable="true" class="editable"></td>
+                <td contenteditable="true" class="editable"></td>
+                <td contenteditable="true" class="editable"></td>
+                <td contenteditable="true" class="editable"></td>
+                <td contenteditable="true" class="editable"></td>
+                <td>
+                    <button class="btn secondary-btn edit-btn">Edit</button>
+                    <button class="btn success-btn save-btn" style="display: none;">Save</button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+        });
+
+        document.querySelector('table').addEventListener('click', function(e) {
+            if (e.target.classList.contains('edit-btn')) {
+                const row = e.target.closest('tr');
+                const cells = row.getElementsByTagName('td');
+                for (let i = 0; i < cells.length - 1; i++) {
+                    cells[i].contentEditable = true;
+                    cells[i].classList.add('editable');
+                }
+                e.target.style.display = 'none';
+                row.querySelector('.save-btn').style.display = 'inline-block';
+            }
+            
+            if (e.target.classList.contains('save-btn')) {
+                const row = e.target.closest('tr');
+                const cells = row.getElementsByTagName('td');
+                
+                // Update the original stored times when saving
+                const startTimeCell = cells[2];
+                const endTimeCell = cells[3];
+                
+                // Store the new values as original times
+                startTimeCell.dataset.original = startTimeCell.textContent;
+                endTimeCell.dataset.original = endTimeCell.textContent;
+
+                for (let i = 0; i < cells.length - 1; i++) {
+                    cells[i].contentEditable = false;
+                    cells[i].classList.remove('editable');
+                }
+                e.target.style.display = 'none';
+                row.querySelector('.edit-btn').style.display = 'inline-block';
+                
+                const rowData = {
+                    service: cells[0].textContent,
+                    date: cells[1].textContent,
+                    startTime: cells[2].textContent,
+                    endTime: cells[3].textContent,
+                    comments: cells[4].textContent
+                };
+                
+                fetch('/save-changes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(rowData)
+                });
+            }
+        });
+
+        // Updated download HTML functionality
+        document.getElementById('downloadHtml').addEventListener('click', function() {
+            // Get all the necessary styles
+            const styleSheets = Array.from(document.styleSheets);
+            let styles = '';
+            styleSheets.forEach(sheet => {
+                try {
+                    Array.from(sheet.cssRules).forEach(rule => {
+                        styles += rule.cssText;
+                    });
+                } catch (e) {
+                    console.log('Could not read stylesheet:', e);
+                }
+            });
+
+            const tableHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Management Table</title>
+    <style>
+        ${styles}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <table id="changeTable">
+            <thead>
+                <tr>
+                    <th>
+                        Affected Service/Servers
+                        <span class="policy-icon">i</span>
+                        <span class="policy-tooltip">
+                            Company Policy: This document is confidential and should only be shared with authorized personnel.
+                            Changes must be approved through proper channels before implementation.
+                        </span>
+                    </th>
+                    <th>Date</th>
+                    <th>Start Time-IST</th>
+                    <th>End Time-IST</th>
+                    <th>Comments</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${document.querySelector('#changeTable tbody').innerHTML.replace(/<td>[^<]*<button[^>]*>[^<]*<\/button>[^<]*<button[^>]*>[^<]*<\/button>[^<]*<\/td>/g, '')}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([tableHtml], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'change_management.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Add timezone conversion logic
+        const tzToggle = document.getElementById('tzToggle');
+        const DateTime = luxon.DateTime;
+
+        function convertToIST(timeStr, dateStr) {
+            try {
+                // Handle time ranges
+                if (timeStr.includes('-')) {
+                    const [start, end] = timeStr.split('-');
+                    return `${convertToIST(start.trim(), dateStr)}-${convertToIST(end.trim(), dateStr)}`;
+                }
+
+                // Parse the time in Sweden timezone
+                const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
+                    zone: 'Europe/Stockholm'
+                });
+                
+                // Convert to IST
+                const istTime = dt.setZone('Asia/Kolkata');
+                return istTime.toFormat('hh:mm a');
+            } catch (e) {
+                console.error('Error converting time:', e);
+                return timeStr;
+            }
+        }
+
+        tzToggle.addEventListener('change', function() {
+            document.querySelector('.time-conversion-warning').style.display = 
+                this.checked ? 'block' : 'none';
+
+            const rows = document.querySelectorAll('#changeTable tbody tr');
+            const dateCell = rows[0]?.querySelector('td:nth-child(2)');
+            const date = dateCell?.textContent || '2025-02-15';
+
+            rows.forEach(row => {
+                const startTimeCell = row.querySelector('td:nth-child(3)');
+                const endTimeCell = row.querySelector('td:nth-child(4)');
+                
+                if (startTimeCell && endTimeCell) {
+                    if (this.checked) {
+                        // Use current content as original if not set
+                        if (!startTimeCell.dataset.original) {
+                            startTimeCell.dataset.original = startTimeCell.textContent;
+                        }
+                        if (!endTimeCell.dataset.original) {
+                            endTimeCell.dataset.original = endTimeCell.textContent;
+                        }
+                        // Convert to IST
+                        startTimeCell.textContent = convertToIST(startTimeCell.dataset.original, date);
+                        endTimeCell.textContent = convertToIST(endTimeCell.dataset.original, date);
+                    } else {
+                        // Restore original times
+                        if (startTimeCell.dataset.original) {
+                            startTimeCell.textContent = startTimeCell.dataset.original;
+                            endTimeCell.textContent = endTimeCell.dataset.original;
+                        }
+                    }
+                }
+            });
+        });
+
+        // New email viewer features
+        document.getElementById('copyEmail').addEventListener('click', function() {
+            const textToCopy = `Subject: ${document.querySelector('.email-meta').children[1].textContent}\n\n${document.getElementById('emailBody').textContent}`;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => alert('Email content copied to clipboard!'));
+        });
+
+        document.getElementById('downloadText').addEventListener('click', function() {
+            const text = document.getElementById('emailBody').textContent;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'email_content.txt';
+            a.click();
+        });
+
+        document.getElementById('toggleWordWrap').addEventListener('click', function() {
+            const emailBody = document.getElementById('emailBody');
+            emailBody.style.whiteSpace = 
+                emailBody.style.whiteSpace === 'pre' ? 'pre-wrap' : 'pre';
+        });
+
+        let fontSize = 14;
+        document.getElementById('increaseFontSize').addEventListener('click', function() {
+            fontSize = Math.min(fontSize + 2, 24);
+            document.getElementById('emailBody').style.fontSize = `${fontSize}px`;
+        });
+
+        document.getElementById('decreaseFontSize').addEventListener('click', function() {
+            fontSize = Math.max(fontSize - 2, 10);
+            document.getElementById('emailBody').style.fontSize = `${fontSize}px`;
+        });
+
+        // Add new modal handling
+        const infoModal = document.getElementById('infoModal');
+        const howItWorksBtn = document.getElementById('howItWorksBtn');
+
+        howItWorksBtn.onclick = function() {
+            infoModal.style.display = "block";
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target == infoModal) {
+                infoModal.style.display = "none";
+            }
+            if (event.target == modal) { // existing email modal
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

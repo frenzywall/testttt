@@ -1,0 +1,32 @@
+
+FROM alpine:3.19 AS builder
+
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    bash \
+    jq
+
+WORKDIR /build
+COPY scripts/start-ollama.sh .
+RUN chmod +x start-ollama.sh
+FROM ollama/ollama:latest
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    bash \
+    jq \
+    procps && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /build/start-ollama.sh .
+RUN chmod +x /app/start-ollama.sh
+
+ENV OLLAMA_HOST=0.0.0.0 \
+    OLLAMA_MODELS=/root/.ollama/models
+EXPOSE 11434
+ENTRYPOINT ["/app/start-ollama.sh"]

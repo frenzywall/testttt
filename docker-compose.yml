@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - OLLAMA_HOST=ollama
+    restart: unless-stopped

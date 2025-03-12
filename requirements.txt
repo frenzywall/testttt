@@ -1,0 +1,7 @@
+Flask==3.0.2
+Werkzeug==3.0.1
+extract-msg==0.45.0
+requests==2.31.0
+gunicorn==21.2.0
+pytz==2024.1  
+python-dateutil==2.8.2
