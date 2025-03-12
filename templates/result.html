@@ -581,7 +581,9 @@
         }
 
         .table-btn {
-            padding: 8px 16px;
+            padding: 8px;  /* Reduced padding for icon-only buttons */
+            min-width: 32px;
+            justify-content: center;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -956,19 +958,20 @@
             opacity: 0;
         }
 
-        /* Improved styles for impact priority - collapsed version with jitter fix */
+        /* Improved styles for impact priority - collapsed version */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.5s ease;
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
-            /* Fix height to prevent jitter */
-            height: 38px;
-            align-items: center;
+            transition: 
+                min-width 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s ease,
+                background-color 0.3s ease;
+            will-change: min-width;
         }
 
         .impact-option {
@@ -976,80 +979,172 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.8rem;
-            transition: opacity 0.4s ease, transform 0.4s ease;
             display: flex;
             align-items: center;
             gap: 6px;
             position: relative;
             white-space: nowrap;
-            /* Ensure consistent height */
-            height: 100%;
-            box-sizing: border-box;
+            transition: 
+                width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, opacity, width;
         }
 
-        /* Prevent vertical jitter by using absolute positioning for non-selected options */
+        /* Initial hover state - subtle expansion */
+        .impact-selector:hover {
+            min-width: 110px;
+            transition-delay: 0s;
+        }
+
+        /* Full expansion after delay */
+        .impact-selector:hover:active,
+        .impact-selector:hover:focus,
+        .impact-selector:hover:focus-within,
+        .impact-selector:hover:not(:active):after {
+            min-width: 240px;
+            transition-delay: 0.5s;
+        }
+
+        /* Hide non-selected options by default */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
-            position: absolute;
+            width: 0;
+            padding: 0;
             opacity: 0;
-            transform: translateX(-20px);
+            transform: translateX(-10px);
+            position: absolute;
             pointer-events: none;
-            left: 0;
-            /* Rather than width 0, use transform and opacity for smoother transition */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Ensure selected option is always visible and centered */
+        /* Show options with delay */
+        .impact-selector:hover .impact-option {
+            width: auto;
+            padding: 8px 16px;
+            opacity: 0;
+            transform: translateX(0);
+            position: relative;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Fade in options one by one after delay */
+        .impact-selector:hover .impact-option:nth-child(1) { 
+            opacity: 1; 
+            pointer-events: auto;
+            transition-delay: 0.6s;
+        }
+        .impact-selector:hover .impact-option:nth-child(2) { 
+            opacity: 1; 
+            pointer-events: auto;
+            transition-delay: 0.7s;
+        }
+        .impact-selector:hover .impact-option:nth-child(3) { 
+            opacity: 1; 
+            pointer-events: auto;
+            transition-delay: 0.8s;
+        }
+
+        /* Smoother collapse animation */
+        .impact-selector:not(:hover) .impact-option {
+            transition: 
+                width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Always show selected option */
         .impact-option.selected {
             position: relative;
             opacity: 1;
+            width: auto;
             transform: translateX(0);
-            margin: 0 auto;
-            z-index: 5;
+            transition: none;
         }
 
-        /* Show all options on hover with a delay and smoother transition */
-        .impact-selector:hover {
-            min-width: 240px;
-            transition-delay: 0.2s;
+        /* Prevent jitter during scroll */
+        .impact-cell {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
         }
 
-        /* Position options side by side when hovered */
-        .impact-selector:hover .impact-option {
-            position: relative;
-            opacity: 1;
-            transform: translateX(0);
-            transition-delay: 0.2s;
-            pointer-events: auto;
+        /* Update arrow indicator animation */
+        .impact-selector::after {
+            opacity: 0.5;
+            transform: translateY(-50%) rotate(0deg);
+            transition: 
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Make transition smoother for options */
-        .impact-selector:hover .impact-option:nth-child(2) {
-            transition-delay: 0.25s;
-        }
-
-        .impact-selector:hover .impact-option:nth-child(3) {
+        .impact-selector:hover::after {
+            transform: translateY(-50%) rotate(180deg);
+            opacity: 0;
             transition-delay: 0.3s;
         }
 
-        /* Remove after content to avoid jitter */
-        .impact-selector::after {
-            content: none;
+        /* Improved styles for impact priority - collapsed version */
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+            max-width: 100px; /* Added to prevent immediate expansion */
+            transition: max-width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: max-width;
         }
 
-        /* Add dropdown indicator as a separate element for better control */
-        .impact-dropdown-indicator {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0.5;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            font-size: 12px;
-            color: #475569;
+        /* Container for options to prevent layout shift */
+        .impact-selector-inner {
+            display: inline-flex;
+            min-width: 240px; /* Fixed width to prevent layout shift */
+            position: relative;
+            left: 0;
+            transition: left 0.3s ease;
         }
 
-        .impact-selector:hover .impact-dropdown-indicator {
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            white-space: nowrap;
             opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Show only selected option by default */
+        .impact-option.selected {
+            opacity: 1;
+        }
+
+        /* Expand on hover */
+        .impact-selector:hover {
+            max-width: 240px;
+        }
+
+        .impact-selector:hover .impact-option {
+            opacity: 1;
+        }
+
+        /* Keep selected option visible */
+        .impact-selector:not(:hover) .impact-selector-inner {
+            left: 0;
+        }
+
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            opacity: 0;
+            pointer-events: none;
         }
 
         /* Filter controls */
@@ -1127,6 +1222,146 @@
         .priority-badge-high {
             background-color: rgba(244, 63, 94, 0.2);
             color: #9f1239;
+        }
+
+        /* Fixed impact selector styles */
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+            max-width: 100px;
+            transition: max-width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: max-width;
+        }
+
+        .impact-selector-inner {
+            display: inline-flex;
+            min-width: 240px;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: opacity 0.3s ease;
+            flex-shrink: 0;
+            width: 80px;
+        }
+
+        /* Keep all options visible but collapsed */
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Show all options on hover */
+        .impact-selector:hover {
+            max-width: 240px;
+        }
+
+        .impact-selector:hover .impact-option {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Fixed impact selector styles with smoother animations */
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+            max-width: 100px;
+            transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: max-width;
+        }
+
+        .impact-selector-inner {
+            display: inline-flex;
+            min-width: 240px;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            flex-shrink: 0;
+            width: 80px;
+        }
+
+        /* Show all options on hover with sequential timing */
+        .impact-selector:hover {
+            max-width: 240px;
+        }
+
+        .impact-selector:hover .impact-option {
+            opacity: 1;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(1) {
+            transition-delay: 0.1s;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(2) {
+            transition-delay: 0.2s;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(3) {
+            transition-delay: 0.3s;
+        }
+
+        /* Always show selected option */
+        .impact-option.selected {
+            opacity: 1;
+        }
+
+        /* Arrow indicator with smoother animation */
+        .impact-selector::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .impact-selector:hover::after {
+            opacity: 0;
+            transform: translateY(-50%) rotate(180deg);
+            transition-delay: 0.2s;
+        }
+
+        /* Remove any overlapping old styles */
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
     </style>
 </head>
@@ -1255,22 +1490,23 @@
                     <td>{{ service.comments }}</td>
                     <td class="impact-cell">
                         <div class="impact-selector" data-value="low">
-                            <div class="impact-option impact-option-low selected" data-value="low">
-                                <span class="impact-dot"></span> Low
+                            <div class="impact-selector-inner">
+                                <div class="impact-option impact-option-low selected" data-value="low">
+                                    <span class="impact-dot"></span> Low
+                                </div>
+                                <div class="impact-option impact-option-medium" data-value="medium">
+                                    <span class="impact-dot"></span> Medium
+                                </div>
+                                <div class="impact-option impact-option-high" data-value="high">
+                                    <span class="impact-dot"></span> High
+                                </div>
                             </div>
-                            <div class="impact-option impact-option-medium" data-value="medium">
-                                <span class="impact-dot"></span> Medium
-                            </div>
-                            <div class="impact-option impact-option-high" data-value="high">
-                                <span class="impact-dot"></span> High
-                            </div>
-                            <span class="impact-dropdown-indicator"><i class="fas fa-chevron-down"></i></span>
                         </div>
                     </td>
                     <td class="action-cell">
-                        <button class="table-btn edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="table-btn save-btn" style="display: none;"><i class="fas fa-save"></i> Save</button>
-                        <button class="table-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
+                        <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+                        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1415,22 +1651,23 @@
                 <td contenteditable="true" class="editable"></td>
                 <td class="impact-cell">
                     <div class="impact-selector" data-value="low">
-                        <div class="impact-option impact-option-low selected" data-value="low">
-                            <span class="impact-dot"></span> Low
+                        <div class="impact-selector-inner">
+                            <div class="impact-option impact-option-low selected" data-value="low">
+                                <span class="impact-dot"></span> Low
+                            </div>
+                            <div class="impact-option impact-option-medium" data-value="medium">
+                                <span class="impact-dot"></span> Medium
+                            </div>
+                            <div class="impact-option impact-option-high" data-value="high">
+                                <span class="impact-dot"></span> High
+                            </div>
                         </div>
-                        <div class="impact-option impact-option-medium" data-value="medium">
-                            <span class="impact-dot"></span> Medium
-                        </div>
-                        <div class="impact-option impact-option-high" data-value="high">
-                            <span class="impact-dot"></span> High
-                        </div>
-                        <span class="impact-dropdown-indicator"><i class="fas fa-chevron-down"></i></span>
                     </div>
                 </td>
                 <td class="action-cell">
-                    <button class="table-btn edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                    <button class="table-btn save-btn" style="display: none;"><i class="fas fa-save"></i> Save</button>
-                    <button class="table-btn delete-btn"><i class="fas fa-trash"></i> Delete</button>
+                    <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+                    <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(newRow);
@@ -1582,20 +1819,10 @@
         function initImpactSelector(row) {
             const impactOptions = row.querySelectorAll('.impact-option');
             const selector = row.querySelector('.impact-selector');
-            
-            // Add dropdown indicator element if it doesn't exist
-            if (!selector.querySelector('.impact-dropdown-indicator')) {
-                const indicator = document.createElement('span');
-                indicator.className = 'impact-dropdown-indicator';
-                indicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                selector.appendChild(indicator);
-            }
+            const innerContainer = selector.querySelector('.impact-selector-inner');
             
             impactOptions.forEach(option => {
-                option.addEventListener('click', function(e) {
-                    // Stop propagation to avoid immediate collapse
-                    e.stopPropagation();
-                    
+                option.addEventListener('click', function() {
                     const tr = this.closest('tr');
                     const priority = this.getAttribute('data-value');
                     
@@ -1603,41 +1830,19 @@
                     impactOptions.forEach(opt => opt.classList.remove('selected'));
                     this.classList.add('selected');
                     
-                    // Don't reorder options - this causes jitter
-                    // Instead, control visibility with CSS and z-index
-                    
                     // Update data attributes
                     selector.setAttribute('data-value', priority);
                     tr.setAttribute('data-priority', priority);
                     
-                    // Add a subtle animation to the selected option
+                    // Add pulse animation to the selected option
                     this.style.animation = 'none';
                     setTimeout(() => {
                         this.style.animation = 'impactPulse 0.8s ease-in-out';
                     }, 100);
                     
-                    // Apply filter with a small delay to allow animation to complete
-                    setTimeout(() => {
-                        applyActiveFilter();
-                    }, 300);
+                    // Check if we need to filter this row
+                    applyActiveFilter();
                 });
-            });
-            
-            // Use mouseenter/mouseleave instead of hover for better control
-            let hoverTimeout;
-            
-            selector.addEventListener('mouseenter', function() {
-                clearTimeout(hoverTimeout);
-                // Add a class for hover state instead of inline style
-                this.classList.add('selector-hover');
-            });
-            
-            selector.addEventListener('mouseleave', function() {
-                const self = this;
-                // Delay the collapse slightly for smoother experience
-                hoverTimeout = setTimeout(() => {
-                    self.classList.remove('selector-hover');
-                }, 300);
             });
         }
 
