@@ -28,79 +28,83 @@
             min-height: 100vh;
         }
 
-        /* Enhanced Navigation with Glassmorphism */
-        .nav-header {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 1rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            transition: all 0.3s ease;
-        }
+      /* Enhanced Navigation with Glassmorphism */
+      .nav-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0.25rem 0.5rem; /* Further reduced padding to accommodate larger logo */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: all 0.3s ease;
+}
 
-        .nav-header:hover {
-            background: rgba(255, 255, 255, 0.25);
-        }
+.nav-header:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
 
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 2rem;
-        }
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0; /* Removed horizontal padding */
+}
 
-        .nav-logo {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--primary-color);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
+.nav-logo {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 0;
+    height: 100%;
+}
 
-        .nav-logo i {
-            font-size: 1.8rem;
-        }
+.nav-logo img {
+    height: 65px; /* Increased fixed height */
+    width: auto; /* Maintain aspect ratio */
+    object-fit: contain;
+    margin-left: 0;
+    max-height: 100%; /* Allow it to fill available space */
+}
+.nav-links {
+    display: flex;
+    gap: 0.5rem; /* Reduced from 1rem */
+}
 
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-        }
+.nav-link {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.3rem 0.8rem; /* Reduced from 0.5rem 1rem */
+    border-radius: 0.8rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem; /* Reduced from 0.5rem */
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+}
 
-        .nav-link {
-            color: var(--secondary-color);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.8rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-        }
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    color: var(--primary-color);
+}
 
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            color: var(--primary-color);
-        }
+.nav-link i {
+    font-size: 1rem; /* Reduced from 1.2rem */
+}
 
-        .nav-link i {
-            font-size: 1.2rem;
-        }
-
-        /* Add floating animation to logo */
-        @keyframes float {
+        /* Remove floating animation to logo */
+        /* @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-5px); }
             100% { transform: translateY(0px); }
@@ -108,16 +112,16 @@
 
         .nav-logo {
             animation: float 3s ease-in-out infinite;
-        }
+        } */
 
         /* Add subtle hover effect to container */
-        .container {
+        /*.container {
             transition: transform 0.3s ease;
         }
 
         .container:hover {
             transform: translateY(-5px);
-        }
+        } */
 
 
         /* Modern Container */
@@ -301,25 +305,49 @@
         }
         /* Add toggle switch styles */
         .tz-toggle {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 4px;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(145deg, #ffffff, #f5f7ff);
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(37, 99, 235, 0.1);
+            transition: all 0.3s ease;
         }
+
+        .tz-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        .tz-toggle-label {
+            font-weight: 500;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tz-toggle-label i {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
         .switch {
             position: relative;
             display: inline-block;
             width: 60px;
-            height: 34px;
+            height: 30px;
         }
+
         .switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .slider {
             position: absolute;
             cursor: pointer;
@@ -327,26 +355,48 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: #e2e8f0;
             transition: .4s;
-            border-radius: 34px;
+            border-radius: 30px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
+
         .slider:before {
             position: absolute;
             content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: .3s;
             border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
         input:checked + .slider {
-            background-color: #2196F3;
+            background-color: var(--primary-color);
         }
+
         input:checked + .slider:before {
-            transform: translateX(26px);
+            transform: translateX(30px);
+        }
+
+        .time-conversion-warning {
+            margin-left: auto;
+            padding: 8px 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            font-size: 0.9rem;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .time-conversion-warning i {
+            color: #f59e0b;
         }
 
         /* New styles for the marquee and disclaimer */
@@ -1026,6 +1076,7 @@
             transform: translateX(0);
             position: relative;
             pointer-events: none;
+            transition-delay: 0.15s;
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -1363,6 +1414,82 @@
             pointer-events: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* Add logo styling */
+        .nav-logo img {
+            height: 65px; /* Increased from 30px */
+            width: auto;
+            margin-right: 12px;
+        }
+
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0; /* Added padding to accommodate larger logo */
+        }
+
+        /* Add styles for multi-line column headers */
+        .time-column {
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .time-zone {
+            display: block;
+            font-size: 0.75em;
+            font-weight: normal;
+            opacity: 0.9;
+            text-transform: none;
+        }
+
+        /* Add styles for editable header */
+        .header-edit-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            margin: 0;
+            padding: 5px 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .header-title.editable {
+            background: rgba(255, 243, 205, 0.2);
+            border: 2px dashed var(--warning-color);
+            outline: none;
+        }
+
+        .edit-header-btn {
+            padding: 8px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .edit-header-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25);
+        }
+
+        .save-header-btn {
+            display: none;
+            background: var(--success-color);
+        }
     </style>
 </head>
 <body>
@@ -1370,8 +1497,8 @@
     <header class="nav-header">
         <nav class="nav-container">
             <a href="https://internal.ericsson.com/" class="nav-logo">
-                <i class='bx bx-mail-send'></i>
-                Change Weekened Table
+                <img src="https://www.ericsson.com/4981bb/assets/global/qbank/2021/04/21/e-con-vertical-1500x1500px-88604d41d8cd98f00b204e9800998ecf8427e.png" alt="Ericsson Logo">
+                Welcome!
             </a>
             <div class="nav-links">
                 <a href="https://internal.ericsson.com/" class="nav-link">
@@ -1426,7 +1553,15 @@
     </div>
 
         <div class="header">
-            <h1>{{ header_title }}</h1>
+            <div class="header-edit-group">
+                <h1 class="header-title" contenteditable="false" id="headerTitle">{{ header_title }}</h1>
+                <button class="edit-header-btn" id="editHeaderBtn" title="Edit Title">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="edit-header-btn save-header-btn" id="saveHeaderBtn" title="Save Title">
+                    <i class="fas fa-save"></i>
+                </button>
+            </div>
             <div class="actions">
                 <button class="btn primary-btn" id="downloadHtml">
                     <i class="fas fa-download"></i> Download HTML
@@ -1440,15 +1575,19 @@
             </div>
         </div>
 
-        <!-- Enhanced timezone toggle with warning -->
+        <!-- Update the timezone toggle HTML structure -->
         <div class="tz-toggle">
+            <div class="tz-toggle-label">
+                <i class="fas fa-globe"></i>
+                <span id="tzLabel">Show times in IST</span>
+            </div>
             <label class="switch">
                 <input type="checkbox" id="tzToggle">
                 <span class="slider"></span>
             </label>
-            <span>Show times in IST</span>
             <div class="time-conversion-warning">
-                <strong>⚠️ WARNING:</strong> Time conversion will only work correctly if the times are in HH:MM format without dates. Please ensure there are no dates in the time fields before converting.
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Time format should be HH:MM for accurate conversion</span>
             </div>
         </div>
 
@@ -1473,8 +1612,14 @@
                 <tr>
                     <th class="sortable">Affected Service/Servers</th>
                     <th class="sortable">Date</th>
-                    <th class="sortable">Start Time-IST</th>
-                    <th class="sortable">End Time-IST</th>
+                    <th class="sortable time-column">
+                        Start Time
+                        <span class="time-zone">(Sweden)</span>
+                    </th>
+                    <th class="sortable time-column">
+                        End Time
+                        <span class="time-zone">(Sweden)</span>
+                    </th>
                     <th class="sortable">Comments</th>
                     <th class="sortable">Impact Priority</th>
                     <th>Actions</th>
@@ -1812,8 +1957,26 @@
             const rows = document.querySelectorAll('#changeTable tbody tr');
             rows.forEach(row => initImpactSelector(row));
             
-            // Initialize filter functionality
-            initFilters();
+            // Set the "All" filter active by default
+            const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
+            if (allFilterBtn) {
+                allFilterBtn.classList.add('active');
+            }
+
+            // Use event delegation for filter buttons to ensure they work after DOM changes
+            document.querySelector('.filter-controls').addEventListener('click', function(e) {
+                const filterBtn = e.target.closest('.filter-btn');
+                if (filterBtn) {
+                    // Update active state
+                    document.querySelectorAll('.filter-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    filterBtn.classList.add('active');
+                    
+                    // Apply the filter
+                    applyActiveFilter();
+                }
+            });
         });
 
         function initImpactSelector(row) {
@@ -1846,28 +2009,17 @@
             });
         }
 
-        function initFilters() {
-            const filterBtns = document.querySelectorAll('.filter-btn');
-            
-            filterBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    // Update active state
-                    filterBtns.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Apply the filter
-                    applyActiveFilter();
-                });
-            });
-        }
-        
+        // Simplified function since we're using event delegation instead
         function applyActiveFilter() {
             const activeFilter = document.querySelector('.filter-btn.active');
             const filterValue = activeFilter ? activeFilter.getAttribute('data-filter') : 'all';
             const rows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
             
+            console.log('Applying filter:', filterValue); // Keep for debugging
+            
             rows.forEach(row => {
-                if (filterValue === 'all' || row.getAttribute('data-priority') === filterValue) {
+                const priority = row.getAttribute('data-priority');
+                if (filterValue === 'all' || priority === filterValue) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -1875,7 +2027,7 @@
             });
         }
 
-        // Enhanced sorting for priority column
+        // Enhanced sorting for priority column - Make sure to call applyActiveFilter after sorting
         document.querySelectorAll('th.sortable').forEach(header => {
             header.addEventListener('click', function() {
                 const table = this.closest('table');
@@ -1925,6 +2077,9 @@
                     row.classList.add('highlight-row');
                     setTimeout(() => row.classList.remove('highlight-row'), 2000);
                 });
+                
+                // Re-apply current filter after sorting
+                applyActiveFilter();
             });
         });
 
@@ -1954,9 +2109,23 @@
             }
         }
 
+        // Update timezone toggle behavior with both column changes and time conversion
         tzToggle.addEventListener('change', function() {
-            document.querySelector('.time-conversion-warning').style.display = 
-                this.checked ? 'block' : 'none';
+            const timeColumns = document.querySelectorAll('.time-column');
+            const tzLabel = document.getElementById('tzLabel');
+            const warning = document.querySelector('.time-conversion-warning');
+            
+            if (this.checked) {
+                timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(IST)</span>';
+                timeColumns[1].innerHTML = 'End Time<span class="time-zone">(IST)</span>';
+                tzLabel.textContent = 'Showing times in IST';
+            } else {
+                timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(Sweden)</span>';
+                timeColumns[1].innerHTML = 'End Time<span class="time-zone">(Sweden)</span>';
+                tzLabel.textContent = 'Show times in IST';
+            }
+            
+            warning.style.display = this.checked ? 'flex' : 'none';
 
             const rows = document.querySelectorAll('#changeTable tbody tr');
             const dateCell = rows[0]?.querySelector('td:nth-child(2)');
@@ -1968,7 +2137,7 @@
                 
                 if (startTimeCell && endTimeCell) {
                     if (this.checked) {
-                        // Use current content as original if not set
+                        // Store original times if not already stored
                         if (!startTimeCell.dataset.original) {
                             startTimeCell.dataset.original = startTimeCell.textContent;
                         }
@@ -1979,7 +2148,7 @@
                         startTimeCell.textContent = convertToIST(startTimeCell.dataset.original, date);
                         endTimeCell.textContent = convertToIST(endTimeCell.dataset.original, date);
                     } else {
-                        // Restore original times
+                        // Restore original Sweden times
                         if (startTimeCell.dataset.original) {
                             startTimeCell.textContent = startTimeCell.dataset.original;
                             endTimeCell.textContent = endTimeCell.dataset.original;
@@ -2125,6 +2294,50 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+        });
+
+        // Add header editing functionality
+        const headerTitle = document.getElementById('headerTitle');
+        const editHeaderBtn = document.getElementById('editHeaderBtn');
+        const saveHeaderBtn = document.getElementById('saveHeaderBtn');
+
+        editHeaderBtn.addEventListener('click', function() {
+            headerTitle.contentEditable = true;
+            headerTitle.classList.add('editable');
+            headerTitle.focus();
+            editHeaderBtn.style.display = 'none';
+            saveHeaderBtn.style.display = 'flex';
+        });
+
+        saveHeaderBtn.addEventListener('click', function() {
+            headerTitle.contentEditable = false;
+            headerTitle.classList.remove('editable');
+            editHeaderBtn.style.display = 'flex';
+            saveHeaderBtn.style.display = 'none';
+
+            // Optional: Save the new title to the server
+            fetch('/save-title', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: headerTitle.textContent
+                })
+            });
+        });
+
+        // Save on Enter key, cancel on Escape key
+        headerTitle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveHeaderBtn.click();
+            } else if (e.key === 'Escape') {
+                headerTitle.contentEditable = false;
+                headerTitle.classList.remove('editable');
+                editHeaderBtn.style.display = 'flex';
+                saveHeaderBtn.style.display = 'none';
+            }
         });
     </script>
 </body>
