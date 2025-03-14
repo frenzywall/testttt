@@ -18,6 +18,8 @@
             --surface-color: #ffffff;
             --glass-bg: rgba(255, 255, 255, 0.15);
             --glass-border: rgba(255, 255, 255, 0.2);
+            --highlight-color-start: rgba(37, 99, 235, 0.1);
+            --highlight-color-end: transparent;
         }
 
         body {
@@ -617,12 +619,12 @@
 
         /* Row animation */
         @keyframes highlight {
-            0% { background-color: #fff8e6; }
-            100% { background-color: transparent; }
+            0% { background-color: var(--highlight-color-start); }
+            100% { background-color: var(--highlight-color-end); }
         }
 
         .highlight-row {
-            animation: highlight 2s ease;
+            animation: highlight 1.5s ease;
         }
 
         /* Action buttons styling */
@@ -1785,6 +1787,8 @@
         --text-color: #1e293b;
         --glass-card: #ffffff;
         --glass-card-border: rgba(0, 0, 0, 0.1);
+        --highlight-color-start: rgba(37, 99, 235, 0.15);
+        --highlight-color-end: transparent;
     }
 
     [data-theme="dark"] {
@@ -1797,6 +1801,8 @@
         --text-color: #e2e8f0;
         --glass-card: rgba(30, 41, 59, 0.7);
         --glass-card-border: rgba(255, 255, 255, 0.1);
+        --highlight-color-start: rgba(59, 130, 246, 0.2);
+        --highlight-color-end: transparent;
     }
 
     body {
@@ -2368,10 +2374,27 @@
                 // Add animation to rows
                 rows.forEach(row => {
                     row.classList.add('highlight-row');
-                    setTimeout(() => row.classList.remove('highlight-row'), 2000);
+                    setTimeout(() => row.classList.remove('highlight-row'), 1500);
                 });
             });
         });
+
+        // Helper function to apply themed highlight animation to rows
+        function applyRowHighlight(row) {
+            if (!row) return;
+            
+            // First remove any existing highlight to reset animation
+            row.classList.remove('highlight-row');
+            
+            // Force a reflow to ensure animation plays again
+            void row.offsetWidth;
+            
+            // Add the highlight class to start animation
+            row.classList.add('highlight-row');
+            
+            // Remove the highlight class after animation completes
+            setTimeout(() => row.classList.remove('highlight-row'), 1500);
+        }
 
         // Table editing functionality
         document.getElementById('addRow').addEventListener('click', function() {
@@ -2416,8 +2439,7 @@
             tbody.appendChild(newRow);
             
             // Highlight the new row
-            newRow.classList.add('highlight-row');
-            setTimeout(() => newRow.classList.remove('highlight-row'), 2000);
+            applyRowHighlight(newRow);
 
             // Initialize impact indicator events
             initImpactSelector(newRow);
@@ -2483,8 +2505,7 @@
                 row.querySelector('.edit-btn').style.display = 'inline-flex';
                 
                 // Highlight the saved row
-                row.classList.add('highlight-row');
-                setTimeout(() => row.classList.remove('highlight-row'), 2000);
+                applyRowHighlight(row);
                 
                 const rowData = {
                     service: cells[0].textContent,
@@ -2676,11 +2697,8 @@
                 const tbody = table.querySelector('tbody');
                 rows.forEach(row => tbody.appendChild(row));
                 
-                // Add animation to rows
-                rows.forEach(row => {
-                    row.classList.add('highlight-row');
-                    setTimeout(() => row.classList.remove('highlight-row'), 2000);
-                });
+                // Use helper function for all rows
+                rows.forEach(row => applyRowHighlight(row));
                 
                 // Re-apply current filter after sorting
                 applyActiveFilter();
@@ -3109,8 +3127,8 @@
             const themeToggle = document.getElementById('themeToggle');
             const icon = themeToggle.querySelector('i');
             
-            // Check for saved theme preference or default to 'light'
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            // Check for saved theme preference or default to 'dark'
+            const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcon(savedTheme);
             
