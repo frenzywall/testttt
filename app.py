@@ -89,33 +89,44 @@ def extract_date_from_subject(subject):
 
 @app.route('/')
 def index():
-    return render_template('upload.html')
+    return render_template('result.html', data={
+        'services': [],
+        'date': datetime.now().strftime('%Y-%m-%d'),  # Default current date
+        'original_subject': '',
+        'original_body': '',
+        'error': None
+    }, header_title='Change Weekend')
 
-@app.route('/check-ollama')
-def check_ollama_status():
-    try:
-        ollama_host = os.environ.get('OLLAMA_HOST', 'localhost')
-        response = requests.get(f'http://{ollama_host}:11434/api/version')
-        if response.status_code == 200:
-            return jsonify({'status': 'connected', 'version': response.json().get('version')})
-    except requests.exceptions.RequestException as e:
-        return jsonify({
-            'status': 'disconnected',
-            'error': str(e),
-            'help': 'Please ensure Ollama is running and accessible'
-        }), 500
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
+@app.route('/process-file', methods=['POST'])
+def process_file():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+        return render_template('result.html', data={
+            'services': [],
+            'error': 'No file uploaded',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': ''
+        }, header_title='Change Weekend')
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+        return render_template('result.html', data={
+            'services': [],
+            'error': 'No file selected',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': ''
+        }, header_title='Change Weekend')
 
     if not file.filename.endswith('.msg'):
-        return jsonify({'error': 'Invalid file type. Please upload .msg files only.'}), 400
+        return render_template('result.html', data={
+            'services': [],
+            'error': 'Invalid file type. Please upload .msg files only.',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': ''
+        }, header_title='Change Weekend')
 
     temp_path = None
     try:
@@ -172,7 +183,13 @@ def upload_file():
 
     except Exception as e:
         print(f"Error processing upload: {str(e)}") 
-        return jsonify({'error': f'Error processing email: {str(e)}'}), 500
+        return render_template('result.html', data={
+            'services': [],
+            'error': f'Error processing email: {str(e)}',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': ''
+        }, header_title='Change Weekend')
 
     finally:
         

@@ -1490,6 +1490,63 @@
             display: none;
             background: var(--success-color);
         }
+
+        .upload-action {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Loading indicator styles */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error message styles */
+        .error-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -1520,6 +1577,11 @@
             </div>
         </nav>
     </header>
+
+    <!-- Add this form right after the header section -->
+    <form id="uploadForm" action="/process-file" method="post" enctype="multipart/form-data" style="display: none;">
+        <input type="file" name="file" id="fileInput" accept=".msg">
+    </form>
 
     <!-- How It Works Modal -->
     <div id="infoModal" class="info-modal">
@@ -1563,6 +1625,12 @@
                 </button>
             </div>
             <div class="actions">
+                <div class="upload-action">
+                    <input type="file" name="file" accept=".msg" id="fileInput" class="file-input" style="display: none;">
+                    <button class="btn primary-btn" onclick="document.getElementById('fileInput').click();">
+                        <i class="fas fa-upload"></i> Upload MSG
+                    </button>
+                </div>
                 <button class="btn primary-btn" id="downloadHtml">
                     <i class="fas fa-download"></i> Download HTML
                 </button>
@@ -1980,13 +2048,19 @@
         });
 
         function initImpactSelector(row) {
+            if (!row) return;
+    
             const impactOptions = row.querySelectorAll('.impact-option');
             const selector = row.querySelector('.impact-selector');
-            const innerContainer = selector.querySelector('.impact-selector-inner');
+            const innerContainer = selector?.querySelector('.impact-selector-inner');
+            
+            if (!impactOptions.length || !selector || !innerContainer) return;
             
             impactOptions.forEach(option => {
                 option.addEventListener('click', function() {
                     const tr = this.closest('tr');
+                    if (!tr) return;
+                    
                     const priority = this.getAttribute('data-value');
                     
                     // Update selected state visually
@@ -2339,6 +2413,87 @@
                 saveHeaderBtn.style.display = 'none';
             }
         });
+
+        // Add these functions for file handling
+        function showLoading() {
+            document.querySelector('.loading-overlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading-overlay').style.display = 'none';
+        }
+
+        function showError(message) {
+            const toast = document.getElementById('errorToast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update file input handler
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                if (!file.name.toLowerCase().endsWith('.msg')) {
+                    showError('Please upload a .MSG file');
+                    return;
+                }
+                
+                showLoading();
+                document.getElementById('uploadForm').submit();
+            }
+        });
+
+        // Initialize everything when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFileUpload();
+            
+            // Initialize other components
+            const rows = document.querySelectorAll('#changeTable tbody tr');
+            if (rows) {
+                rows.forEach(row => initImpactSelector(row));
+            }
+            
+            // Set default filter
+            const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
+            if (allFilterBtn) {
+                allFilterBtn.classList.add('active');
+            }
+            
+            // Check for empty table
+            checkEmptyTable();
+            
+            // Initialize other functions
+            // ...rest of initialization code...
+        });
+
+        // Update file input handler
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadForm = document.getElementById('uploadForm');
+            const loadingOverlay = document.querySelector('.loading-overlay');
+            const errorToast = document.getElementById('errorToast');
+
+            if (fileInput && uploadForm) {
+                fileInput.addEventListener('change', function(e) {
+                    if (this.files.length > 0) {
+                        const file = this.files[0];
+                        if (!file.name.toLowerCase().endsWith('.msg')) {
+                            showError('Please upload a .MSG file');
+                            return;
+                        }
+                        
+                        if (loadingOverlay) {
+                            loadingOverlay.style.display = 'flex';
+                        }
+                        
+                        uploadForm.submit();
+                    }
+                });
+            }
+        }
     </script>
 </body>
 </html>
