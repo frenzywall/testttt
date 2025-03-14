@@ -87,47 +87,44 @@ def extract_date_from_subject(subject):
                 return date_str
     return None
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('result.html', data={
-        'services': [],
-        'date': datetime.now().strftime('%Y-%m-%d'),  # Default current date
-        'original_subject': '',
-        'original_body': '',
-        'error': None
-    }, header_title='Change Weekend')
-
-
-@app.route('/process-file', methods=['POST'])
-def process_file():
+    if request.method == 'GET':
+        # Show empty landing page
+        empty_data = {
+            'services': [],
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': '',
+            'error': None,
+            'is_landing_page': True  # Add this flag to indicate landing page
+        }
+        return render_template('result.html', data=empty_data, header_title='Change Weekend')
+        
+    # POST method handling
     if 'file' not in request.files:
         return render_template('result.html', data={
             'services': [],
             'error': 'No file uploaded',
             'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
             'original_subject': '',
             'original_body': ''
         }, header_title='Change Weekend')
 
     file = request.files['file']
-    if file.filename == '':
+    if file.filename == '' or not file.filename.endswith('.msg'):
         return render_template('result.html', data={
             'services': [],
-            'error': 'No file selected',
+            'error': 'Invalid file or no file selected',
             'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
             'original_subject': '',
             'original_body': ''
         }, header_title='Change Weekend')
 
-    if not file.filename.endswith('.msg'):
-        return render_template('result.html', data={
-            'services': [],
-            'error': 'Invalid file type. Please upload .msg files only.',
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'original_subject': '',
-            'original_body': ''
-        }, header_title='Change Weekend')
-
+    # Process the file
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.msg', delete=False) as temp_file:
@@ -138,11 +135,10 @@ def process_file():
                 raise FileNotFoundError(f"Failed to save temporary file at {temp_path}")
             
             msg = extract_msg.Message(temp_path)
-
             maintenance_date = extract_date_from_subject(msg.subject)
             if not maintenance_date:
                 msg_date = parser.parse(msg.date)
-                maintenance_date = msg_date.strftime("%Y-%m-%d")  # Use ISO format
+                maintenance_date = msg_date.strftime("%Y-%m-%d")
 
             email_data = {
                 'subject': msg.subject,
@@ -152,26 +148,17 @@ def process_file():
             }
 
             services_data = email_parser.process_email_content(email_data)
-          
-            if 'error' in services_data:
-                return jsonify({'error': services_data['error']}), 500
-            for service in services_data['services']:
-                
-                for key in ['start_time', 'end_time', 'start_time_sweden', 'end_time_sweden']:
-                    if key in service and service[key]:
-                        time_str = service[key]
-                    
-                        if re.search(r'\d{4}-\d{2}-\d{2}', time_str):
-                            try:
-                                dt = parser.parse(time_str)
-                                service[key] = dt.strftime("%H:%M")
-                            except:
-                                
-                                time_match = re.search(r'(\d{2}:\d{2})', time_str)
-                                if time_match:
-                                    service[key] = time_match.group(1)
-
             
+            if 'error' in services_data:
+                return render_template('result.html', data={
+                    'services': [],
+                    'error': services_data['error'],
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'end_date': datetime.now().strftime('%Y-%m-%d'),
+                    'original_subject': '',
+                    'original_body': ''
+                }, header_title='Change Weekend')
+
             try:
                 date_obj = datetime.strptime(services_data['date'], "%Y-%m-%d")
                 from calendar import month_name
@@ -182,17 +169,17 @@ def process_file():
             return render_template('result.html', data=services_data, header_title=header_title)
 
     except Exception as e:
-        print(f"Error processing upload: {str(e)}") 
+        print(f"Error processing upload: {str(e)}")
         return render_template('result.html', data={
             'services': [],
             'error': f'Error processing email: {str(e)}',
             'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
             'original_subject': '',
             'original_body': ''
         }, header_title='Change Weekend')
 
     finally:
-        
         try:
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)

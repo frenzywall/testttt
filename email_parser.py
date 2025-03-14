@@ -240,6 +240,7 @@ def parse_email_content(email_data):
                 'start_time': start_dt.strftime("%H:%M"),
                 'end_time': end_dt.strftime("%H:%M"),
                 'date': start_dt.date().strftime("%Y-%m-%d"),
+                'end_date': end_dt.date().strftime("%Y-%m-%d"),
                 'impact': impact,
                 'comments': service_info['default_impact'] if impact == 'IMPACTED' else "No Impact."
             }
