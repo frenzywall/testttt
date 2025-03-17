@@ -1018,6 +1018,176 @@
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.5s ease; /* Slowed down from 0.3s to 0.5s */
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+        }
+
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.4s ease; /* Slowed down from 0.2s to 0.4s */
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        /* Hide non-selected options by default with slower transition */
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            width: 0;
+            padding: 0;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            pointer-events: none;
+            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease; /* Added explicit transition properties */
+        }
+
+        /* Ensure selected option is always visible */
+        .impact-option.selected {
+            position: relative;
+            opacity: 1;
+            width: auto;
+        }
+
+        /* Show all options on hover with a delay */
+        .impact-selector:hover {
+            min-width: 240px; /* Adjust based on your content */
+            transition-delay: 0.15s; /* Added delay before expanding */
+        }
+
+        .impact-selector:hover .impact-option {
+            width: auto;
+            padding: 8px 16px;
+            opacity: 1;
+            position: relative;
+            pointer-events: auto;
+            transition-delay: 0.15s; /* Added delay for each option to appear */
+        }
+
+        /* Custom pulse animation specifically for the impact selector */
+        @keyframes impactPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Add subtle hover indicator */
+        .impact-selector::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        
+        .impact-selector:hover::after {
+            opacity: 0;
+        }
+
+        /* Improved styles for impact priority - collapsed version */
+        .impact-cell {
+            text-align: center;
+        }
+
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.5s ease; /* Slowed down from 0.3s to 0.5s */
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+        }
+
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.4s ease; /* Slowed down from 0.2s to 0.4s */
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        /* Hide non-selected options by default with slower transition */
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            width: 0;
+            padding: 0;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            pointer-events: none;
+            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease; /* Added explicit transition properties */
+        }
+
+        /* Ensure selected option is always visible */
+        .impact-option.selected {
+            position: relative;
+            opacity: 1;
+            width: auto;
+        }
+
+        /* Show all options on hover with a delay */
+        .impact-selector:hover {
+            min-width: 240px; /* Adjust based on your content */
+            transition-delay: 0.15s; /* Added delay before expanding */
+        }
+
+        .impact-selector:hover .impact-option {
+            width: auto;
+            padding: 8px 16px;
+            opacity: 1;
+            position: relative;
+            pointer-events: auto;
+            transition-delay: 0.15s; /* Added delay for each option to appear */
+        }
+
+        /* Custom pulse animation specifically for the impact selector */
+        @keyframes impactPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Add subtle hover indicator */
+        .impact-selector::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        
+        .impact-selector:hover::after {
+            opacity: 0;
+        }
+
+        /* Improved styles for impact priority - collapsed version */
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
@@ -2052,6 +2222,141 @@
         outline: none;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
     }
+    /* Enhanced Info Modal Styles */
+    .info-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8); /* Increased opaqueness */
+        z-index: 1000;
+        overflow-y: auto;
+    }
+
+    .info-content {
+        background: var(--surface-color);
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    
+    .info-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--glass-border);
+    }
+    
+    .info-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .info-section h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+    
+    .info-steps {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+    
+    .info-steps li {
+        position: relative;
+        padding-left: 20px;
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-steps li::before {
+        content: '→';
+        position: absolute;
+        left: 0;
+        color: var(--primary-color);
+    }
+    
+    .info-features {
+        list-style-type: none;
+        padding-left: 20px;
+        columns: 2;
+        column-gap: 2rem;
+    }
+    
+    .info-features li {
+        margin-bottom: 0.75rem;
+        position: relative;
+        padding-left: 20px;
+        break-inside: avoid;
+    }
+    
+    .info-features li::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: var(--primary-color);
+    }
+
+    .troubleshooting {
+        background: var(--glass-card);
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--glass-border);
+        margin-top: 1.5rem;
+    }
+
+    .troubleshooting h3 {
+        color: var(--warning-color);
+        margin-bottom: 1rem;
+    }
+
+    .troubleshooting h4 {
+        color: var(--text-color);
+        margin: 1rem 0 0.5rem;
+        font-size: 1rem;
+    }
+    
+    .troubleshooting h4:first-of-type {
+        margin-top: 0;
+    }
+    
+    .troubleshooting ul {
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .troubleshooting li {
+        margin-bottom: 0.5rem;
+    }
+    
+    .extraction-warning {
+        background: rgba(244, 63, 94, 0.1);
+        border-left: 4px solid var(--danger-color);
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    
+    /* Responsive adjustments for mobile */
+    @media (max-width: 768px) {
+        .info-content {
+            margin: 1rem;
+            padding: 1.5rem;
+            max-height: 90vh;
+        }
+        
+        .info-features {
+            columns: 1;
+        }
+    }
     </style>
 </head>
 <body>
@@ -2063,7 +2368,7 @@
                 Welcome!
             </a>
             <div class="nav-links">
-                <a href="https://internal.ericsson.com/" class="nav-link">
+                <a href="/" class="nav-link">
                     <i class='bx bx-home-alt'></i>
                     Home
                 </a>
@@ -2096,28 +2401,58 @@
         <div class="info-content">
             <span class="close">&times;</span>
             <h2>How It Works</h2>
-            <div class="info-steps">
-                <div class="step">
-                    <h3>1. Email Upload</h3>
-                    <p>Upload your .msg format email containing maintenance window information.</p>
+            
+            <div class="info-section">
+                <h3><i class="fas fa-rocket"></i> Getting Started</h3>
+                <ol class="info-steps">
+                    <li>Click <strong>"Upload MSG"</strong> to select a maintenance notification email</li>
+                    <li>Review the extracted maintenance information in the table</li>
+                    <li>Use <strong>Edit</strong> buttons to correct any information if needed</li>
+                    <li>Toggle between Sweden time and IST with the time zone switch</li>
+                    <li>Filter by priority to focus on the most critical changes</li>
+                </ol>
+                
+                <div class="extraction-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Important:</strong> AI extraction might not be perfect. Always double-check dates, times, and service names before sharing or making decisions based on this information.
                 </div>
-                <div class="step">
-                    <h3>2. AI Processing</h3>
-                    <p>Our AI model analyzes the email content to identify:</p>
-                    <ul>
-                        <li>Affected services</li>
-                        <li>Maintenance windows</li>
-                        <li>Impact assessments</li>
-                    </ul>
-                </div>
-                <div class="step">
-                    <h3>3. Time Conversion</h3>
-                    <p>Convert maintenance windows between Sweden time (CET/CEST) and IST with our built-in converter.</p>
-                </div>
-                <div class="step">
-                    <h3>4. Review & Export</h3>
-                    <p>Review the processed information, make any necessary edits, and export as HTML for sharing.</p>
-                </div>
+            </div>
+            
+            <div class="info-section">
+                <h3><i class="fas fa-cogs"></i> Key Features</h3>
+                <ul class="info-features">
+                    <li><strong>Auto-extraction</strong> of maintenance windows</li>
+                    <li><strong>Time zone conversion</strong> Sweden ↔ IST</li>
+                    <li><strong>Priority assignment</strong> for changes</li>
+                    <li><strong>Smart filters</strong> for critical work</li>
+                    <li><strong>Inline editing</strong> of all fields</li>
+                    <li><strong>Dark/Light mode</strong> for comfort</li>
+                </ul>
+            </div>
+            
+            <div class="info-section troubleshooting">
+                <h3><i class="fas fa-exclamation-triangle"></i> Common Issues</h3>
+                
+                <h4>Time Conversion</h4>
+                <ul>
+                    <li>Use 24-hour format (HH:MM) for accurate conversion</li>
+                    <li>For time ranges, format as "09:00-11:00" without spaces</li>
+                    <li>Double-check converted times match expected schedules</li>
+                </ul>
+                
+                <h4>Upload Problems</h4>
+                <ul>
+                    <li>Only .msg files are supported (from Outlook)</li>
+                    <li>Large attachments may cause processing delays</li>
+                    <li>Non-standard email formats may extract incorrectly</li>
+                </ul>
+                
+                <h4>Data Accuracy</h4>
+                <ul>
+                    <li>Always verify extracted information against original email</li>
+                    <li>Check for missing services or incorrect time windows</li>
+                    <li>Manual additions may be needed for complex notifications</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -2831,6 +3166,18 @@
             }
         }
 
+        // Close modal on Esc key press
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                if (infoModal.style.display === "block") {
+                    infoModal.style.display = "none";
+                }
+                if (modal.style.display === "block") {
+                    modal.style.display = "none";
+                }
+            }
+        });
+
         // Updated download HTML functionality
         document.getElementById('downloadHtml').addEventListener('click', function() {
             // Get all the necessary styles
@@ -3065,21 +3412,58 @@
                 uploadZone.classList.remove('drag-over');
             });
 
-            uploadZone.addEventListener('dragover', (e) => {
+            // Simple drag and drop implementation
+            uploadZone.addEventListener('dragover', function(e) {
                 e.preventDefault();
-                uploadZone.classList.add('drag-over');
+                e.stopPropagation();
+                this.classList.add('drag-over');
             });
 
-            uploadZone.addEventListener('dragleave', (e) => {
+            uploadZone.addEventListener('dragleave', function(e) {
                 e.preventDefault();
-                uploadZone.classList.remove('drag-over');
+                e.stopPropagation();
+                this.classList.remove('drag-over');
             });
 
-            uploadZone.addEventListener('drop', (e) => {
+            uploadZone.addEventListener('drop', function(e) {
                 e.preventDefault();
-                uploadZone.classList.remove('drag-over');
+                e.stopPropagation();
+                this.classList.remove('drag-over');
+                
+                // Get the dropped files
                 const files = e.dataTransfer.files;
-                handleFiles(files);
+                if (files.length > 0) {
+                    const file = files[0];
+                    
+                    // Check file type
+                    if (!file.name.toLowerCase().endsWith('.msg')) {
+                        alert('Please upload a .MSG file');
+                        return;
+                    }
+                    
+                    // Set the file to the input element
+                    // This is important for the form submission to work properly
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    
+                    // Show preview
+                    uploadPreview.style.display = 'flex';
+                    uploadPreview.querySelector('.file-name').textContent = file.name;
+                    
+                    // Simulate upload progress
+                    const progressBar = uploadPreview.querySelector('.upload-progress-bar');
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 10;
+                        progressBar.style.width = `${progress}%`;
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            // Submit the form after progress is complete
+                            document.getElementById('uploadForm').submit();
+                        }
+                    }, 100);
+                }
             });
 
             uploadZone.addEventListener('click', () => {
@@ -3087,39 +3471,30 @@
             });
 
             fileInput.addEventListener('change', (e) => {
-                handleFiles(e.target.files);
-            });
-
-            function handleFiles(files) {
-                if (files.length === 0) return;
-                
-                const file = files[0];
-                if (!file.name.toLowerCase().endsWith('.msg')) {
-                    showError('Please upload a .MSG file');
-                    return;
-                }
-
-                // Show preview
-                uploadPreview.style.display = 'flex';
-                uploadPreview.querySelector('.file-name').textContent = file.name;
-
-                // Simulate upload progress
-                const progressBar = uploadPreview.querySelector('.upload-progress-bar');
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 10;
-                    progressBar.style.width = `${progress}%`;
-                    if (progress >= 100) {
-                        clearInterval(interval);
-                        document.getElementById('uploadForm').submit();
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    if (!file.name.toLowerCase().endsWith('.msg')) {
+                        alert('Please upload a .MSG file');
+                        return;
                     }
-                }, 100);
-            }
 
-            function showError(message) {
-                // You can enhance this to show a more modern error toast
-                alert(message);
-            }
+                    // Show preview
+                    uploadPreview.style.display = 'flex';
+                    uploadPreview.querySelector('.file-name').textContent = file.name;
+
+                    // Simulate upload progress
+                    const progressBar = uploadPreview.querySelector('.upload-progress-bar');
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 10;
+                        progressBar.style.width = `${progress}%`;
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            document.getElementById('uploadForm').submit();
+                        }
+                    }, 100);
+                }
+            });
         });
 
         // Add this to your existing JavaScript
