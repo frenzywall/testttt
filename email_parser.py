@@ -945,7 +945,7 @@ def parse_email_content(email_data):
                     'end_time': "-",
                     'end_date': base_date.strftime("%Y-%m-%d"),
                     'impact': 'NOT_IMPACTED',
-                    'comments': "No Impact/No Maintenance."
+                    'comments': "No Impact/Couldn't be determined."
                 }
             
             services_data.append(service_data)

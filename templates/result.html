@@ -30,13 +30,12 @@
             min-height: 100vh;
         }
 
-      /* Enhanced Navigation with Glassmorphism */
       .nav-header {
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--glass-border);
-    padding: 0.25rem 0.5rem; /* Further reduced padding to accommodate larger logo */
+    padding: 0.25rem 0.5rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -55,7 +54,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0; /* Removed horizontal padding */
+    padding: 0;
 }
 
 .nav-logo {
@@ -71,27 +70,27 @@
 }
 
 .nav-logo img {
-    height: 65px; /* Increased fixed height */
-    width: auto; /* Maintain aspect ratio */
+    height: 65px;
+    width: auto;
     object-fit: contain;
     margin-left: 0;
-    max-height: 100%; /* Allow it to fill available space */
+    max-height: 100%;
 }
 .nav-links {
     display: flex;
-    gap: 0.5rem; /* Reduced from 1rem */
+    gap: 0.5rem;
 }
 
 .nav-link {
     color: var(--secondary-color);
     text-decoration: none;
     font-weight: 500;
-    padding: 0.3rem 0.8rem; /* Reduced from 0.5rem 1rem */
+    padding: 0.3rem 0.8rem;
     border-radius: 0.8rem;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 0.3rem; /* Reduced from 0.5rem */
+    gap: 0.3rem;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
 }
@@ -104,31 +103,9 @@
 }
 
 .nav-link i {
-    font-size: 1rem; /* Reduced from 1.2rem */
+    font-size: 1rem;
 }
 
-        /* Remove floating animation to logo */
-        /* @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
-        }
-
-        .nav-logo {
-            animation: float 3s ease-in-out infinite;
-        } */
-
-        /* Add subtle hover effect to container */
-        /*.container {
-            transition: transform 0.3s ease;
-        }
-
-        .container:hover {
-            transform: translateY(-5px);
-        } */
-
-
-        /* Modern Container */
         .container {
             max-width: 1200px;
             margin: 2rem auto;
@@ -138,7 +115,6 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
-        /* Modern Buttons */
         .btn {
             padding: 0.75rem 1.5rem;
             border-radius: 0.5rem;
@@ -152,7 +128,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.15);
         }
 
-        /* Modern Table */
         table {
             border-radius: 1rem;
             overflow: hidden;
@@ -161,18 +136,17 @@
 
         th {
             background: var(--primary-color);
-            color: white !important; /* Force black color */
+            color: white !important;
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.875rem;
-            position: relative; /* For policy icon positioning */
+            position: relative;
         }
 
         tr:nth-child(even) {
             background-color: #f8fafc;
         }
 
-        /* Info Modal */
         .info-modal {
             display: none;
             position: fixed;
@@ -307,7 +281,6 @@
             border-radius: 4px;
             margin: 10px 0;
         }
-        /* Add toggle switch styles */
         .tz-toggle {
             margin: 20px 0;
             padding: 20px;
@@ -403,7 +376,6 @@
             color: #f59e0b;
         }
 
-        /* New styles for the marquee and disclaimer */
         .disclaimer-marquee {
             background: #fff3cd;
             color: #856404;
@@ -425,7 +397,6 @@
             100% { transform: translateX(-100%); }
         }
 
-        /* Enhanced modal styles */
         .modal-content {
             background: linear-gradient(to bottom, #ffffff, #f8f9fa);
             border-radius: 12px;
@@ -462,7 +433,6 @@
             background: white;
             padding: 25px;
             border-radius: 8px;
-            border: 1px solid #dee2e6;
             font-family: 'Segoe UI', system-ui, sans-serif;
             line-height: 1.6;
             white-space: pre-wrap;
@@ -492,7 +462,6 @@
             transform: translateY(-1px);
         }
 
-        /* Enhanced time conversion warning */
         .time-conversion-warning {
             background: #f8d7da;
             color: #721c24;
@@ -503,7 +472,6 @@
             display: none;
         }
 
-        /* Add styles for the downloaded HTML */
         .download-container {
             padding: 2rem;
             max-width: 1200px;
@@ -552,7 +520,6 @@
             }
         }
 
-        /* Modern Table - Enhanced styling */
         table {
             border-radius: 1rem;
             overflow: hidden;
@@ -617,7 +584,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
-        /* Row animation */
         @keyframes highlight {
             0% { background-color: var(--highlight-color-start); }
             100% { background-color: var(--highlight-color-end); }
@@ -627,7 +593,6 @@
             animation: highlight 1.5s ease;
         }
 
-        /* Action buttons styling */
         .action-cell {
             display: flex;
             gap: 8px;
@@ -635,7 +600,7 @@
         }
 
         .table-btn {
-            padding: 8px;  /* Reduced padding for icon-only buttons */
+            padding: 8px;
             min-width: 32px;
             justify-content: center;
             border: none;
@@ -683,7 +648,6 @@
             box-shadow: 0 4px 8px rgba(220, 38, 38, 0.25);
         }
 
-        /* Confirmation dialog */
         .confirm-dialog {
             position: fixed;
             top: 0;
@@ -755,7 +719,6 @@
             margin-bottom: 20px;
         }
 
-        /* Status pill for row status */
         .status-pill {
             display: inline-flex;
             padding: 4px 12px;
@@ -776,7 +739,6 @@
             color: #7c2d12;
         }
         
-        /* Table sorting indicators */
         th.sortable {
             cursor: pointer;
             user-select: none;
@@ -799,7 +761,6 @@
             opacity: 1;
         }
 
-        /* Styles for impact priority */
         .impact-cell {
             text-align: center;
         }
@@ -813,33 +774,32 @@
         }
 
         .impact-low {
-            background-color: #4ade80; /* Green */
+            background-color: #4ade80;
         }
 
         .impact-medium {
-            background-color: #facc15; /* Yellow */
+            background-color: #facc15;
         }
 
         .impact-high {
-            background-color: #f43f5e; /* Red */
+            background-color: #f43f5e;
         }
 
         @keyframes pulse {
             0% {
-                transform: scale(0.8);
-                box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1);
+            transform: scale(0.8);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1);
             }
             70% {
-                transform: scale(1.1);
-                box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
             }
             100% {
-                transform: scale(0.8);
-                box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+            transform: scale(0.8);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
             }
         }
 
-        /* Improved styles for impact priority */
         .impact-cell {
             text-align: center;
         }
@@ -925,7 +885,6 @@
             filter: brightness(1.1);
         }
 
-        /* Improved styles for impact priority - collapsed version */
         .impact-cell {
             text-align: center;
         }
@@ -935,7 +894,7 @@
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.5s ease; /* Slowed down from 0.3s to 0.5s */
+            transition: all 0.5s ease;
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
@@ -946,7 +905,7 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.8rem;
-            transition: all 0.4s ease; /* Slowed down from 0.2s to 0.4s */
+            transition: all 0.4s ease;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -954,7 +913,6 @@
             white-space: nowrap;
         }
 
-        /* Hide non-selected options by default with slower transition */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             width: 0;
             padding: 0;
@@ -962,20 +920,18 @@
             overflow: hidden;
             position: absolute;
             pointer-events: none;
-            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease; /* Added explicit transition properties */
+            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease;
         }
 
-        /* Ensure selected option is always visible */
         .impact-option.selected {
             position: relative;
             opacity: 1;
             width: auto;
         }
 
-        /* Show all options on hover with a delay */
         .impact-selector:hover {
-            min-width: 240px; /* Adjust based on your content */
-            transition-delay: 0.15s; /* Added delay before expanding */
+            min-width: 240px;
+            transition-delay: 0.15s;
         }
 
         .impact-selector:hover .impact-option {
@@ -984,17 +940,15 @@
             opacity: 1;
             position: relative;
             pointer-events: auto;
-            transition-delay: 0.15s; /* Added delay for each option to appear */
+            transition-delay: 0.15s;
         }
 
-        /* Custom pulse animation specifically for the impact selector */
         @keyframes impactPulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
 
-        /* Add subtle hover indicator */
         .impact-selector::after {
             content: '\f0d7';
             font-family: 'Font Awesome 5 Free';
@@ -1012,13 +966,12 @@
             opacity: 0;
         }
 
-        /* Improved styles for impact priority - collapsed version */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.5s ease; /* Slowed down from 0.3s to 0.5s */
+            transition: all 0.5s ease;
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
@@ -1029,7 +982,7 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.8rem;
-            transition: all 0.4s ease; /* Slowed down from 0.2s to 0.4s */
+            transition: all 0.4s ease;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -1037,7 +990,6 @@
             white-space: nowrap;
         }
 
-        /* Hide non-selected options by default with slower transition */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             width: 0;
             padding: 0;
@@ -1045,20 +997,18 @@
             overflow: hidden;
             position: absolute;
             pointer-events: none;
-            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease; /* Added explicit transition properties */
+            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease;
         }
 
-        /* Ensure selected option is always visible */
         .impact-option.selected {
             position: relative;
             opacity: 1;
             width: auto;
         }
 
-        /* Show all options on hover with a delay */
         .impact-selector:hover {
-            min-width: 240px; /* Adjust based on your content */
-            transition-delay: 0.15s; /* Added delay before expanding */
+            min-width: 240px;
+            transition-delay: 0.15s;
         }
 
         .impact-selector:hover .impact-option {
@@ -1067,17 +1017,15 @@
             opacity: 1;
             position: relative;
             pointer-events: auto;
-            transition-delay: 0.15s; /* Added delay for each option to appear */
+            transition-delay: 0.15s;
         }
 
-        /* Custom pulse animation specifically for the impact selector */
         @keyframes impactPulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
 
-        /* Add subtle hover indicator */
         .impact-selector::after {
             content: '\f0d7';
             font-family: 'Font Awesome 5 Free';
@@ -1095,7 +1043,6 @@
             opacity: 0;
         }
 
-        /* Improved styles for impact priority - collapsed version */
         .impact-cell {
             text-align: center;
         }
@@ -1105,7 +1052,7 @@
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.5s ease; /* Slowed down from 0.3s to 0.5s */
+            transition: all 0.5s ease;
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
@@ -1116,7 +1063,7 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.8rem;
-            transition: all 0.4s ease; /* Slowed down from 0.2s to 0.4s */
+            transition: all 0.4s ease;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -1124,7 +1071,6 @@
             white-space: nowrap;
         }
 
-        /* Hide non-selected options by default with slower transition */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             width: 0;
             padding: 0;
@@ -1132,20 +1078,18 @@
             overflow: hidden;
             position: absolute;
             pointer-events: none;
-            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease; /* Added explicit transition properties */
+            transition: opacity 0.5s ease, width 0.5s ease, padding 0.5s ease;
         }
 
-        /* Ensure selected option is always visible */
         .impact-option.selected {
             position: relative;
             opacity: 1;
             width: auto;
         }
 
-        /* Show all options on hover with a delay */
         .impact-selector:hover {
-            min-width: 240px; /* Adjust based on your content */
-            transition-delay: 0.15s; /* Added delay before expanding */
+            min-width: 240px;
+            transition-delay: 0.15s;
         }
 
         .impact-selector:hover .impact-option {
@@ -1154,17 +1098,15 @@
             opacity: 1;
             position: relative;
             pointer-events: auto;
-            transition-delay: 0.15s; /* Added delay for each option to appear */
+            transition-delay: 0.15s;
         }
 
-        /* Custom pulse animation specifically for the impact selector */
         @keyframes impactPulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
 
-        /* Add subtle hover indicator */
         .impact-selector::after {
             content: '\f0d7';
             font-family: 'Font Awesome 5 Free';
@@ -1182,7 +1124,6 @@
             opacity: 0;
         }
 
-        /* Improved styles for impact priority - collapsed version */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
@@ -1192,9 +1133,9 @@
             background: #f8f9fa;
             min-width: 100px;
             transition: 
-                min-width 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.3s ease,
-                background-color 0.3s ease;
+            min-width 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.3s ease,
+            background-color 0.3s ease;
             will-change: min-width;
         }
 
@@ -1209,20 +1150,18 @@
             position: relative;
             white-space: nowrap;
             transition: 
-                width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                padding 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+            padding 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform, opacity, width;
         }
 
-        /* Initial hover state - subtle expansion */
         .impact-selector:hover {
             min-width: 110px;
             transition-delay: 0s;
         }
 
-        /* Full expansion after delay */
         .impact-selector:hover:active,
         .impact-selector:hover:focus,
         .impact-selector:hover:focus-within,
@@ -1231,7 +1170,6 @@
             transition-delay: 0.5s;
         }
 
-        /* Hide non-selected options by default */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             width: 0;
             padding: 0;
@@ -1242,7 +1180,6 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Show options with delay */
         .impact-selector:hover .impact-option {
             width: auto;
             padding: 8px 16px;
@@ -1254,7 +1191,6 @@
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Fade in options one by one after delay */
         .impact-selector:hover .impact-option:nth-child(1) { 
             opacity: 1; 
             pointer-events: auto;
@@ -1271,16 +1207,14 @@
             transition-delay: 0.8s;
         }
 
-        /* Smoother collapse animation */
         .impact-selector:not(:hover) .impact-option {
             transition: 
-                width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+            padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Always show selected option */
         .impact-option.selected {
             position: relative;
             opacity: 1;
@@ -1289,20 +1223,18 @@
             transition: none;
         }
 
-        /* Prevent jitter during scroll */
         .impact-cell {
             perspective: 1000px;
             transform-style: preserve-3d;
             backface-visibility: hidden;
         }
 
-        /* Update arrow indicator animation */
         .impact-selector::after {
             opacity: 0.5;
             transform: translateY(-50%) rotate(0deg);
             transition: 
-                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .impact-selector:hover::after {
@@ -1311,7 +1243,6 @@
             transition-delay: 0.3s;
         }
 
-        /* Improved styles for impact priority - collapsed version */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
@@ -1320,15 +1251,14 @@
             position: relative;
             background: #f8f9fa;
             min-width: 100px;
-            max-width: 100px; /* Added to prevent immediate expansion */
+            max-width: 100px;
             transition: max-width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: max-width;
         }
 
-        /* Container for options to prevent layout shift */
         .impact-selector-inner {
             display: inline-flex;
-            min-width: 240px; /* Fixed width to prevent layout shift */
+            min-width: 240px;
             position: relative;
             left: 0;
             transition: left 0.3s ease;
@@ -1348,12 +1278,10 @@
             transition: opacity 0.3s ease;
         }
 
-        /* Show only selected option by default */
         .impact-option.selected {
             opacity: 1;
         }
 
-        /* Expand on hover */
         .impact-selector:hover {
             max-width: 240px;
         }
@@ -1362,7 +1290,6 @@
             opacity: 1;
         }
 
-        /* Keep selected option visible */
         .impact-selector:not(:hover) .impact-selector-inner {
             left: 0;
         }
@@ -1372,7 +1299,91 @@
             pointer-events: none;
         }
 
-        /* Filter controls */
+        .impact-selector {
+            display: inline-flex;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            background: #f8f9fa;
+            min-width: 100px;
+            max-width: 100px;
+            transition: max-width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: max-width;
+            transition-delay: 0.5s;
+        }
+
+        .impact-selector-inner {
+            display: inline-flex;
+            min-width: 240px;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .impact-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            flex-shrink: 0;
+            width: 80px;
+        }
+
+        .impact-selector:hover {
+            max-width: 240px;
+        }
+
+        .impact-selector:hover .impact-option {
+            opacity: 1;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(1) {
+            transition-delay: 0.1s;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(2) {
+            transition-delay: 0.2s;
+        }
+
+        .impact-selector:hover .impact-option:nth-child(3) {
+            transition-delay: 0.3s;
+        }
+
+        .impact-option.selected {
+            opacity: 1;
+        }
+
+        .impact-selector::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .impact-selector:hover::after {
+            opacity: 0;
+            transform: translateY(-50%) rotate(180deg);
+            transition-delay: 0.2s;
+        }
+
+        .impact-selector:not(:hover) .impact-option:not(.selected) {
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .filter-controls {
             display: flex;
             gap: 10px;
@@ -1423,7 +1434,6 @@
             background-color: #f43f5e;
         }
 
-        /* Enhanced priority badge for downloaded HTML */
         .priority-badge {
             display: inline-flex;
             align-items: center;
@@ -1449,7 +1459,6 @@
             color: #9f1239;
         }
 
-        /* Fixed impact selector styles */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
@@ -1484,13 +1493,11 @@
             width: 80px;
         }
 
-        /* Keep all options visible but collapsed */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             opacity: 0;
             pointer-events: none;
         }
 
-        /* Show all options on hover */
         .impact-selector:hover {
             max-width: 240px;
         }
@@ -1500,7 +1507,6 @@
             pointer-events: auto;
         }
 
-        /* Fixed impact selector styles with smoother animations */
         .impact-selector {
             display: inline-flex;
             border-radius: 20px;
@@ -1512,7 +1518,7 @@
             max-width: 100px;
             transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: max-width;
-            transition-delay: 0.5s; /* Added delay here */
+            transition-delay: 0.5s;
         }
 
         .impact-selector-inner {
@@ -1537,7 +1543,6 @@
             width: 80px;
         }
 
-        /* Show all options on hover with sequential timing */
         .impact-selector:hover {
             max-width: 240px;
         }
@@ -1558,12 +1563,10 @@
             transition-delay: 0.3s;
         }
 
-        /* Always show selected option */
         .impact-option.selected {
             opacity: 1;
         }
 
-        /* Arrow indicator with smoother animation */
         .impact-selector::after {
             content: '\f0d7';
             font-family: 'Font Awesome 5 Free';
@@ -1583,16 +1586,14 @@
             transition-delay: 0.2s;
         }
 
-        /* Remove any overlapping old styles */
         .impact-selector:not(:hover) .impact-option:not(.selected) {
             opacity: 0;
             pointer-events: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Add logo styling */
         .nav-logo img {
-            height: 65px; /* Increased from 30px */
+            height: 65px;
             width: auto;
             margin-right: 12px;
         }
@@ -1605,10 +1606,9 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 0; /* Added padding to accommodate larger logo */
+            padding: 0.5rem 0;
         }
 
-        /* Add styles for multi-line column headers */
         .time-column {
             text-align: center;
             line-height: 1.2;
@@ -1622,7 +1622,6 @@
             text-transform: none;
         }
 
-        /* Add styles for editable header */
         .header-edit-group {
             display: flex;
             align-items: center;
@@ -1681,7 +1680,6 @@
             cursor: pointer;
         }
 
-        /* Loading indicator styles */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -1709,7 +1707,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Error message styles */
         .error-toast {
             position: fixed;
             top: 20px;
@@ -1723,7 +1720,6 @@
             display: none;
         }
 
-        /* Modern File Upload Styles */
         .upload-zone {
             position: relative;
             padding: 2rem;
@@ -1821,7 +1817,6 @@
             position: relative;
         }
 
-        /* Modern Upload Modal Styles */
         .upload-modal {
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
@@ -1855,7 +1850,6 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        /* Enhanced Upload Button */
         #uploadBtn {
             background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
             border: none;
@@ -1879,10 +1873,10 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent
             );
             transition: 0.5s;
         }
@@ -1941,10 +1935,9 @@
         .upload-progress-bar {
             background: linear-gradient(90deg, var(--primary-color), #1d4ed8);
         }
-    </style>
-    <style>
-    :root {
-        /* Light mode variables - restored to original */
+        </style>
+        <style>
+        :root {
         --primary-color: #2563eb;
         --secondary-color: #475569;
         --success-color: #16a34a;
@@ -1959,9 +1952,9 @@
         --glass-card-border: rgba(0, 0, 0, 0.1);
         --highlight-color-start: rgba(37, 99, 235, 0.15);
         --highlight-color-end: transparent;
-    }
+        }
 
-    [data-theme="dark"] {
+        [data-theme="dark"] {
         --primary-color: #3b82f6;
         --secondary-color: #94a3b8;
         --background-color: #1a1f2e;
@@ -1973,16 +1966,15 @@
         --glass-card-border: rgba(255, 255, 255, 0.1);
         --highlight-color-start: rgba(59, 130, 246, 0.2);
         --highlight-color-end: transparent;
-    }
+        }
 
-    body {
+        body {
         background: var(--background-color);
         color: var(--text-color);
         transition: all 0.3s ease;
-    }
+        }
 
-    /* Add theme toggle button styles */
-    .theme-toggle {
+        .theme-toggle {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         backdrop-filter: blur(12px);
@@ -1995,38 +1987,36 @@
         align-items: center;
         justify-content: center;
         transition: all 0.3s ease;
-    }
+        }
 
-    .theme-toggle:hover {
+        .theme-toggle:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+        }
 
-    /* Update container styles to handle both modes */
-    .container {
+        .container {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         transition: all 0.3s ease;
-    }
+        }
 
-    [data-theme="dark"] .container {
+        [data-theme="dark"] .container {
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-    }
+        }
 
-    /* Update table styles to handle both modes */
-    table {
+        table {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         transition: all 0.3s ease;
-    }
+        }
 
-    [data-theme="dark"] table {
+        [data-theme="dark"] table {
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-    }
+        }
 
-    th {
+        th {
         background: var(--primary-color);
         color: white !important;
         font-weight: 600;
@@ -2034,206 +2024,195 @@
         font-size: 0.875rem;
         letter-spacing: 0.5px;
         position: relative;
-    }
+        }
 
-    [data-theme="dark"] th {
+        [data-theme="dark"] th {
         background: var(--glass-bg);
-    }
+        }
 
-    td {
+        td {
         color: var(--text-color);
         border-bottom: 1px solid var(--glass-border);
-    }
+        }
 
-    tr:nth-child(even) {
+        tr:nth-child(even) {
         background: rgba(255, 255, 255, 0.02);
-    }
+        }
 
-    [data-theme="dark"] tr:nth-child(even) {
+        [data-theme="dark"] tr:nth-child(even) {
         background: rgba(255, 255, 255, 0.02);
-    }
+        }
 
-    tr:hover {
+        tr:hover {
         background: rgba(255, 255, 255, 0.05);
-    }
+        }
 
-    [data-theme="dark"] tr:hover {
+        [data-theme="dark"] tr:hover {
         background: rgba(255, 255, 255, 0.05);
-    }
+        }
 
-    /* Update modal styles */
-    .modal-content {
+        .modal-content {
         background: var(--glass-card);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid var(--glass-card-border);
         color: var(--text-color);
-    }
+        }
 
-    /* Restore light mode button styles */
-    .btn {
+        .btn {
         background: var(--glass-card);
         color: var(--text-color);
         border: 1px solid var(--glass-card-border);
         transition: all 0.3s ease;
-    }
+        }
 
-    [data-theme="dark"] .btn {
+        [data-theme="dark"] .btn {
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-    }
+        }
 
-    /* Keep original light mode colors for specific elements */
-    tr:nth-child(even) {
+        tr:nth-child(even) {
         background-color: #f8fafc;
-    }
+        }
 
-    [data-theme="dark"] tr:nth-child(even) {
+        [data-theme="dark"] tr:nth-child(even) {
         background: rgba(255, 255, 255, 0.02);
-    }
+        }
 
-    tr:hover {
+        tr:hover {
         background-color: #f0f7ff;
-    }
+        }
 
-    [data-theme="dark"] tr:hover {
+        [data-theme="dark"] tr:hover {
         background: rgba(255, 255, 255, 0.05);
-    }
+        }
 
-    /* Update nav header styles - revert to original width */
-    .nav-header {
+        .nav-header {
         margin: 0 1rem;
         border-radius: 0 0 1rem 1rem;
         padding: 0.25rem 0.5rem;
         width: auto;
         box-sizing: border-box;
-    }
+        }
 
-    .nav-container {
+        .nav-container {
         max-width: 1200px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 0;
-    }
+        }
 
-    /* Update timezone toggle styles for dark mode */
-    .tz-toggle {
+        .tz-toggle {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         color: var(--text-color);
-    }
+        }
 
-    [data-theme="dark"] .tz-toggle {
+        [data-theme="dark"] .tz-toggle {
         color: #fff;
-    }
+        }
 
-    [data-theme="dark"] .tz-toggle-label {
+        [data-theme="dark"] .tz-toggle-label {
         color: #fff;
-    }
+        }
 
-    /* Update nav header styles */
-    .nav-header {
+        .nav-header {
         margin: 0;
         border-radius: 0 0 1rem 1rem;
         padding: 0.25rem 1rem;
         width: 100%;
         box-sizing: border-box;
-    }
+        }
 
-    .nav-container {
+        .nav-container {
         max-width: 1200px;
         width: 100%;
         margin: 0 auto;
         padding: 0 1rem;
         box-sizing: border-box;
-    }
+        }
 
-    /* Update timezone toggle styles */
-    .tz-toggle {
+        .tz-toggle {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         color: var(--text-color);
-    }
+        }
 
-    /* Update filter controls */
-    .filter-btn {
+        .filter-btn {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
         color: var(--text-color);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-    }
+        }
 
-    .filter-btn:hover {
+        .filter-btn:hover {
         background: rgba(255, 255, 255, 0.05);
-    }
+        }
 
-    [data-theme="dark"] .filter-btn.active {
+        [data-theme="dark"] .filter-btn.active {
         background: var(--primary-color);
         border-color: transparent;
-    }
+        }
 
-    /* Update impact selector for dark mode */
-    [data-theme="dark"] .impact-selector {
+        [data-theme="dark"] .impact-selector {
         background: var(--glass-card);
         border: 1px solid var(--glass-card-border);
-    }
+        }
 
-    [data-theme="dark"] .impact-selector:hover {
+        [data-theme="dark"] .impact-selector:hover {
         background: var(--glass-card);
-    }
+        }
 
-    [data-theme="dark"] .impact-option:not(.selected) {
+        [data-theme="dark"] .impact-option:not(.selected) {
         color: var(--text-color);
-    }
+        }
 
-    [data-theme="dark"] .impact-option:hover:not(.selected) {
+        [data-theme="dark"] .impact-option:hover:not(.selected) {
         background: rgba(255, 255, 255, 0.05);
-    }
+        }
 
-    /* Container width consistency */
-    .container,
-    .nav-container,
-    .tz-toggle,
-    .filter-controls {
+        .container,
+        .nav-container,
+        .tz-toggle,
+        .filter-controls {
         max-width: 1200px;
         width: 100%;
         box-sizing: border-box;
         margin-left: auto;
         margin-right: auto;
-    }
+        }
 
-    /* Update editable cell styling for dark mode */
-    [data-theme="dark"] td.editable {
+        [data-theme="dark"] td.editable {
         background-color: rgba(255, 243, 205, 0.1);
         color: #fff;
         border-bottom: 2px dashed var(--warning-color);
-    }
+        }
 
-    [data-theme="dark"] td.editable:focus {
+        [data-theme="dark"] td.editable:focus {
         background-color: rgba(255, 243, 205, 0.15);
         color: #fff;
         outline: none;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    }
-    /* Enhanced Info Modal Styles */
-    .info-modal {
+        }
+        .info-modal {
         display: none;
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0,0,0,0.8); /* Increased opaqueness */
+        background-color: rgba(0,0,0,0.8);
         z-index: 1000;
         overflow-y: auto;
-    }
+        }
+
 
     .info-content {
         background: var(--surface-color);
@@ -2345,7 +2324,6 @@
         border-radius: 0 0.5rem 0.5rem 0;
     }
     
-    /* Responsive adjustments for mobile */
     @media (max-width: 768px) {
         .info-content {
             margin: 1rem;
@@ -2360,7 +2338,6 @@
     </style>
 </head>
 <body>
-    <!-- Enhanced Navigation Header -->
     <header class="nav-header">
         <nav class="nav-container">
             <a href="https://internal.ericsson.com/" class="nav-logo">
@@ -2391,12 +2368,10 @@
         </nav>
     </header>
 
-    <!-- Update the form action -->
     <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" style="display: none;">
         <input type="file" name="file" id="fileInput" accept=".msg">
     </form>
 
-    <!-- How It Works Modal -->
     <div id="infoModal" class="info-modal">
         <div class="info-content">
             <span class="close">&times;</span>
@@ -2487,7 +2462,6 @@
             </div>
         </div>
 
-        <!-- Update the timezone toggle HTML structure -->
         <div class="tz-toggle">
             <div class="tz-toggle-label">
                 <i class="fas fa-globe"></i>
@@ -2503,154 +2477,153 @@
             </div>
         </div>
 
-        <!-- Add filter controls -->
         <div class="filter-controls">
             <button class="filter-btn" data-filter="all">
-                <i class="fas fa-filter"></i> All
+            <i class="fas fa-filter"></i> All
             </button>
             <button class="filter-btn" data-filter="high">
-                <span class="filter-indicator filter-high"></span> High Priority
+            <span class="filter-indicator filter-high"></span> High Priority
             </button>
             <button class="filter-btn" data-filter="medium">
-                <span class="filter-indicator filter-medium"></span> Medium Priority
+            <span class="filter-indicator filter-medium"></span> Medium Priority
             </button>
             <button class="filter-btn" data-filter="low">
-                <span class="filter-indicator filter-low"></span> Low Priority
+            <span class="filter-indicator filter-low"></span> Low Priority
             </button>
         </div>
 
         <table id="changeTable">
             <thead>
-                <tr>
-                    <th class="sortable">Affected Service/Servers</th>
-                    <th class="sortable">Date</th>
-                    <th class="sortable time-column">
-                        Start Time
-                        <span class="time-zone">(Sweden)</span>
-                    </th>
-                    <th class="sortable time-column">
-                        End Time
-                        <span class="time-zone">(Sweden)</span>
-                    </th>
-                    <th class="sortable">End Date</th>
-                    <th class="sortable">Comments</th>
-                    <th class="sortable">Impact Priority</th>
-                    <th>Actions</th>
-                </tr>
+            <tr>
+                <th class="sortable">Affected Service/Servers</th>
+                <th class="sortable">Date</th>
+                <th class="sortable time-column">
+                Start Time
+                <span class="time-zone">(Sweden)</span>
+                </th>
+                <th class="sortable time-column">
+                End Time
+                <span class="time-zone">(Sweden)</span>
+                </th>
+                <th class="sortable">End Date</th>
+                <th class="sortable">Comments</th>
+                <th class="sortable">Impact Priority</th>
+                <th>Actions</th>
+            </tr>
             </thead>
             <tbody>
-                {% for service in data.services %}
-                <tr data-priority="low">
-                    <td>{{ service.name }}</td>
-                    <td>{{ data.date }}</td>
-                    <td>{{ service.start_time }}</td>
-                    <td>{{ service.end_time }}</td>
-                    <td>{{ service.end_date }}</td>
-                    <td>{{ service.comments }}</td>
-                    <td class="impact-cell">
-                        <div class="impact-selector" data-value="low">
-                            <div class="impact-selector-inner">
-                                <div class="impact-option impact-option-low selected" data-value="low">
-                                    <span class="impact-dot"></span> Low
-                                </div>
-                                <div class="impact-option impact-option-medium" data-value="medium">
-                                    <span class="impact-dot"></span> Medium
-                                </div>
-                                <div class="impact-option impact-option-high" data-value="high">
-                                    <span class="impact-dot"></span> High
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="action-cell">
-                        <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
-                        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                {% endfor %}
+            {% for service in data.services %}
+            <tr data-priority="low">
+                <td>{{ service.name }}</td>
+                <td>{{ data.date }}</td>
+                <td>{{ service.start_time }}</td>
+                <td>{{ service.end_time }}</td>
+                <td>{{ service.end_date }}</td>
+                <td>{{ service.comments }}</td>
+                <td class="impact-cell">
+                <div class="impact-selector" data-value="low">
+                    <div class="impact-selector-inner">
+                    <div class="impact-option impact-option-low selected" data-value="low">
+                        <span class="impact-dot"></span> Low
+                    </div>
+                    <div class="impact-option impact-option-medium" data-value="medium">
+                        <span class="impact-dot"></span> Medium
+                    </div>
+                    <div class="impact-option impact-option-high" data-value="high">
+                        <span class="impact-dot"></span> High
+                    </div>
+                    </div>
+                </div>
+                </td>
+                <td class="action-cell">
+                <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+                <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+                <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
-    </div>
+        </div>
 
-    <!-- Confirmation Dialog for Delete -->
-    <div class="confirm-dialog" id="deleteConfirmDialog">
+        
+        <div class="confirm-dialog" id="deleteConfirmDialog">
         <div class="confirm-content">
             <h3 class="confirm-title">Confirm Deletion</h3>
             <p class="confirm-message">Are you sure you want to delete this row? This action cannot be undone.</p>
             <div class="confirm-actions">
-                <button class="btn secondary-btn" id="cancelDelete">Cancel</button>
-                <button class="btn danger-btn" id="confirmDelete">Delete</button>
+            <button class="btn secondary-btn" id="cancelDelete">Cancel</button>
+            <button class="btn danger-btn" id="confirmDelete">Delete</button>
             </div>
         </div>
-    </div>
+        </div>
 
-    <!-- Enhanced Email Modal -->
-    <div id="emailModal" class="modal">
+        
+        <div id="emailModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
             
             <div class="modal-toolbar">
-                <button class="tool-btn primary-btn" id="copyEmail">
-                    <i class="fas fa-copy"></i> Copy All
-                </button>
-                <button class="tool-btn secondary-btn" id="downloadText">
-                    <i class="fas fa-file-download"></i> Download as Text
-                </button>
-                <button class="tool-btn" id="toggleWordWrap">
-                    <i class="fas fa-align-left"></i> Toggle Word Wrap
-                </button>
-                <button class="tool-btn" id="increaseFontSize">
-                    <i class="fas fa-search-plus"></i>
-                </button>
-                <button class="tool-btn" id="decreaseFontSize">
-                    <i class="fas fa-search-minus"></i>
-                </button>
+            <button class="tool-btn primary-btn" id="copyEmail">
+                <i class="fas fa-copy"></i> Copy All
+            </button>
+            <button class="tool-btn secondary-btn" id="downloadText">
+                <i class="fas fa-file-download"></i> Download as Text
+            </button>
+            <button class="tool-btn" id="toggleWordWrap">
+                <i class="fas fa-align-left"></i> Toggle Word Wrap
+            </button>
+            <button class="tool-btn" id="increaseFontSize">
+                <i class="fas fa-search-plus"></i>
+            </button>
+            <button class="tool-btn" id="decreaseFontSize">
+                <i class="fas fa-search-minus"></i>
+            </button>
             </div>
 
             <div class="email-viewer">
-                <div class="email-header">
-                    <div class="email-meta">
-                        <span class="meta-label">Subject:</span>
-                        <span>{{ data.original_subject }}</span>
-                        <span class="meta-label">Date:</span>
-                        <span>{{ data.date }}</span>
-                    </div>
+            <div class="email-header">
+                <div class="email-meta">
+                <span class="meta-label">Subject:</span>
+                <span>{{ data.original_subject }}</span>
+                <span class="meta-label">Date:</span>
+                <span>{{ data.date }}</span>
                 </div>
-                <div class="email-body" id="emailBody">{{ data.original_body }}</div>
+            </div>
+            <div class="email-body" id="emailBody">{{ data.original_body }}</div>
             </div>
         </div>
-    </div>
+        </div>
 
-    <div class="upload-modal" id="uploadModal">
+        <div class="upload-modal" id="uploadModal">
         <div class="upload-modal-content">
             <div class="upload-zone" id="uploadZone">
-                <i class="fas fa-file-upload"></i>
-                <div class="upload-text">
-                    Drag and drop your .msg file here<br>
-                    or <strong>click to browse</strong>
+            <i class="fas fa-file-upload"></i>
+            <div class="upload-text">
+                Drag and drop your .msg file here<br>
+                or <strong>click to browse</strong>
+            </div>
+            <div class="upload-preview" id="uploadPreview">
+                <i class="fas fa-file-alt"></i>
+                <div>
+                <div class="file-name"></div>
+                <div class="upload-progress">
+                    <div class="upload-progress-bar"></div>
                 </div>
-                <div class="upload-preview" id="uploadPreview">
-                    <i class="fas fa-file-alt"></i>
-                    <div>
-                        <div class="file-name"></div>
-                        <div class="upload-progress">
-                            <div class="upload-progress-bar"></div>
-                        </div>
-                    </div>
                 </div>
             </div>
+            </div>
             <button class="btn secondary-btn" id="cancelUpload" style="margin-top: 1rem;">
-                Cancel
+            Cancel
             </button>
         </div>
-    </div>
+        </div>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <!-- Add Luxon library for timezone conversion -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
-    <script>
-        // Modal handling
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
+        <script>
+        
         const modal = document.getElementById('emailModal');
         const viewOriginalBtn = document.getElementById('viewOriginal');
         const closeBtn = document.getElementsByClassName('close')[0];
@@ -2667,207 +2640,190 @@
 
         window.onclick = function(event) {
             if (event.target == modal) {
-                modal.style.display = "none";
+            modal.style.display = "none";
             }
             if (event.target == confirmDialog) {
-                confirmDialog.classList.remove('active');
+            confirmDialog.classList.remove('active');
             }
         }
 
-        // Table sorting functionality
+        
         document.querySelectorAll('th.sortable').forEach(header => {
             header.addEventListener('click', function() {
-                const table = this.closest('table');
-                const index = Array.from(this.parentNode.children).indexOf(this);
-                const isAsc = this.classList.contains('sorted-asc');
+            const table = this.closest('table');
+            const index = Array.from(this.parentNode.children).indexOf(this);
+            const isAsc = this.classList.contains('sorted-asc');
+            
+            
+            table.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+            });
+            
+            
+            this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+            
+            
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            rows.sort((a, b) => {
+                const aValue = a.cells[index].textContent;
+                const bValue = b.cells[index].textContent;
                 
-                // Reset all headers
-                table.querySelectorAll('th').forEach(th => {
-                    th.classList.remove('sorted-asc', 'sorted-desc');
-                });
-                
-                // Set current header sort direction
-                this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-                
-                // Sort the table
-                const rows = Array.from(table.querySelectorAll('tbody tr'));
-                rows.sort((a, b) => {
-                    const aValue = a.cells[index].textContent;
-                    const bValue = b.cells[index].textContent;
-                    
-                    if (isAsc) {
-                        return bValue.localeCompare(aValue);
-                    } else {
-                        return aValue.localeCompare(bValue);
-                    }
-                });
-                
-                // Re-insert rows in the sorted order
-                const tbody = table.querySelector('tbody');
-                rows.forEach(row => tbody.appendChild(row));
-                
-                // Add animation to rows
-                rows.forEach(row => {
-                    row.classList.add('highlight-row');
-                    setTimeout(() => row.classList.remove('highlight-row'), 1500);
-                });
+                if (isAsc) {
+                return bValue.localeCompare(aValue);
+                } else {
+                return aValue.localeCompare(bValue);
+                }
+            });
+            
+            
+            const tbody = table.querySelector('tbody');
+            rows.forEach(row => tbody.appendChild(row));
+            
+            
+            rows.forEach(row => {
+                row.classList.add('highlight-row');
+                setTimeout(() => row.classList.remove('highlight-row'), 1500);
+            });
             });
         });
 
-        // Helper function to apply themed highlight animation to rows
+
         function applyRowHighlight(row) {
             if (!row) return;
             
-            // First remove any existing highlight to reset animation
             row.classList.remove('highlight-row');
             
-            // Force a reflow to ensure animation plays again
             void row.offsetWidth;
             
-            // Add the highlight class to start animation
             row.classList.add('highlight-row');
             
-            // Remove the highlight class after animation completes
             setTimeout(() => row.classList.remove('highlight-row'), 1500);
         }
 
-        // Table editing functionality
         document.getElementById('addRow').addEventListener('click', function() {
             const tbody = document.querySelector('tbody');
             const newRow = document.createElement('tr');
             newRow.setAttribute('data-priority', 'low');
             
-            // Remove empty state if it exists
             const emptyState = tbody.querySelector('.empty-state');
             if (emptyState) {
-                tbody.removeChild(emptyState);
+            tbody.removeChild(emptyState);
             }
             
             newRow.innerHTML = `
-                <td contenteditable="true" class="editable"></td>
-                <td contenteditable="true" class="editable"></td>
-                <td contenteditable="true" class="editable"></td>
-                <td contenteditable="true" class="editable"></td>
-                <td contenteditable="true" class="editable"></td>
-                <td contenteditable="true" class="editable"></td>
-                <td class="impact-cell">
-                    <div class="impact-selector" data-value="low">
-                        <div class="impact-selector-inner">
-                            <div class="impact-option impact-option-low selected" data-value="low">
-                                <span class="impact-dot"></span> Low
-                            </div>
-                            <div class="impact-option impact-option-medium" data-value="medium">
-                                <span class="impact-dot"></span> Medium
-                            </div>
-                            <div class="impact-option impact-option-high" data-value="high">
-                                <span class="impact-dot"></span> High
-                            </div>
-                        </div>
+            <td contenteditable="true" class="editable"></td>
+            <td contenteditable="true" class="editable"></td>
+            <td contenteditable="true" class="editable"></td>
+            <td contenteditable="true" class="editable"></td>
+            <td contenteditable="true" class="editable"></td>
+            <td contenteditable="true" class="editable"></td>
+            <td class="impact-cell">
+                <div class="impact-selector" data-value="low">
+                <div class="impact-selector-inner">
+                    <div class="impact-option impact-option-low selected" data-value="low">
+                    <span class="impact-dot"></span> Low
                     </div>
-                </td>
-                <td class="action-cell">
-                    <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
-                    <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
-                    <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-                </td>
+                    <div class="impact-option impact-option-medium" data-value="medium">
+                    <span class="impact-dot"></span> Medium
+                    </div>
+                    <div class="impact-option impact-option-high" data-value="high">
+                    <span class="impact-dot"></span> High
+                    </div>
+                </div>
+                </div>
+            </td>
+            <td class="action-cell">
+                <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
+                <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
+                <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
             `;
             tbody.appendChild(newRow);
             
-            // Highlight the new row
             applyRowHighlight(newRow);
 
-            // Initialize impact indicator events
             initImpactSelector(newRow);
             
-            // Apply current active filter
             applyActiveFilter();
         });
 
-        // Check if table is empty and show empty state
         function checkEmptyTable() {
             const tbody = document.querySelector('tbody');
             if (tbody.children.length === 0) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.classList.add('empty-state');
-                emptyRow.innerHTML = `
-                    <td colspan="6">
-                        <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
-                        <div class="empty-state-text">No changes found</div>
-                        <button class="btn primary-btn" id="emptyAddRow">
-                            <i class="fas fa-plus"></i> Add First Row
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(emptyRow);
-                
-                document.getElementById('emptyAddRow').addEventListener('click', function() {
-                    document.getElementById('addRow').click();
-                });
+            const emptyRow = document.createElement('tr');
+            emptyRow.classList.add('empty-state');
+            emptyRow.innerHTML = `
+                <td colspan="6">
+                <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+                <div class="empty-state-text">No changes found</div>
+                <button class="btn primary-btn" id="emptyAddRow">
+                    <i class="fas fa-plus"></i> Add First Row
+                </button>
+                </td>
+            `;
+            tbody.appendChild(emptyRow);
+            
+            document.getElementById('emptyAddRow').addEventListener('click', function() {
+                document.getElementById('addRow').click();
+            });
             }
         }
 
         document.querySelector('table').addEventListener('click', function(e) {
-            // Edit button click
             if (e.target.closest('.edit-btn')) {
-                const row = e.target.closest('tr');
-                const cells = row.getElementsByTagName('td');
-                for (let i = 0; i < cells.length - 1; i++) {
-                    cells[i].contentEditable = true;
-                    cells[i].classList.add('editable');
-                }
-                row.querySelector('.edit-btn').style.display = 'none';
-                row.querySelector('.save-btn').style.display = 'inline-flex';
+            const row = e.target.closest('tr');
+            const cells = row.getElementsByTagName('td');
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].contentEditable = true;
+                cells[i].classList.add('editable');
+            }
+            row.querySelector('.edit-btn').style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'inline-flex';
             }
             
-            // Save button click
             if (e.target.closest('.save-btn')) {
-                const row = e.target.closest('tr');
-                const cells = row.getElementsByTagName('td');
-                
-                // Update the original stored times when saving
-                const startTimeCell = cells[2];
-                const endTimeCell = cells[3];
-                
-                // Store the new values as original times
-                startTimeCell.dataset.original = startTimeCell.textContent;
-                endTimeCell.dataset.original = endTimeCell.textContent;
+            const row = e.target.closest('tr');
+            const cells = row.getElementsByTagName('td');
+            
+            const startTimeCell = cells[2];
+            const endTimeCell = cells[3];
+            
+            startTimeCell.dataset.original = startTimeCell.textContent;
+            endTimeCell.dataset.original = endTimeCell.textContent;
 
-                for (let i = 0; i < cells.length - 1; i++) {
-                    cells[i].contentEditable = false;
-                    cells[i].classList.remove('editable');
-                }
-                row.querySelector('.save-btn').style.display = 'none';
-                row.querySelector('.edit-btn').style.display = 'inline-flex';
-                
-                // Highlight the saved row
-                applyRowHighlight(row);
-                
-                const rowData = {
-                    service: cells[0].textContent,
-                    date: cells[1].textContent,
-                    startTime: cells[2].textContent,
-                    endTime: cells[3].textContent,
-                    comments: cells[4].textContent,
-                    impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
-                };
-                
-                fetch('/save-changes', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(rowData)
-                });
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].contentEditable = false;
+                cells[i].classList.remove('editable');
+            }
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.edit-btn').style.display = 'inline-flex';
+            
+            applyRowHighlight(row);
+            
+            const rowData = {
+                service: cells[0].textContent,
+                date: cells[1].textContent,
+                startTime: cells[2].textContent,
+                endTime: cells[3].textContent,
+                comments: cells[4].textContent,
+                impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
+            };
+            
+            fetch('/save-changes', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(rowData)
+            });
             }
             
-            // Delete button click - Show confirmation dialog
             if (e.target.closest('.delete-btn')) {
-                rowToDelete = e.target.closest('tr');
-                confirmDialog.classList.add('active');
+            rowToDelete = e.target.closest('tr');
+            confirmDialog.classList.add('active');
             }
         });
         
-        // Handle delete confirmation
         document.getElementById('cancelDelete').addEventListener('click', function() {
             confirmDialog.classList.remove('active');
             rowToDelete = null;
@@ -2875,67 +2831,60 @@
         
         document.getElementById('confirmDelete').addEventListener('click', function() {
             if (rowToDelete) {
-                // Apply slide-out animation
-                rowToDelete.style.opacity = '0';
-                rowToDelete.style.transform = 'translateX(20px)';
-                setTimeout(() => {
-                    rowToDelete.remove();
-                    checkEmptyTable();
-                    
-                    // You can also send a request to delete from server
-                    const cells = rowToDelete.getElementsByTagName('td');
-                    const rowData = {
-                        service: cells[0].textContent,
-                        date: cells[1].textContent
-                    };
-                    
-                    fetch('/delete-row', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(rowData)
-                    });
-                    
-                    rowToDelete = null;
-                }, 300);
+            rowToDelete.style.opacity = '0';
+            rowToDelete.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                rowToDelete.remove();
+                checkEmptyTable();
+                
+                const cells = rowToDelete.getElementsByTagName('td');
+                const rowData = {
+                service: cells[0].textContent,
+                date: cells[1].textContent
+                };
+                
+                fetch('/delete-row', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(rowData)
+                });
+                
+                rowToDelete = null;
+            }, 300);
             }
             confirmDialog.classList.remove('active');
         });
 
-        // Check empty table on load
         document.addEventListener('DOMContentLoaded', function() {
             checkEmptyTable();
 
-            // Initialize impact selectors
             const rows = document.querySelectorAll('#changeTable tbody tr');
             rows.forEach(row => initImpactSelector(row));
             
-            // Set the "All" filter active by default
             const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
             if (allFilterBtn) {
-                allFilterBtn.classList.add('active');
+            allFilterBtn.classList.add('active');
             }
 
-            // Use event delegation for filter buttons to ensure they work after DOM changes
             document.querySelector('.filter-controls').addEventListener('click', function(e) {
-                const filterBtn = e.target.closest('.filter-btn');
-                if (filterBtn) {
-                    // Update active state
-                    document.querySelectorAll('.filter-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    filterBtn.classList.add('active');
-                    
-                    // Apply the filter
-                    applyActiveFilter();
-                }
+            const filterBtn = e.target.closest('.filter-btn');
+            if (filterBtn) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                });
+                filterBtn.classList.add('active');
+                
+                applyActiveFilter();
+            }
             });
         });
 
+
         function initImpactSelector(row) {
             if (!row) return;
-    
+        
             const impactOptions = row.querySelectorAll('.impact-option');
             const selector = row.querySelector('.impact-selector');
             const innerContainer = selector?.querySelector('.impact-selector-inner');
@@ -2943,148 +2892,129 @@
             if (!impactOptions.length || !selector || !innerContainer) return;
             
             impactOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const tr = this.closest('tr');
-                    if (!tr) return;
-                    
-                    const priority = this.getAttribute('data-value');
-                    
-                    // Update selected state visually
-                    impactOptions.forEach(opt => opt.classList.remove('selected'));
-                    this.classList.add('selected');
-                    
-                    // Update data attributes
-                    selector.setAttribute('data-value', priority);
-                    tr.setAttribute('data-priority', priority);
-                    
-                    // Add pulse animation to the selected option
-                    this.style.animation = 'none';
-                    setTimeout(() => {
-                        this.style.animation = 'impactPulse 0.8s ease-in-out';
-                    }, 100);
-                    
-                    // Check if we need to filter this row
-                    applyActiveFilter();
-                });
+            option.addEventListener('click', function() {
+                const tr = this.closest('tr');
+                if (!tr) return;
+                
+                const priority = this.getAttribute('data-value');
+                
+                impactOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                selector.setAttribute('data-value', priority);
+                tr.setAttribute('data-priority', priority);
+                
+                this.style.animation = 'none';
+                setTimeout(() => {
+                this.style.animation = 'impactPulse 0.8s ease-in-out';
+                }, 100);
+                
+                applyActiveFilter();
+            });
             });
         }
 
-        // Simplified function since we're using event delegation instead
         function applyActiveFilter() {
             const activeFilter = document.querySelector('.filter-btn.active');
             const filterValue = activeFilter ? activeFilter.getAttribute('data-filter') : 'all';
             const rows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
             
-            console.log('Applying filter:', filterValue); // Keep for debugging
+            console.log('Applying filter:', filterValue);
             
             rows.forEach(row => {
-                const priority = row.getAttribute('data-priority');
-                if (filterValue === 'all' || priority === filterValue) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+            const priority = row.getAttribute('data-priority');
+            if (filterValue === 'all' || priority === filterValue) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
             });
         }
 
-        // Enhanced sorting for priority column - Make sure to call applyActiveFilter after sorting
         document.querySelectorAll('th.sortable').forEach(header => {
             header.addEventListener('click', function() {
-                const table = this.closest('table');
-                const index = Array.from(this.parentNode.children).indexOf(this);
-                const isAsc = this.classList.contains('sorted-asc');
+            const table = this.closest('table');
+            const index = Array.from(this.parentNode.children).indexOf(this);
+            const isAsc = this.classList.contains('sorted-asc');
+            
+            table.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+            });
+            
+            this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+            
+            const rows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state)'));
+            rows.sort((a, b) => {
+                if (index === 5) {
+                const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+                const aPriority = a.getAttribute('data-priority');
+                const bPriority = b.getAttribute('data-priority');
                 
-                // Reset all headers
-                table.querySelectorAll('th').forEach(th => {
-                    th.classList.remove('sorted-asc', 'sorted-desc');
-                });
+                if (isAsc) {
+                    return priorityOrder[bPriority] - priorityOrder[aPriority];
+                } else {
+                    return priorityOrder[aPriority] - priorityOrder[bPriority];
+                }
+                } else {
+                const aValue = a.cells[index].textContent;
+                const bValue = b.cells[index].textContent;
                 
-                // Set current header sort direction
-                this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-                
-                // Sort the table
-                const rows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state)'));
-                rows.sort((a, b) => {
-                    // Special handling for priority column
-                    if (index === 5) { // Impact Priority column
-                        const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
-                        const aPriority = a.getAttribute('data-priority');
-                        const bPriority = b.getAttribute('data-priority');
-                        
-                        if (isAsc) {
-                            return priorityOrder[bPriority] - priorityOrder[aPriority];
-                        } else {
-                            return priorityOrder[aPriority] - priorityOrder[bPriority];
-                        }
-                    } else {
-                        const aValue = a.cells[index].textContent;
-                        const bValue = b.cells[index].textContent;
-                        
-                        if (isAsc) {
-                            return bValue.localeCompare(aValue);
-                        } else {
-                            return aValue.localeCompare(bValue);
-                        }
-                    }
-                });
-                
-                // Re-insert rows in the sorted order
-                const tbody = table.querySelector('tbody');
-                rows.forEach(row => tbody.appendChild(row));
-                
-                // Use helper function for all rows
-                rows.forEach(row => applyRowHighlight(row));
-                
-                // Re-apply current filter after sorting
-                applyActiveFilter();
+                if (isAsc) {
+                    return bValue.localeCompare(aValue);
+                } else {
+                    return aValue.localeCompare(bValue);
+                }
+                }
+            });
+            
+            const tbody = table.querySelector('tbody');
+            rows.forEach(row => tbody.appendChild(row));
+            
+            rows.forEach(row => applyRowHighlight(row));
+            
+            applyActiveFilter();
             });
         });
 
-        // Add timezone conversion logic
         const tzToggle = document.getElementById('tzToggle');
         const DateTime = luxon.DateTime;
 
         function convertToIST(timeStr, dateStr) {
             try {
-                // Skip conversion for "-" time
-                if (timeStr === "-") {
-                    return "-";
-                }
-                
-                // Handle time ranges
-                if (timeStr.includes('-')) {
-                    const [start, end] = timeStr.split('-');
-                    return `${convertToIST(start.trim(), dateStr)}-${convertToIST(end.trim(), dateStr)}`;
-                }
+            if (timeStr === "-") {
+                return "-";
+            }
+            
+            if (timeStr.includes('-')) {
+                const [start, end] = timeStr.split('-');
+                return `${convertToIST(start.trim(), dateStr)}-${convertToIST(end.trim(), dateStr)}`;
+            }
 
-                // Parse the time in Sweden timezone
-                const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
-                    zone: 'Europe/Stockholm'
-                });
-                
-                // Convert to IST
-                const istTime = dt.setZone('Asia/Kolkata');
-                return istTime.toFormat('hh:mm a');
+            const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
+                zone: 'Europe/Stockholm'
+            });
+            
+            const istTime = dt.setZone('Asia/Kolkata');
+            return istTime.toFormat('hh:mm a');
             } catch (e) {
-                console.error('Error converting time:', e);
-                return 'Invalid time';
+            console.error('Error converting time:', e);
+            return 'Invalid time';
             }
         }
 
-        // Updated timezone toggle behavior
         tzToggle.addEventListener('change', function() {
             const timeColumns = document.querySelectorAll('.time-column');
             const tzLabel = document.getElementById('tzLabel');
             const warning = document.querySelector('.time-conversion-warning');
             
             if (this.checked) {
-                timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(IST)</span>';
-                timeColumns[1].innerHTML = 'End Time<span class="time-zone">(IST)</span>';
-                tzLabel.textContent = 'Showing times in IST';
+            timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(IST)</span>';
+            timeColumns[1].innerHTML = 'End Time<span class="time-zone">(IST)</span>';
+            tzLabel.textContent = 'Showing times in IST';
             } else {
-                timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(Sweden)</span>';
-                timeColumns[1].innerHTML = 'End Time<span class="time-zone">(Sweden)</span>';
-                tzLabel.textContent = 'Show times in IST';
+            timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(Sweden)</span>';
+            timeColumns[1].innerHTML = 'End Time<span class="time-zone">(Sweden)</span>';
+            tzLabel.textContent = 'Show times in IST';
             }
             
             warning.style.display = this.checked ? 'flex' : 'none';
@@ -3094,43 +3024,39 @@
             const date = dateCell?.textContent || '2025-02-15';
 
             rows.forEach(row => {
-                const startTimeCell = row.querySelector('td:nth-child(3)');
-                const endTimeCell = row.querySelector('td:nth-child(4)');
-                
-                if (startTimeCell && endTimeCell) {
-                    if (this.checked) {
-                        // Store original times if not already stored
-                        if (!startTimeCell.dataset.original) {
-                            startTimeCell.dataset.original = startTimeCell.textContent;
-                        }
-                        if (!endTimeCell.dataset.original) {
-                            endTimeCell.dataset.original = endTimeCell.textContent;
-                        }
-                        
-                        // Convert to IST
-                        const startTimeConverted = convertToIST(startTimeCell.dataset.original, date);
-                        const endTimeConverted = convertToIST(endTimeCell.dataset.original, date);
-                        
-                        startTimeCell.textContent = startTimeConverted;
-                        endTimeCell.textContent = endTimeConverted;
-                    } else {
-                        // Always restore original Sweden times, even if there was an error
-                        if (startTimeCell.dataset.original) {
-                            startTimeCell.textContent = startTimeCell.dataset.original;
-                        }
-                        if (endTimeCell.dataset.original) {
-                            endTimeCell.textContent = endTimeCell.dataset.original;
-                        }
-                    }
+            const startTimeCell = row.querySelector('td:nth-child(3)');
+            const endTimeCell = row.querySelector('td:nth-child(4)');
+            
+            if (startTimeCell && endTimeCell) {
+                if (this.checked) {
+                if (!startTimeCell.dataset.original) {
+                    startTimeCell.dataset.original = startTimeCell.textContent;
                 }
+                if (!endTimeCell.dataset.original) {
+                    endTimeCell.dataset.original = endTimeCell.textContent;
+                }
+                
+                const startTimeConverted = convertToIST(startTimeCell.dataset.original, date);
+                const endTimeConverted = convertToIST(endTimeCell.dataset.original, date);
+                
+                startTimeCell.textContent = startTimeConverted;
+                endTimeCell.textContent = endTimeConverted;
+                } else {
+                if (startTimeCell.dataset.original) {
+                    startTimeCell.textContent = startTimeCell.dataset.original;
+                }
+                if (endTimeCell.dataset.original) {
+                    endTimeCell.textContent = endTimeCell.dataset.original;
+                }
+                }
+            }
             });
         });
 
-        // New email viewer features
         document.getElementById('copyEmail').addEventListener('click', function() {
             const textToCopy = `Subject: ${document.querySelector('.email-meta').children[1].textContent}\n\n${document.getElementById('emailBody').textContent}`;
             navigator.clipboard.writeText(textToCopy)
-                .then(() => alert('Email content copied to clipboard!'));
+            .then(() => alert('Email content copied to clipboard!'));
         });
 
         document.getElementById('downloadText').addEventListener('click', function() {
@@ -3145,7 +3071,7 @@
         document.getElementById('toggleWordWrap').addEventListener('click', function() {
             const emailBody = document.getElementById('emailBody');
             emailBody.style.whiteSpace = 
-                emailBody.style.whiteSpace === 'pre' ? 'pre-wrap' : 'pre';
+            emailBody.style.whiteSpace === 'pre' ? 'pre-wrap' : 'pre';
         });
 
         let fontSize = 14;
@@ -3159,7 +3085,6 @@
             document.getElementById('emailBody').style.fontSize = `${fontSize}px`;
         });
 
-        // Add new modal handling
         const infoModal = document.getElementById('infoModal');
         const howItWorksBtn = document.getElementById('howItWorksBtn');
 
@@ -3167,66 +3092,61 @@
             infoModal.style.display = "block";
         }
 
-        // Close modal when clicking outside
         window.onclick = function(event) {
             if (event.target == infoModal) {
-                infoModal.style.display = "none";
+            infoModal.style.display = "none";
             }
-            if (event.target == modal) { // existing email modal
-                modal.style.display = "none";
+            if (event.target == modal) {
+            modal.style.display = "none";
             }
         }
 
-        // Close modal on Esc key press
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                if (infoModal.style.display === "block") {
-                    infoModal.style.display = "none";
-                }
-                if (modal.style.display === "block") {
-                    modal.style.display = "none";
-                }
+            if (infoModal.style.display === "block") {
+                infoModal.style.display = "none";
+            }
+            if (modal.style.display === "block") {
+                modal.style.display = "none";
+            }
             }
         });
 
-        // Updated download HTML functionality
         document.getElementById('downloadHtml').addEventListener('click', function() {
-            // Get all the necessary styles
             const styleSheets = Array.from(document.styleSheets);
             let styles = '';
             styleSheets.forEach(sheet => {
-                try {
-                    Array.from(sheet.cssRules).forEach(rule => {
-                        styles += rule.cssText;
-                    });
-                } catch (e) {
-                    console.log('Could not read stylesheet:', e);
-                }
+            try {
+                Array.from(sheet.cssRules).forEach(rule => {
+                styles += rule.cssText;
+                });
+            } catch (e) {
+                console.log('Could not read stylesheet:', e);
+            }
             });
 
-            // Prepare HTML with proper priority badges
             let tableBody = '';
             document.querySelectorAll('#changeTable tbody tr:not(.empty-state):not([style*="display: none"])').forEach(row => {
-                const cells = row.cells;
-                const priority = row.getAttribute('data-priority');
-                
-                if (cells.length >= 6) {
-                    tableBody += `
-                    <tr>
-                        <td>${cells[0].textContent}</td>
-                        <td>${cells[1].textContent}</td>
-                        <td>${cells[2].textContent}</td>
-                        <td>${cells[3].textContent}</td>
-                        <td>${cells[4].textContent}</td>
-                        <td>${cells[5].textContent}</td>
-                        <td>
-                            <div class="priority-badge priority-badge-${priority}">
-                                <span class="filter-indicator filter-${priority}"></span>
-                                ${priority.charAt(0).toUpperCase() + priority.slice(1)}
-                            </div>
-                        </td>
-                    </tr>`;
-                }
+            const cells = row.cells;
+            const priority = row.getAttribute('data-priority');
+            
+            if (cells.length >= 6) {
+                tableBody += `
+                <tr>
+                <td>${cells[0].textContent}</td>
+                <td>${cells[1].textContent}</td>
+                <td>${cells[2].textContent}</td>
+                <td>${cells[3].textContent}</td>
+                <td>${cells[4].textContent}</td>
+                <td>${cells[5].textContent}</td>
+                <td>
+                    <div class="priority-badge priority-badge-${priority}">
+                    <span class="filter-indicator filter-${priority}"></span>
+                    ${priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </div>
+                </td>
+                </tr>`;
+            }
             });
 
             const tableHtml = `
@@ -3278,7 +3198,6 @@
             document.body.removeChild(a);
         });
 
-        // Add header editing functionality
         const headerTitle = document.getElementById('headerTitle');
         const editHeaderBtn = document.getElementById('editHeaderBtn');
         const saveHeaderBtn = document.getElementById('saveHeaderBtn');
@@ -3296,33 +3215,29 @@
             headerTitle.classList.remove('editable');
             editHeaderBtn.style.display = 'flex';
             saveHeaderBtn.style.display = 'none';
-
-            // Optional: Save the new title to the server
             fetch('/save-title', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    title: headerTitle.textContent
-                })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: headerTitle.textContent
+            })
             });
         });
 
-        // Save on Enter key, cancel on Escape key
         headerTitle.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
-                e.preventDefault();
-                saveHeaderBtn.click();
+            e.preventDefault();
+            saveHeaderBtn.click();
             } else if (e.key === 'Escape') {
-                headerTitle.contentEditable = false;
-                headerTitle.classList.remove('editable');
-                editHeaderBtn.style.display = 'flex';
-                saveHeaderBtn.style.display = 'none';
+            headerTitle.contentEditable = false;
+            headerTitle.classList.remove('editable');
+            editHeaderBtn.style.display = 'flex';
+            saveHeaderBtn.style.display = 'none';
             }
         });
 
-        // Add these functions for file handling
         function showLoading() {
             document.querySelector('.loading-overlay').style.display = 'flex';
         }
@@ -3336,48 +3251,39 @@
             toast.textContent = message;
             toast.style.display = 'block';
             setTimeout(() => {
-                toast.style.display = 'none';
+            toast.style.display = 'none';
             }, 5000);
         }
 
-        // Update file input handler
         document.getElementById('fileInput').addEventListener('change', function(e) {
             if (this.files.length > 0) {
-                const file = this.files[0];
-                if (!file.name.toLowerCase().endswith('.msg')) {
-                    showError('Please upload a .MSG file');
-                    return;
-                }
-                
-                showLoading();
-                document.getElementById('uploadForm').submit();
+            const file = this.files[0];
+            if (!file.name.toLowerCase().endswith('.msg')) {
+                showError('Please upload a .MSG file');
+                return;
+            }
+            
+            showLoading();
+            document.getElementById('uploadForm').submit();
             }
         });
 
-        // Initialize everything when the DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeFileUpload();
             
-            // Initialize other components
             const rows = document.querySelectorAll('#changeTable tbody tr');
             if (rows) {
-                rows.forEach(row => initImpactSelector(row));
+            rows.forEach(row => initImpactSelector(row));
             }
             
-            // Set default filter
             const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
             if (allFilterBtn) {
-                allFilterBtn.classList.add('active');
+            allFilterBtn.classList.add('active');
             }
             
-            // Check for empty table
             checkEmptyTable();
-            
-            // Initialize other functions
-            // ...rest of initialization code...
         });
 
-        // Update file input handler
         function initializeFileUpload() {
             const fileInput = document.getElementById('fileInput');
             const uploadForm = document.getElementById('uploadForm');
@@ -3385,25 +3291,23 @@
             const errorToast = document.getElementById('errorToast');
 
             if (fileInput && uploadForm) {
-                fileInput.addEventListener('change', function(e) {
-                    if (this.files.length > 0) {
-                        const file = this.files[0];
-                        if (!file.name.toLowerCase().endsWith('.msg')) {
-                            showError('Please upload a .MSG file');
-                            return;
-                        }
-                        
-                        if (loadingOverlay) {
-                            loadingOverlay.style.display = 'flex';
-                        }
-                        
-                        uploadForm.submit();
-                    }
-                });
+            fileInput.addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                const file = this.files[0];
+                if (!file.name.toLowerCase().endswith('.msg')) {
+                    showError('Please upload a .MSG file');
+                    return;
+                }
+                
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'flex';
+                }
+                
+                uploadForm.submit();
+                }
+            });
             }
         }
-
-        // Modern file upload handling
         document.addEventListener('DOMContentLoaded', function() {
             const uploadBtn = document.getElementById('uploadBtn');
             const uploadModal = document.getElementById('uploadModal');
@@ -3423,7 +3327,7 @@
                 uploadZone.classList.remove('drag-over');
             });
 
-            // Simple drag and drop implementation
+
             uploadZone.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -3441,28 +3345,22 @@
                 e.stopPropagation();
                 this.classList.remove('drag-over');
                 
-                // Get the dropped files
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
                     const file = files[0];
                     
-                    // Check file type
                     if (!file.name.toLowerCase().endsWith('.msg')) {
                         alert('Please upload a .MSG file');
                         return;
                     }
                     
-                    // Set the file to the input element
-                    // This is important for the form submission to work properly
                     const dataTransfer = new DataTransfer();
                     dataTransfer.items.add(file);
                     fileInput.files = dataTransfer.files;
                     
-                    // Show preview
                     uploadPreview.style.display = 'flex';
                     uploadPreview.querySelector('.file-name').textContent = file.name;
                     
-                    // Simulate upload progress
                     const progressBar = uploadPreview.querySelector('.upload-progress-bar');
                     let progress = 0;
                     const interval = setInterval(() => {
@@ -3470,7 +3368,6 @@
                         progressBar.style.width = `${progress}%`;
                         if (progress >= 100) {
                             clearInterval(interval);
-                            // Submit the form after progress is complete
                             document.getElementById('uploadForm').submit();
                         }
                     }, 100);
@@ -3489,11 +3386,9 @@
                         return;
                     }
 
-                    // Show preview
                     uploadPreview.style.display = 'flex';
                     uploadPreview.querySelector('.file-name').textContent = file.name;
 
-                    // Simulate upload progress
                     const progressBar = uploadPreview.querySelector('.upload-progress-bar');
                     let progress = 0;
                     const interval = setInterval(() => {
@@ -3508,12 +3403,10 @@
             });
         });
 
-        // Add this to your existing JavaScript
         document.addEventListener('DOMContentLoaded', function() {
             const themeToggle = document.getElementById('themeToggle');
             const icon = themeToggle.querySelector('i');
             
-            // Check for saved theme preference or default to 'dark'
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcon(savedTheme);
@@ -3532,10 +3425,8 @@
             }
         });
 
-        // Add this near the top of your script section
         document.getElementById('resetForm').addEventListener('click', function() {
             if (confirm('Are you sure you want to reset the form? This will clear all data.')) {
-                // Reload the page with GET request
                 window.location.href = '/';
             }
         });

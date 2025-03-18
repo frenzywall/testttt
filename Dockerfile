@@ -49,4 +49,4 @@ RUN touch /app/temp.msg && chown appuser:appuser /app/temp.msg && chmod 777 /app
 
 USER appuser
 EXPOSE 5000
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["python3","app.py"]
