@@ -3046,6 +3046,11 @@
 
         function convertToIST(timeStr, dateStr) {
             try {
+                // Skip conversion for "-" time
+                if (timeStr === "-") {
+                    return "-";
+                }
+                
                 // Handle time ranges
                 if (timeStr.includes('-')) {
                     const [start, end] = timeStr.split('-');
@@ -3062,11 +3067,11 @@
                 return istTime.toFormat('hh:mm a');
             } catch (e) {
                 console.error('Error converting time:', e);
-                return timeStr;
+                return 'Invalid time';
             }
         }
 
-        // Update timezone toggle behavior with both column changes and time conversion
+        // Updated timezone toggle behavior
         tzToggle.addEventListener('change', function() {
             const timeColumns = document.querySelectorAll('.time-column');
             const tzLabel = document.getElementById('tzLabel');
@@ -3101,13 +3106,19 @@
                         if (!endTimeCell.dataset.original) {
                             endTimeCell.dataset.original = endTimeCell.textContent;
                         }
+                        
                         // Convert to IST
-                        startTimeCell.textContent = convertToIST(startTimeCell.dataset.original, date);
-                        endTimeCell.textContent = convertToIST(endTimeCell.dataset.original, date);
+                        const startTimeConverted = convertToIST(startTimeCell.dataset.original, date);
+                        const endTimeConverted = convertToIST(endTimeCell.dataset.original, date);
+                        
+                        startTimeCell.textContent = startTimeConverted;
+                        endTimeCell.textContent = endTimeConverted;
                     } else {
-                        // Restore original Sweden times
+                        // Always restore original Sweden times, even if there was an error
                         if (startTimeCell.dataset.original) {
                             startTimeCell.textContent = startTimeCell.dataset.original;
+                        }
+                        if (endTimeCell.dataset.original) {
                             endTimeCell.textContent = endTimeCell.dataset.original;
                         }
                     }
@@ -3333,7 +3344,7 @@
         document.getElementById('fileInput').addEventListener('change', function(e) {
             if (this.files.length > 0) {
                 const file = this.files[0];
-                if (!file.name.toLowerCase().endsWith('.msg')) {
+                if (!file.name.toLowerCase().endswith('.msg')) {
                     showError('Please upload a .MSG file');
                     return;
                 }

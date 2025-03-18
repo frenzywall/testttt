@@ -54,11 +54,10 @@ SERVICES = {
 
 def get_month_number(month_name):
     """Convert month name to month number (1-12)"""
-    month_name = month_name.lower()[:3]  # Take first 3 characters
+    month_name = month_name.lower()[:3]  
     month_abbr = {calendar.month_name[i].lower()[:3]: i for i in range(1, 13)}
     month_abbr.update({calendar.month_abbr[i].lower()[:3]: i for i in range(1, 13)})
     
-    # Add Swedish/European month names
     special_months = {
         "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "mai": 5, "jun": 6, 
         "jul": 7, "aug": 8, "sep": 9, "oct": 10, "okt": 10, "nov": 11, "dec": 12
@@ -74,11 +73,9 @@ def extract_date_from_subject(subject):
         
     current_year = datetime.now().year
     
-    # Try to extract year from the subject
     year_match = re.search(r'20\d{2}', subject)
     year = year_match.group(0) if year_match else str(current_year)
     
-    # Handle date ranges like "15th to 16th of Mars 2025"
     date_range_patterns = [
         r'(\d{1,2})(?:st|nd|rd|th)?\s+(?:to|and|&|-)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([A-Za-z]+)',
         r'(\d{1,2})(?:st|nd|rd|th)?(?:-|\s*to\s*)(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([A-Za-z]+)',
@@ -91,13 +88,11 @@ def extract_date_from_subject(subject):
             month_num = get_month_number(month_name)
             if month_num:
                 try:
-                    # Return the first day of the range as the reference date
                     date_obj = datetime(int(year), month_num, int(start_day))
                     return date_obj.date()
                 except ValueError:
                     continue
 
-    # Try single date pattern like "15th of March"
     single_date_patterns = [
         r'(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([A-Za-z]+)',
         r'([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?',
@@ -121,7 +116,6 @@ def extract_date_from_subject(subject):
                     except ValueError:
                         continue
     
-    # If we can't extract a date, return today's date as fallback
     return datetime.now().date()
 
 def parse_date_string(date_str):
@@ -129,15 +123,12 @@ def parse_date_string(date_str):
     if not date_str:
         return None
         
-    # Try to handle formats like "15:th" with contextual month/year
     ordinal_pattern = r'(\d{1,2}):?(?:st|nd|rd|th)'
     ordinal_match = re.match(ordinal_pattern, date_str.strip())
     if ordinal_match:
         day = int(ordinal_match.group(1))
-        # We'll need the month and year from context
-        return day  # Return just the day for now
+        return day  
     
-    # Handle standard date formats
     try:
         return parser.parse(date_str, fuzzy=True).date()
     except (ValueError, parser.ParserError):
@@ -173,24 +164,19 @@ def extract_date_time_window(text, base_date=None):
     Returns tuple of (start_date, start_time, end_date, end_time)
     Handles multi-day windows and special formats.
     """
-    # Multi-day pattern with day and time on both sides: "14:th 18:00 - 16:th 16:00"
     multi_day_pattern = r'(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})'
     multi_day_match = re.search(multi_day_pattern, text)
     
     if multi_day_match:
         start_day, start_time, end_day, end_time = multi_day_match.groups()
         
-        # Extract month and year from base_date
         month = base_date.month if base_date else datetime.now().month
         year = base_date.year if base_date else datetime.now().year
         
-        # Parse the days
         start_day = int(start_day)
         end_day = int(end_day)
         
-        # Handle month transition (when end day < start day)
         if end_day < start_day:
-            # Assume next month
             end_month = month + 1
             if end_month > 12:
                 end_month = 1
@@ -201,12 +187,10 @@ def extract_date_time_window(text, base_date=None):
             end_month = month
             end_year = year
             
-        # Create datetime objects
         try:
             start_dt = datetime(year, month, start_day)
             end_dt = datetime(end_year, end_month, end_day)
             
-            # Handle 24:00 format
             if end_time == "24:00":
                 end_time = "00:00"
                 end_dt += timedelta(days=1)
@@ -215,21 +199,18 @@ def extract_date_time_window(text, base_date=None):
         except ValueError:
             pass
     
-    # Look for single day with time range: "15:th 08:00 - 10:00"
     single_day_pattern = r'(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})'
     single_day_match = re.search(single_day_pattern, text)
     
     if single_day_match:
         day, start_time, end_time = single_day_match.groups()
         
-        # Extract month and year from base_date
         month = base_date.month if base_date else datetime.now().month
         year = base_date.year if base_date else datetime.now().year
         
         try:
             day_dt = datetime(year, month, int(day))
             
-            # Handle 24:00 time format
             end_date = day_dt.date()
             if end_time == "24:00":
                 end_time = "00:00"
@@ -239,14 +220,12 @@ def extract_date_time_window(text, base_date=None):
         except ValueError:
             pass
     
-    # Simple time range with no date: "08:00 - 10:00"
     time_pattern = r'(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})'
     time_match = re.search(time_pattern, text)
     
     if time_match:
         start_time, end_time = time_match.groups()
         if base_date:
-            # Handle 24:00 format
             end_date = base_date
             if end_time == "24:00":
                 end_time = "00:00"
@@ -260,7 +239,6 @@ def extract_service_windows(email_body, base_date):
     service_windows = {}
     paragraphs = email_body.split('\n')
     
-    # First, extract the full change window
     full_window_pattern = r"Full change window:?\s*(.+?)(?:\s|$)"
     full_window_match = re.search(full_window_pattern, email_body)
     default_window = None
@@ -277,19 +255,13 @@ def extract_service_windows(email_body, base_date):
                 'end_time': end_time
             }
 
-    # Enhanced pattern matching for Jenkins paused window - handle more formats
     jenkins_pause_patterns = [
-        # Original pattern with Friday/Sunday format in parentheses
         r"Jenkins paused.*?\(Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\)",
-        # Without parentheses
         r"Jenkins paused.*?Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})",
-        # Direct window reference format (no Friday/Sunday)
         r"Jenkins paused.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})",
-        # Simple "due to" format with window following
         r"Jenkins paused due to.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})"
     ]
     
-    # Try to match any of the Jenkins patterns
     jenkins_match = None
     jenkins_format_type = None
     
@@ -300,22 +272,17 @@ def extract_service_windows(email_body, base_date):
             jenkins_format_type = i
             break
     
-    # Extract Jenkins window if found
     if jenkins_match:
         try:
             groups = jenkins_match.groups()
-            
-            # Handle different format types
-            if jenkins_format_type <= 1:  # Friday/Sunday format
+            if jenkins_format_type <= 1:  
                 start_day, start_time, end_day, end_time = groups
                 
-                # Parse days and create dates
                 month = base_date.month
                 year = base_date.year
                 start_day_int = int(start_day)
                 end_day_int = int(end_day)
                 
-                # Handle month transition (when end day < start day)
                 if end_day_int < start_day_int:
                     end_month = month + 1 if month < 12 else 1
                     end_year = year if month < 12 else year + 1
@@ -325,7 +292,7 @@ def extract_service_windows(email_body, base_date):
                 start_dt = datetime(year, month, start_day_int)
                 end_dt = datetime(end_year, end_month, end_day_int)
                 
-            else:  # ISO date format (YYYY-MM-DD)
+            else: 
                 start_date_str, start_time, end_date_str, end_time = groups
                 start_dt = datetime.fromisoformat(start_date_str)
                 end_dt = datetime.fromisoformat(end_date_str)
@@ -341,7 +308,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Jenkins window: {str(e)}")
 
-    # Enhanced GitLab extraction - handle year typos by checking if the year is reasonable
     gitlab_patterns = [
         r"GitLab.*?unavailable during.*?Window:\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
         r"GitLab.*?Impact:.*?unavailable.*?Window:\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
@@ -354,10 +320,8 @@ def extract_service_windows(email_body, base_date):
                 year, month, day, start_time, end_time = gitlab_match.groups()
                 year_int = int(year)
                 
-                # Check for year typo - if more than 2 years off from current year, assume typo
                 current_year = datetime.now().year
                 if abs(year_int - current_year) > 2:
-                    # Likely a typo - use current year or base_date year
                     year_int = base_date.year
                 
                 gitlab_date = datetime(year_int, int(month), int(day))
@@ -374,13 +338,9 @@ def extract_service_windows(email_body, base_date):
             except Exception as e:
                 print(f"Error extracting GitLab window: {str(e)}")
 
-    # Enhanced ARM SELI extraction - handle "unavailable for ~X hours" format
     arm_patterns = [
-        # Standard window format
         r"ARM SELI.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
-        # Approximate hours format
         r"ARM SELI unavailable for.*?~(\d+)\s+hours?.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
-        # Simple date range format
         r"ARM SELI.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     ]
     
@@ -390,11 +350,10 @@ def extract_service_windows(email_body, base_date):
             try:
                 groups = arm_match.groups()
                 
-                # Handle different pattern formats
-                if len(groups) == 4:  # Approximate hours format
+                if len(groups) == 4:  
                     hours, date_str, start_time, end_time = groups
                     arm_date = datetime.fromisoformat(date_str)
-                elif len(groups) == 3:  # Standard window format
+                elif len(groups) == 3: 
                     date_str, start_time, end_time = groups
                     arm_date = datetime.fromisoformat(date_str)
                 
@@ -410,7 +369,6 @@ def extract_service_windows(email_body, base_date):
             except Exception as e:
                 print(f"Error extracting ARM SELI window: {str(e)}")
 
-    # Enhanced Gerrit EPK extraction - handle upgrade and version information
     gerrit_patterns = [
         r"GitRMS - Gerrit-Alpha/EPK upgrade.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})",
         r"Gerrit EPK unavailable.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})"
@@ -436,11 +394,8 @@ def extract_service_windows(email_body, base_date):
             except Exception as e:
                 print(f"Error extracting Gerrit EPK window: {str(e)}")
 
-    # Enhanced Jira & Confluence extraction - handle joint mentions
     jira_confluence_patterns = [
-        # Pattern for both Jira and Confluence mentioned together
         r"(?:Jira|eTeamProject).*?(?:Confluence|eTeamSpace).*?unavailable for.*?~?(\d+)\s+hours?.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
-        # Pattern for both with specific window format
         r"(?:Jira|eTeamProject).*?(?:Confluence|eTeamSpace).*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     ]
     
@@ -450,15 +405,13 @@ def extract_service_windows(email_body, base_date):
             try:
                 groups = jc_match.groups()
                 
-                # Handle different pattern formats
-                if len(groups) == 4:  # With hours
+                if len(groups) == 4: 
                     hours, date_str, start_time, end_time = groups
                     jc_date = datetime.fromisoformat(date_str)
-                elif len(groups) == 3:  # Just window
+                elif len(groups) == 3:  
                     date_str, start_time, end_time = groups
                     jc_date = datetime.fromisoformat(date_str)
                 
-                # Set for both Jira and Confluence
                 service_windows["JIRA"] = {
                     'start_date': jc_date.date(),
                     'start_time': start_time,
@@ -480,12 +433,10 @@ def extract_service_windows(email_body, base_date):
             except Exception as e:
                 print(f"Error extracting Jira/Confluence window: {str(e)}")
 
-    # Add detection for Windows patching without specific times
     windows_pattern = r"E2C Windows Patching.*?January (\d{4})"
     windows_match = re.search(windows_pattern, email_body, re.IGNORECASE)
     if windows_match and "Windows Build" not in service_windows and default_window:
         try:
-            # Use default window but mark specifically as Windows patching
             service_windows["Windows Build"] = {
                 'start_date': default_window['start_date'],
                 'start_time': default_window['start_time'],
@@ -497,20 +448,17 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Windows Build window: {str(e)}")
 
-    # Special handling for Jenkins paused window - needs to capture Friday 14:th 23:00 - Sunday 16:th 14:00 format
     jenkins_pause_pattern = r"Jenkins paused.*?\(Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\)"
     jenkins_pause_match = re.search(jenkins_pause_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if jenkins_pause_match:
         try:
             start_day, start_time, end_day, end_time = jenkins_pause_match.groups()
             
-            # Parse start and end dates
             month = base_date.month
             year = base_date.year
             start_day_int = int(start_day)
             end_day_int = int(end_day)
             
-            # Handle month transition if needed
             if end_day_int < start_day_int:
                 end_month = month + 1 if month < 12 else 1
                 end_year = year if month < 12 else year + 1
@@ -531,7 +479,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Jenkins paused window: {str(e)}")
     
-    # Fixed extraction for GitLab - ensure it gets 14:th 18:00 - 16:th 16:00 correctly
     gitlab_pattern = r"GitLab.*?unavailable during the upgrade\s+(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})"
     gitlab_match = re.search(gitlab_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if gitlab_match:
@@ -543,13 +490,11 @@ def extract_service_windows(email_body, base_date):
             if date_match:
                 start_day, start_time, end_day, end_time = date_match.groups()
                 
-                # Parse days and create dates - using the exact days from the email, not the base date
                 month = base_date.month
                 year = base_date.year
                 start_day_int = int(start_day)
                 end_day_int = int(end_day)
                 
-                # Handle month transition (when end day < start day)
                 if end_day_int < start_day_int:
                     end_month = month + 1 if month < 12 else 1
                     end_year = year if month < 12 else year + 1
@@ -570,7 +515,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting GitLab window: {str(e)}")
 
-    # Fixed JIRA extraction to correctly use 08:00 - 10:00 time window
     jira_pattern = r"Jira.*?not available.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     jira_match = re.search(jira_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if jira_match:
@@ -594,20 +538,17 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting JIRA window: {str(e)}")
     
-    # Handle alternate "All automation will be paused" format for Jenkins with more explicit day extraction
     note_automation_pattern = r"NOTE:\s*All automation will be paused from\s+(?:Friday\s+)?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*(?:CET)?\s*until\s+(?:Sunday\s+)?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})"
     note_match = re.search(note_automation_pattern, email_body, re.IGNORECASE)
     if note_match and "Jenkins" not in service_windows:
         try:
             start_day, start_time, end_day, end_time = note_match.groups()
             
-            # Parse days and create dates
             month = base_date.month
             year = base_date.year
             start_day_int = int(start_day)
             end_day_int = int(end_day)
             
-            # Handle month transition (when end day < start day)
             if end_day_int < start_day_int:
                 end_month = month + 1 if month < 12 else 1
                 end_year = year if month < 12 else year + 1
@@ -628,20 +569,16 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Jenkins automation window: {str(e)}")
     
-    # Additional checks for accuracy - direct pattern search for common maintenance formats
-    # Look for specific formats like "Gitlab will be unavailable during the upgrade 14:th 18:00 - 16:th 16:00"
     specific_gitlab_pattern = r"GitLab.*?unavailable during the upgrade\s+(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})"
     specific_match = re.search(specific_gitlab_pattern, email_body)
     if specific_match:
         start_day, start_time, end_day, end_time = specific_match.groups()
         try:
-            # Use exact specified dates, not base_date
             month = base_date.month
             year = base_date.year
             start_day_int = int(start_day)
             end_day_int = int(end_day)
             
-            # Handle crossing month boundary if needed
             if end_day_int < start_day_int:
                 end_month = month + 1 if month < 12 else 1
                 end_year = year if month < 12 else year + 1
@@ -651,7 +588,6 @@ def extract_service_windows(email_body, base_date):
             start_dt = datetime(year, month, start_day_int)
             end_dt = datetime(end_year, end_month, end_day_int)
             
-            # Override any existing GitLab entry with this more specific info
             service_windows["GitLab"] = {
                 'start_date': start_dt.date(),
                 'start_time': start_time,
@@ -663,13 +599,9 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting specific GitLab window: {str(e)}")
     
-    # Updated extraction for Jenkins paused - support multiple formats
     jenkins_pause_patterns = [
-        # Format with parenthesis: (Friday 14:th 23:00 - Sunday 16:th 14:00)
         r"Jenkins paused.*?\(Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\)",
-        # Format without parenthesis: Friday 14:th 23:00 - Sunday 16:th 14:00
         r"Jenkins paused.*?Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})",
-        # Simpler format: 14:th 23:00 - 16:th 14:00
         r"Jenkins paused.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})"
     ]
     
@@ -680,7 +612,6 @@ def extract_service_windows(email_body, base_date):
         match = re.search(pattern, email_body, re.IGNORECASE | re.DOTALL)
         if match:
             jenkins_match = match
-            # If we matched one of the first two patterns with Friday/Sunday format
             jenkins_day_format = pattern.find("Friday") > -1
             break
     
@@ -692,13 +623,11 @@ def extract_service_windows(email_body, base_date):
             else:
                 start_day, start_time, end_day, end_time = groups
                 
-            # Parse days and create dates
             month = base_date.month
             year = base_date.year
             start_day_int = int(start_day)
             end_day_int = int(end_day)
             
-            # Handle month transition (when end day < start day)
             if end_day_int < start_day_int:
                 end_month = month + 1 if month < 12 else 1
                 end_year = year if month < 12 else year + 1
@@ -719,7 +648,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Jenkins window: {str(e)}")
 
-    # Also look for a simple note about Jenkins automation being paused
     if "Jenkins" not in service_windows:
         automation_pattern = r"NOTE:\s*All automation will be paused from\s+(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*(?:CET)?\s*until\s+(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})"
         automation_match = re.search(automation_pattern, email_body, re.IGNORECASE)
@@ -727,13 +655,11 @@ def extract_service_windows(email_body, base_date):
             try:
                 start_day, start_time, end_day, end_time = automation_match.groups()
                 
-                # Parse days and create dates
                 month = base_date.month
                 year = base_date.year
                 start_day_int = int(start_day)
                 end_day_int = int(end_day)
                 
-                # Handle month transition (when end day < start day)
                 if end_day_int < start_day_int:
                     end_month = month + 1 if month < 12 else 1
                     end_year = year if month < 12 else year + 1
@@ -754,7 +680,6 @@ def extract_service_windows(email_body, base_date):
             except Exception as e:
                 print(f"Error extracting automation window: {str(e)}")
     
-    # Extract JIRA maintenance window specifically - fix time to be 08:00 - 10:00
     jira_pattern = r"Jira.*?not available.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     jira_match = re.search(jira_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if jira_match:
@@ -778,7 +703,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting JIRA window: {str(e)}")
 
-    # Extract Confluence maintenance window specifically
     confluence_pattern = r"Confluence.*?not available.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     confluence_match = re.search(confluence_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if confluence_match:
@@ -802,7 +726,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Confluence window: {str(e)}")
 
-    # Extract Gerrit EPK maintenance window specifically
     gerrit_pattern = r"GitRMS-Gerrit Alpha/EPK.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})"
     gerrit_match = re.search(gerrit_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if gerrit_match:
@@ -826,7 +749,6 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting Gerrit EPK window: {str(e)}")
     
-    # Extract Windows Build maintenance window specifically
     windows_pattern = r"E2C Windows Patching.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     windows_match = re.search(windows_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if windows_match:
@@ -844,13 +766,12 @@ def extract_service_windows(email_body, base_date):
                     'start_time': start_time,
                     'end_date': day_dt.date(),
                     'end_time': end_time,
-                    'impact': 'IMPACTED', # Since servers being rebooted
+                    'impact': 'IMPACTED', 
                     'comments': SERVICES["Windows Build"]['default_impact']
                 }
         except Exception as e:
             print(f"Error extracting Windows Build window: {str(e)}")
 
-    # Extract ARM maintenance window with improved "no impact" detection
     arm_pattern = r"ARM Production.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
     arm_match = re.search(arm_pattern, email_body, re.IGNORECASE | re.DOTALL)
     if arm_match:
@@ -863,7 +784,6 @@ def extract_service_windows(email_body, base_date):
                 day, start_time, end_time = time_match.groups()
                 day_dt = datetime(base_date.year, base_date.month, int(day))
                 
-                # Check specifically for "should be no impact" pattern
                 impact = "NOT_IMPACTED" if re.search(r"should be no impact", arm_window.lower()) else detect_impact(arm_window, SERVICES["ARM SELI & SERO"])
                 
                 service_windows["ARM SELI & SERO"] = {
@@ -877,9 +797,7 @@ def extract_service_windows(email_body, base_date):
         except Exception as e:
             print(f"Error extracting ARM window: {str(e)}")
     
-    # Try to identify other service-specific paragraphs and their windows
     for service_name, service_info in SERVICES.items():
-        # Skip services we've already handled specifically
         if service_name in service_windows:
             continue
             
@@ -888,20 +806,16 @@ def extract_service_windows(email_body, base_date):
         for i, paragraph in enumerate(paragraphs):
             paragraph_lower = paragraph.lower()
             
-            # Check if this paragraph mentions the service
             if any(alias in paragraph_lower for alias in service_aliases):
-                # Combine with surrounding context (current + next paragraph)
                 context = paragraph
                 if i+1 < len(paragraphs):
                     context += " " + paragraphs[i+1]
                 
-                # Look for specific window in this context
                 has_time = re.search(r'\d{1,2}:\d{2}', context)
                 if has_time:
                     start_date, start_time, end_date, end_time = extract_date_time_window(context, base_date)
                     
-                    if start_time:  # If we found a time window
-                        # Detect impact level
+                    if start_time:  
                         impact = detect_impact(context, service_info)
                         
                         service_windows[service_name] = {
@@ -914,22 +828,18 @@ def extract_service_windows(email_body, base_date):
                         }
                         break
     
-    # For services without specific windows, use the default window
     if default_window:
         for service_name in SERVICES:
             if service_name not in service_windows:
-                # Try to detect any mention of the service in the email
                 service_aliases = [service_name.lower()] + [alias.lower() for alias in SERVICES[service_name]["aliases"]]
                 service_mentioned = any(alias in email_body.lower() for alias in service_aliases)
                 
                 if service_mentioned:
-                    # Find the paragraph(s) mentioning this service
                     service_paragraphs = []
                     for paragraph in paragraphs:
                         if any(alias in paragraph.lower() for alias in service_aliases):
                             service_paragraphs.append(paragraph)
                     
-                    # Detect impact from all relevant paragraphs
                     service_context = " ".join(service_paragraphs)
                     impact = detect_impact(service_context, SERVICES[service_name]) if service_paragraphs else "NOT_IMPACTED"
                     
@@ -942,7 +852,6 @@ def extract_service_windows(email_body, base_date):
                         'comments': SERVICES[service_name]['default_impact'] if impact == 'IMPACTED' else "No Impact."
                     }
                 else:
-                    # If service isn't mentioned at all, just use defaults
                     service_windows[service_name] = {
                         'start_date': default_window['start_date'],
                         'start_time': default_window['start_time'],
@@ -958,7 +867,6 @@ def detect_impact(text, service_info):
     """Enhanced impact detection using service-specific indicators and better pattern matching."""
     text_lower = text.lower()
    
-    # Check for explicit "no impact" statements - expanded to catch more variations
     no_impact_patterns = [
         r"no\s+impact",
         r"not\s+impact",
@@ -972,21 +880,20 @@ def detect_impact(text, service_info):
         r"no\s+.*\s+impact"
     ]
     
-    # Explicit check for "should be no impact"
+
     if re.search(r"should\s+be\s+no\s+impact", text_lower):
         return "NOT_IMPACTED"
     
-    # Check for "no impact" except for phrases like "no impact but..."
+    
     if any(re.search(pattern, text_lower) for pattern in no_impact_patterns):
         if not re.search(r"no impact but", text_lower):
             return "NOT_IMPACTED"
     
-    # Check for service-specific impact indicators
+  
     impact_indicators = service_info.get("impact_indicators", [])
     if any(indicator in text_lower for indicator in impact_indicators):
         return "IMPACTED"
     
-    # Enhanced general impact indicators
     general_impact_indicators = [
         "unavailable", "maintenance", "upgrade", "impact",
         "downtime", "pause", "paused", "stopped", "shut down", "shutdown",
@@ -997,7 +904,7 @@ def detect_impact(text, service_info):
     ]
     
     if any(indicator in text_lower for indicator in general_impact_indicators):
-        # But check for explicit exceptions
+        
         if "should always be available" in text_lower or "should be available" in text_lower:
             return "NOT_IMPACTED"
         return "IMPACTED"
@@ -1010,29 +917,17 @@ def parse_email_content(email_data):
         body = email_data.get('body', '')
         subject = email_data.get('subject', '')
         
-        # Extract base date from subject
         base_date = extract_date_from_subject(subject)
         if not base_date:
             base_date = datetime.now().date()
-        
-        # Extract service-specific maintenance windows
         service_windows = extract_service_windows(body, base_date)
-        
-        # Prepare the output data structure
         services_data = []
-        
-        # Special handling for specific services based on email analysis
-        
-        # Check for Jenkins paused message
         jenkins_pattern = r"Jenkins paused.*?(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
         jenkins_match = re.search(jenkins_pattern, body, re.IGNORECASE)
-        
-        # Process each service
         for service_name, service_info in SERVICES.items():
             window = service_windows.get(service_name)
             
             if window:
-                # We found a specific window for this service
                 service_data = {
                     'name': service_name,
                     'date': window['start_date'].strftime("%Y-%m-%d") if window['start_date'] else base_date.strftime("%Y-%m-%d"),
@@ -1043,15 +938,14 @@ def parse_email_content(email_data):
                     'comments': window['comments']
                 }
             else:
-                # No specific window found, use defaults
                 service_data = {
                     'name': service_name,
                     'date': base_date.strftime("%Y-%m-%d"),
-                    'start_time': "09:00",
-                    'end_time': "17:00",
+                    'start_time': "-",
+                    'end_time': "-",
                     'end_date': base_date.strftime("%Y-%m-%d"),
                     'impact': 'NOT_IMPACTED',
-                    'comments': "No Impact."
+                    'comments': "No Impact/No Maintenance."
                 }
             
             services_data.append(service_data)
