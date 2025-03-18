@@ -30,11 +30,6 @@ RUN pip install --upgrade pip && \
 
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser *.py .
-COPY --chown=appuser:appuser scripts/ ./scripts/
-
-
-COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
 
 RUN mkdir -p /app/temp && \
     chown -R appuser:appuser /app/temp && \

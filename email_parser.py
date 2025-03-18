@@ -159,11 +159,35 @@ def normalize_service_name(name, text_context=""):
     return None
 
 def extract_date_time_window(text, base_date=None):
-    """
-    Extract date and time window from text more accurately.
-    Returns tuple of (start_date, start_time, end_date, end_time)
-    Handles multi-day windows and special formats.
-    """
+    """Extract date and time window from text more accurately."""
+    # Add ISO format date-time pattern
+    iso_pattern = r'(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})'
+    iso_match = re.search(iso_pattern, text)
+    if iso_match:
+        start_date_str, start_time, end_date_str, end_time = iso_match.groups()
+        try:
+            start_dt = datetime.fromisoformat(start_date_str)
+            end_dt = datetime.fromisoformat(end_date_str)
+            return start_dt.date(), start_time, end_dt.date(), end_time
+        except ValueError:
+            pass
+            
+    # Single ISO date with time range
+    iso_single_day = r'(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})'
+    iso_single_match = re.search(iso_single_day, text)
+    if iso_single_match:
+        date_str, start_time, end_time = iso_single_match.groups()
+        try:
+            day_dt = datetime.fromisoformat(date_str)
+            end_date = day_dt.date()
+            if end_time == "24:00":
+                end_time = "00:00"
+                end_date = (day_dt + timedelta(days=1)).date()
+            return day_dt.date(), start_time, end_date, end_time
+        except ValueError:
+            pass
+    
+    # Keep existing patterns
     multi_day_pattern = r'(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})'
     multi_day_match = re.search(multi_day_pattern, text)
     
@@ -232,6 +256,23 @@ def extract_date_time_window(text, base_date=None):
                 end_date = base_date + timedelta(days=1)
             return base_date, start_time, end_date, end_time
     
+    # Add pattern for explicit change window format
+    change_window = r"Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*[-–]\s*(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2})"
+    window_match = re.search(change_window, text)
+    if window_match:
+        groups = window_match.groups()
+        start_date_str = groups[0]
+        start_time = groups[1]
+        end_date_str = groups[2] if groups[2] else start_date_str
+        end_time = groups[3]
+        
+        try:
+            start_dt = datetime.fromisoformat(start_date_str)
+            end_dt = datetime.fromisoformat(end_date_str)
+            return start_dt.date(), start_time, end_dt.date(), end_time
+        except ValueError:
+            pass
+
     return None, None, None, None
 
 def extract_service_windows(email_body, base_date):
@@ -877,7 +918,11 @@ def detect_impact(text, service_info):
         r"should be no impact",
         r"should\s+be\s+no\s+impact",
         r"none of our users",
-        r"no\s+.*\s+impact"
+        r"no\s+.*\s+impact",
+        r"no impact for users",
+        r"no expected impact",
+        r"transparent to users",
+        r"upgrade is transparent"
     ]
     
 
