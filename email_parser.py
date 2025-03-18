@@ -277,6 +277,226 @@ def extract_service_windows(email_body, base_date):
                 'end_time': end_time
             }
 
+    # Enhanced pattern matching for Jenkins paused window - handle more formats
+    jenkins_pause_patterns = [
+        # Original pattern with Friday/Sunday format in parentheses
+        r"Jenkins paused.*?\(Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\)",
+        # Without parentheses
+        r"Jenkins paused.*?Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})",
+        # Direct window reference format (no Friday/Sunday)
+        r"Jenkins paused.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})",
+        # Simple "due to" format with window following
+        r"Jenkins paused due to.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})"
+    ]
+    
+    # Try to match any of the Jenkins patterns
+    jenkins_match = None
+    jenkins_format_type = None
+    
+    for i, pattern in enumerate(jenkins_pause_patterns):
+        match = re.search(pattern, email_body, re.IGNORECASE)
+        if match:
+            jenkins_match = match
+            jenkins_format_type = i
+            break
+    
+    # Extract Jenkins window if found
+    if jenkins_match:
+        try:
+            groups = jenkins_match.groups()
+            
+            # Handle different format types
+            if jenkins_format_type <= 1:  # Friday/Sunday format
+                start_day, start_time, end_day, end_time = groups
+                
+                # Parse days and create dates
+                month = base_date.month
+                year = base_date.year
+                start_day_int = int(start_day)
+                end_day_int = int(end_day)
+                
+                # Handle month transition (when end day < start day)
+                if end_day_int < start_day_int:
+                    end_month = month + 1 if month < 12 else 1
+                    end_year = year if month < 12 else year + 1
+                else:
+                    end_month, end_year = month, year
+                
+                start_dt = datetime(year, month, start_day_int)
+                end_dt = datetime(end_year, end_month, end_day_int)
+                
+            else:  # ISO date format (YYYY-MM-DD)
+                start_date_str, start_time, end_date_str, end_time = groups
+                start_dt = datetime.fromisoformat(start_date_str)
+                end_dt = datetime.fromisoformat(end_date_str)
+            
+            service_windows["Jenkins"] = {
+                'start_date': start_dt.date(),
+                'start_time': start_time,
+                'end_date': end_dt.date(),
+                'end_time': end_time,
+                'impact': 'IMPACTED',
+                'comments': SERVICES["Jenkins"]['default_impact']
+            }
+        except Exception as e:
+            print(f"Error extracting Jenkins window: {str(e)}")
+
+    # Enhanced GitLab extraction - handle year typos by checking if the year is reasonable
+    gitlab_patterns = [
+        r"GitLab.*?unavailable during.*?Window:\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
+        r"GitLab.*?Impact:.*?unavailable.*?Window:\s*(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
+    ]
+    
+    for gitlab_pattern in gitlab_patterns:
+        gitlab_match = re.search(gitlab_pattern, email_body, re.IGNORECASE | re.DOTALL)
+        if gitlab_match:
+            try:
+                year, month, day, start_time, end_time = gitlab_match.groups()
+                year_int = int(year)
+                
+                # Check for year typo - if more than 2 years off from current year, assume typo
+                current_year = datetime.now().year
+                if abs(year_int - current_year) > 2:
+                    # Likely a typo - use current year or base_date year
+                    year_int = base_date.year
+                
+                gitlab_date = datetime(year_int, int(month), int(day))
+                
+                service_windows["GitLab"] = {
+                    'start_date': gitlab_date.date(),
+                    'start_time': start_time,
+                    'end_date': gitlab_date.date(),
+                    'end_time': end_time,
+                    'impact': 'IMPACTED',
+                    'comments': SERVICES["GitLab"]['default_impact']
+                }
+                break
+            except Exception as e:
+                print(f"Error extracting GitLab window: {str(e)}")
+
+    # Enhanced ARM SELI extraction - handle "unavailable for ~X hours" format
+    arm_patterns = [
+        # Standard window format
+        r"ARM SELI.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
+        # Approximate hours format
+        r"ARM SELI unavailable for.*?~(\d+)\s+hours?.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
+        # Simple date range format
+        r"ARM SELI.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
+    ]
+    
+    for arm_pattern in arm_patterns:
+        arm_match = re.search(arm_pattern, email_body, re.IGNORECASE | re.DOTALL)
+        if arm_match:
+            try:
+                groups = arm_match.groups()
+                
+                # Handle different pattern formats
+                if len(groups) == 4:  # Approximate hours format
+                    hours, date_str, start_time, end_time = groups
+                    arm_date = datetime.fromisoformat(date_str)
+                elif len(groups) == 3:  # Standard window format
+                    date_str, start_time, end_time = groups
+                    arm_date = datetime.fromisoformat(date_str)
+                
+                service_windows["ARM SELI & SERO"] = {
+                    'start_date': arm_date.date(),
+                    'start_time': start_time,
+                    'end_date': arm_date.date(),
+                    'end_time': end_time,
+                    'impact': 'IMPACTED',
+                    'comments': SERVICES["ARM SELI & SERO"]['default_impact']
+                }
+                break
+            except Exception as e:
+                print(f"Error extracting ARM SELI window: {str(e)}")
+
+    # Enhanced Gerrit EPK extraction - handle upgrade and version information
+    gerrit_patterns = [
+        r"GitRMS - Gerrit-Alpha/EPK upgrade.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})",
+        r"Gerrit EPK unavailable.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})"
+    ]
+    
+    for gerrit_pattern in gerrit_patterns:
+        gerrit_match = re.search(gerrit_pattern, email_body, re.IGNORECASE | re.DOTALL)
+        if gerrit_match:
+            try:
+                start_date_str, start_time, end_date_str, end_time = gerrit_match.groups()
+                start_dt = datetime.fromisoformat(start_date_str)
+                end_dt = datetime.fromisoformat(end_date_str)
+                
+                service_windows["Gerrit EPK"] = {
+                    'start_date': start_dt.date(),
+                    'start_time': start_time,
+                    'end_date': end_dt.date(),
+                    'end_time': end_time,
+                    'impact': 'IMPACTED',
+                    'comments': SERVICES["Gerrit EPK"]['default_impact']
+                }
+                break
+            except Exception as e:
+                print(f"Error extracting Gerrit EPK window: {str(e)}")
+
+    # Enhanced Jira & Confluence extraction - handle joint mentions
+    jira_confluence_patterns = [
+        # Pattern for both Jira and Confluence mentioned together
+        r"(?:Jira|eTeamProject).*?(?:Confluence|eTeamSpace).*?unavailable for.*?~?(\d+)\s+hours?.*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
+        # Pattern for both with specific window format
+        r"(?:Jira|eTeamProject).*?(?:Confluence|eTeamSpace).*?Window:\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
+    ]
+    
+    for jc_pattern in jira_confluence_patterns:
+        jc_match = re.search(jc_pattern, email_body, re.IGNORECASE | re.DOTALL)
+        if jc_match:
+            try:
+                groups = jc_match.groups()
+                
+                # Handle different pattern formats
+                if len(groups) == 4:  # With hours
+                    hours, date_str, start_time, end_time = groups
+                    jc_date = datetime.fromisoformat(date_str)
+                elif len(groups) == 3:  # Just window
+                    date_str, start_time, end_time = groups
+                    jc_date = datetime.fromisoformat(date_str)
+                
+                # Set for both Jira and Confluence
+                service_windows["JIRA"] = {
+                    'start_date': jc_date.date(),
+                    'start_time': start_time,
+                    'end_date': jc_date.date(),
+                    'end_time': end_time,
+                    'impact': 'IMPACTED',
+                    'comments': SERVICES["JIRA"]['default_impact']
+                }
+                
+                service_windows["Confluence"] = {
+                    'start_date': jc_date.date(),
+                    'start_time': start_time,
+                    'end_date': jc_date.date(),
+                    'end_time': end_time,
+                    'impact': 'IMPACTED',
+                    'comments': SERVICES["Confluence"]['default_impact']
+                }
+                break
+            except Exception as e:
+                print(f"Error extracting Jira/Confluence window: {str(e)}")
+
+    # Add detection for Windows patching without specific times
+    windows_pattern = r"E2C Windows Patching.*?January (\d{4})"
+    windows_match = re.search(windows_pattern, email_body, re.IGNORECASE)
+    if windows_match and "Windows Build" not in service_windows and default_window:
+        try:
+            # Use default window but mark specifically as Windows patching
+            service_windows["Windows Build"] = {
+                'start_date': default_window['start_date'],
+                'start_time': default_window['start_time'],
+                'end_date': default_window['end_date'],
+                'end_time': default_window['end_time'],
+                'impact': 'IMPACTED',
+                'comments': SERVICES["Windows Build"]['default_impact']
+            }
+        except Exception as e:
+            print(f"Error extracting Windows Build window: {str(e)}")
+
     # Special handling for Jenkins paused window - needs to capture Friday 14:th 23:00 - Sunday 16:th 14:00 format
     jenkins_pause_pattern = r"Jenkins paused.*?\(Friday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\s*-\s*Sunday (\d{1,2}):?(?:st|nd|rd|th)?\s+(\d{1,2}:\d{2})\)"
     jenkins_pause_match = re.search(jenkins_pause_pattern, email_body, re.IGNORECASE | re.DOTALL)
