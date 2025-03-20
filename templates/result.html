@@ -2335,7 +2335,193 @@
             columns: 1;
         }
     }
-    </style>
+    /* Email Comparison View Styles */
+.comparison-view {
+  width: 90%;
+  max-width: 1200px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.comparison-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 20px;
+  height: calc(100% - 120px);
+}
+
+.email-viewer, .parsed-data-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+
+.section-title {
+  padding: 10px 15px;
+  margin: 0;
+  background: var(--primary-color);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.email-body {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.parsed-data-container {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+}
+
+.parsed-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+}
+
+.parsed-data-table th, 
+.parsed-data-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+}
+
+.parsed-data-table tr {
+  border-left: none;
+  border-right: none;
+}
+
+.comparison-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0 0 8px 8px;
+  margin-top: 20px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#emailSearch {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+}
+
+#searchBtn {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: none;
+  background: var(--primary-color);
+  color: white;
+  cursor: pointer;
+}
+
+#searchResults {
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.legend {
+  display: flex;
+  gap: 15px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.highlight-service, .highlight-date, .highlight-time {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+}
+
+.highlight-service {
+  background-color: rgba(37, 99, 235, 0.2);
+}
+
+.highlight-date {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+.highlight-time {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+/* Highlight styles for email content */
+.highlight-match {
+  background-color: rgba(253, 224, 71, 0.3);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.email-body .highlight-service {
+  background-color: rgba(37, 99, 235, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.email-body .highlight-date {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.email-body .highlight-time {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.parsed-data-table tr.highlight-row {
+  background-color: rgba(37, 99, 235, 0.1);
+}
+
+.layout-stacked .comparison-container {
+  flex-direction: column;
+}
+
+.layout-stacked .email-viewer, 
+.layout-stacked .parsed-data-viewer {
+  max-height: 50%;
+}
+
+@media (max-width: 768px) {
+  .comparison-container {
+    flex-direction: column;
+  }
+
+  .email-viewer, .parsed-data-viewer {
+    max-height: 50%;
+  }
+}
+</style>
 </head>
 <body>
     <header class="nav-header">
@@ -2560,40 +2746,88 @@
 
         
         <div id="emailModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            
-            <div class="modal-toolbar">
-            <button class="tool-btn primary-btn" id="copyEmail">
-                <i class="fas fa-copy"></i> Copy All
-            </button>
-            <button class="tool-btn secondary-btn" id="downloadText">
-                <i class="fas fa-file-download"></i> Download as Text
-            </button>
-            <button class="tool-btn" id="toggleWordWrap">
-                <i class="fas fa-align-left"></i> Toggle Word Wrap
-            </button>
-            <button class="tool-btn" id="increaseFontSize">
-                <i class="fas fa-search-plus"></i>
-            </button>
-            <button class="tool-btn" id="decreaseFontSize">
-                <i class="fas fa-search-minus"></i>
-            </button>
-            </div>
+  <div class="modal-content comparison-view">
+    <span class="close">&times;</span>
+    
+    <div class="modal-toolbar">
+      <button class="tool-btn primary-btn" id="copyEmail">
+        <i class="fas fa-copy"></i> Copy All
+      </button>
+      <button class="tool-btn secondary-btn" id="downloadText">
+        <i class="fas fa-file-download"></i> Download as Text
+      </button>
+      <button class="tool-btn" id="toggleWordWrap">
+        <i class="fas fa-align-left"></i> Toggle Word Wrap
+      </button>
+      <button class="tool-btn" id="toggleLayout">
+        <i class="fas fa-columns"></i> Toggle Layout
+      </button>
+      <button class="tool-btn" id="highlightData">
+        <i class="fas fa-highlighter"></i> Highlight Data
+      </button>
+      <button class="tool-btn" id="increaseFontSize">
+        <i class="fas fa-search-plus"></i>
+      </button>
+      <button class="tool-btn" id="decreaseFontSize">
+        <i class="fas fa-search-minus"></i>
+      </button>
+    </div>
 
-            <div class="email-viewer">
-            <div class="email-header">
-                <div class="email-meta">
-                <span class="meta-label">Subject:</span>
-                <span>{{ data.original_subject }}</span>
-                <span class="meta-label">Date:</span>
-                <span>{{ data.date }}</span>
-                </div>
-            </div>
-            <div class="email-body" id="emailBody">{{ data.original_body }}</div>
-            </div>
+    <div class="comparison-container">
+      <div class="email-viewer">
+        <h3 class="section-title">Original Email</h3>
+        <div class="email-header">
+          <div class="email-meta">
+            <span class="meta-label">Subject:</span>
+            <span>{{ data.original_subject }}</span>
+            <span class="meta-label">Date:</span>
+            <span>{{ data.date }}</span>
+          </div>
         </div>
+        <div class="email-body" id="emailBody">{{ data.original_body }}</div>
+      </div>
+
+      <div class="parsed-data-viewer">
+        <h3 class="section-title">Extracted Data</h3>
+        <div class="parsed-data-container">
+          <table class="parsed-data-table">
+            <thead>
+              <tr>
+                <th>Service/Servers</th>
+                <th>Date</th>
+                <th>Time Window</th>
+                <th>Comments</th>
+              </tr>
+            </thead>
+            <tbody id="parsedDataBody">
+              {% for service in data.services %}
+              <tr data-service="{{ service.name }}">
+                <td>{{ service.name }}</td>
+                <td>{{ data.date }}</td>
+                <td>{{ service.start_time }} - {{ service.end_time }}</td>
+                <td>{{ service.comments }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
+    </div>
+
+    <div class="comparison-footer">
+      <div class="search-box">
+        <input type="text" id="emailSearch" placeholder="Search in email...">
+        <button id="searchBtn"><i class="fas fa-search"></i></button>
+        <span id="searchResults"></span>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="highlight-service"></span> Service Name</span>
+        <span class="legend-item"><span class="highlight-date"></span> Date</span>
+        <span class="legend-item"><span class="highlight-time"></span> Time</span>
+      </div>
+    </div>
+  </div>
+</div>
 
         <div class="upload-modal" id="uploadModal">
         <div class="upload-modal-content">
@@ -3430,6 +3664,162 @@
                 window.location.href = '/';
             }
         });
-    </script>
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Existing initialization code...
+
+  // New email comparison functionality
+  const toggleLayoutBtn = document.getElementById('toggleLayout');
+  const highlightDataBtn = document.getElementById('highlightData');
+  const searchBtn = document.getElementById('searchBtn');
+  const emailSearch = document.getElementById('emailSearch');
+  const searchResults = document.getElementById('searchResults');
+  const emailBody = document.getElementById('emailBody');
+  const parsedDataRows = document.querySelectorAll('#parsedDataBody tr');
+  
+  let isHighlighted = false;
+  
+  // Toggle between side-by-side and stacked layout
+  toggleLayoutBtn.addEventListener('click', function() {
+    const modalContent = document.querySelector('.modal-content');
+    modalContent.classList.toggle('layout-stacked');
+  });
+  
+  // Highlight data in the email content
+  highlightDataBtn.addEventListener('click', function() {
+    isHighlighted = !isHighlighted;
+    
+    if (isHighlighted) {
+      highlightDataBtn.classList.add('active');
+      highlightEmailContent();
+    } else {
+      highlightDataBtn.classList.remove('active');
+      resetEmailHighlights();
+    }
+  });
+  
+  // Search functionality
+  searchBtn.addEventListener('click', performSearch);
+  emailSearch.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      performSearch();
+    }
+  });
+  
+  // Row highlighting when hovering over parsed data
+  parsedDataRows.forEach(row => {
+    row.addEventListener('mouseenter', function() {
+      const serviceName = this.getAttribute('data-service');
+      highlightServiceInEmail(serviceName);
+      this.classList.add('highlight-row');
+    });
+    
+    row.addEventListener('mouseleave', function() {
+      if (!isHighlighted) {
+        resetEmailHighlights();
+      }
+      this.classList.remove('highlight-row');
+    });
+  });
+  
+  function highlightEmailContent() {
+    let emailContent = emailBody.innerHTML;
+    
+    // Extract data from table
+    const services = Array.from(parsedDataRows).map(row => {
+      return {
+        name: row.cells[0].textContent,
+        date: row.cells[1].textContent,
+        time: row.cells[2].textContent
+      };
+    });
+    
+    // First, escape the content to prevent HTML injection
+    emailContent = escapeHtml(emailBody.textContent);
+    
+    // Highlight dates
+    const datePattern = /\b\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}\b/g;
+    emailContent = emailContent.replace(datePattern, '<span class="highlight-date">$&</span>');
+    
+    // Highlight times
+    const timePattern = /\b([0-1]?[0-9]|2[0-3])[:][0-5][0-9](\s*-\s*([0-1]?[0-9]|2[0-3])[:][0-5][0-9])?\b/g;
+    emailContent = emailContent.replace(timePattern, '<span class="highlight-time">$&</span>');
+    
+    // Highlight service names
+    services.forEach(service => {
+      if (service.name.trim()) {
+        const nameRegex = new RegExp('\\b' + escapeRegExp(service.name.trim()) + '\\b', 'gi');
+        emailContent = emailContent.replace(nameRegex, '<span class="highlight-service">$&</span>');
+      }
+    });
+    
+    emailBody.innerHTML = emailContent;
+  }
+  
+  function resetEmailHighlights() {
+    emailBody.innerHTML = escapeHtml(emailBody.textContent);
+  }
+  
+  function highlightServiceInEmail(serviceName) {
+    if (!serviceName.trim()) return;
+    
+    let content = emailBody.textContent;
+    const nameRegex = new RegExp('\\b' + escapeRegExp(serviceName.trim()) + '\\b', 'gi');
+    
+    if (content.match(nameRegex)) {
+      content = escapeHtml(content);
+      content = content.replace(nameRegex, '<span class="highlight-match">$&</span>');
+      emailBody.innerHTML = content;
+      
+      // Scroll to the first match
+      const firstMatch = emailBody.querySelector('.highlight-match');
+      if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
+  
+  function performSearch() {
+    const searchTerm = emailSearch.value.trim();
+    if (!searchTerm) return;
+    
+    let content = emailBody.textContent;
+    const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+    const matches = content.match(regex);
+    
+    if (matches && matches.length > 0) {
+      searchResults.textContent = `${matches.length} matches found`;
+      
+      content = escapeHtml(content);
+      content = content.replace(regex, '<span class="highlight-match">$&</span>');
+      emailBody.innerHTML = content;
+      
+      // Scroll to the first match
+      const firstMatch = emailBody.querySelector('.highlight-match');
+      if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      searchResults.textContent = 'No matches found';
+    }
+  }
+  
+  // Helper functions
+  function escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+  
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+});
+
+// ...existing code...
+</script>
 </body>
 </html>
