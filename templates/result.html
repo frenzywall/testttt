@@ -3179,6 +3179,7 @@
             
             applyActiveFilter();
         });
+        
 
         function checkEmptyTable() {
             const tbody = document.querySelector('tbody');
@@ -4555,77 +4556,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Enhanced function for adding a new row to save it immediately
-document.getElementById('addRow').addEventListener('click', function() {
-    const tbody = document.querySelector('tbody');
-    const newRow = document.createElement('tr');
-    newRow.setAttribute('data-priority', 'low');
-    
-    const emptyState = tbody.querySelector('.empty-state');
-    if (emptyState) {
-        tbody.removeChild(emptyState);
-    }
-    
-    const todayDate = new Date().toISOString().split('T')[0];
-    
-    newRow.innerHTML = `
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable">${todayDate}</td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable">${todayDate}</td>
-    <td contenteditable="true" class="editable"></td>
-    <td class="impact-cell">
-        <div class="impact-selector" data-value="low">
-        <div class="impact-selector-inner">
-            <div class="impact-option impact-option-low selected" data-value="low">
-            <span class="impact-dot"></span> Low
-            </div>
-            <div class="impact-option impact-option-medium" data-value="medium">
-            <span class="impact-dot"></span> Medium
-            </div>
-            <div class="impact-option impact-option-high" data-value="high">
-            <span class="impact-dot"></span> High
-            </div>
-        </div>
-        </div>
-    </td>
-    <td class="action-cell">
-        <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
-        <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
-        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-    </td>
-    `;
-    tbody.appendChild(newRow);
-    
-    applyRowHighlight(newRow);
-    initImpactSelector(newRow);
-    applyActiveFilter();
-    
-    // Auto-save this empty row to Redis so it's preserved
-    const rowData = {
-        service: '',
-        date: todayDate,
-        startTime: '',
-        endTime: '',
-        endDate: todayDate,
-        comments: '',
-        impactPriority: 'low'
-    };
-    
-    fetch('/save-changes', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(rowData)
-    }).catch(error => console.error('Error saving new row:', error));
-});
 
-// ...existing code...
-
-// Replace the existing resetForm event listener with this improved version
-// Make sure this code appears ONLY ONCE in the file
 document.addEventListener('DOMContentLoaded', function() {
     const resetFormBtn = document.getElementById('resetForm');
     
