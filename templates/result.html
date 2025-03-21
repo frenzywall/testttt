@@ -4026,8 +4026,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const timeParts = timeRange.split('-');
         startTime = timeParts[0].trim();
         endTime = timeParts[1].trim();
+        
+        // If end time is empty but there was a hyphen, use "-" instead of empty string
+        if (!endTime && timeRange.trim().endsWith('-')) {
+          endTime = "-";
+        }
       } else {
-        startTime = timeRange;
+        startTime = timeRange.trim();
+        // If only start time is provided and it ends with hyphen, add "-"
+        if (startTime.endsWith('-')) {
+          startTime = startTime.slice(0, -1).trim();
+          endTime = "-";
+        } else {
+          endTime = "-"; // Default value when no end time is specified
+        }
       }
       
       const comments = parsedRow.cells[3].textContent;
