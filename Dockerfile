@@ -1,47 +1,27 @@
-
-FROM python:3.14.0a5-slim-bullseye AS builder
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    gcc \
-    libc6-dev \
-    python3-dev \
-    libffi-dev \
+FROM python:3.12.9-slim-bookworm AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libc6-dev python3-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /build
 COPY requirements.txt .
-RUN pip install --upgrade pip wheel setuptools && \
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.14.0a5-slim-bullseye
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    apt-get clean && \
+FROM python:3.12.9-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-WORKDIR /app
-
-COPY --from=builder /wheels /wheels
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir /wheels/* && \
-    rm -rf /wheels
-
-COPY --chown=appuser:appuser templates/ ./templates/
-COPY --chown=appuser:appuser *.py .
-
-RUN mkdir -p /app/temp && \
-    chown -R appuser:appuser /app/temp && \
-    chmod 1777 /app/temp
-
-
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
     FLASK_APP=app.py \
     FLASK_DEBUG=0 \
     TEMP_DIR=/app/temp
-RUN touch /app/temp.msg && chown appuser:appuser /app/temp.msg && chmod 777 /app/temp.msg
-
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+WORKDIR /app
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --disable-pip-version-check /wheels/* && rm -rf /wheels
+COPY --chown=appuser:appuser templates/ ./templates/
+COPY --chown=appuser:appuser *.py .
+RUN mkdir -p /app/temp && chmod 1777 /app/temp
 USER appuser
 EXPOSE 5000
-CMD ["python3","app.py"]
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
