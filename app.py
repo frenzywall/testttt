@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from datetime import datetime
 from dateutil import parser
 import pytz
@@ -8,13 +8,40 @@ import os
 import email_parser
 import re
 import tempfile
+import redis
+import json
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')  # Required for session
 
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
 tempfile.tempdir = temp_dir
+
+# Initialize Redis
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'redis'),
+    port=int(os.getenv('REDIS_PORT', 6379)),
+    db=0,
+    decode_responses=True
+)
+
+def get_stored_data():
+    """Get data from Redis"""
+    try:
+        data = redis_client.get('change_management_data')
+        return json.loads(data) if data else None
+    except:
+        return None
+
+def save_stored_data(data):
+    """Save data to Redis"""
+    try:
+        redis_client.set('change_management_data', json.dumps(data))
+        return True
+    except:
+        return False
 
 def convert_sweden_to_ist(sweden_time_str, date_str):
     """Convert Sweden TZ time into IST."""
@@ -90,7 +117,11 @@ def extract_date_from_subject(subject):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'GET':
-        # Show empty landing page
+        stored_data = get_stored_data()
+        if stored_data:
+            return render_template('result.html', data=stored_data, header_title=stored_data.get('header_title', 'Change Weekend'))
+        
+        # Show empty landing page if no stored data
         empty_data = {
             'services': [],
             'date': datetime.now().strftime('%Y-%m-%d'),
@@ -98,11 +129,12 @@ def index():
             'original_subject': '',
             'original_body': '',
             'error': None,
-            'is_landing_page': True  # Add this flag to indicate landing page
+            'is_landing_page': True,
+            'header_title': 'Change Weekend'
         }
         return render_template('result.html', data=empty_data, header_title='Change Weekend')
         
-    # POST method handling
+    # POST method handling for file upload
     if 'file' not in request.files:
         return render_template('result.html', data={
             'services': [],
@@ -166,6 +198,10 @@ def index():
             except:
                 header_title = "Change Weekend"
             
+            # Store data in Redis instead of session
+            services_data['header_title'] = header_title
+            save_stored_data(services_data)
+            
             return render_template('result.html', data=services_data, header_title=header_title)
 
     except Exception as e:
@@ -185,6 +221,146 @@ def index():
                 os.unlink(temp_path)
         except Exception as e:
             print(f"Warning: Could not remove temp file: {str(e)}")
+
+@app.route('/sync-all-data', methods=['POST'])
+def sync_all_data():
+    """Save all data at once to Redis"""
+    data = request.json
+    
+    if not data or 'services' not in data:
+        return jsonify({'status': 'error', 'message': 'Invalid data structure'})
+    
+    # Make sure to preserve any original content that isn't in the current data
+    stored_data = get_stored_data() or {}
+    
+    # Update with the new data
+    for key in data:
+        stored_data[key] = data[key]
+    
+    # Make sure we have all required fields
+    if 'services' not in stored_data:
+        stored_data['services'] = []
+    if 'date' not in stored_data:
+        stored_data['date'] = datetime.now().strftime('%Y-%m-%d')
+    if 'end_date' not in stored_data:
+        stored_data['end_date'] = stored_data['date']
+    if 'header_title' not in stored_data:
+        stored_data['header_title'] = 'Change Weekend'
+    
+    # Save to Redis
+    save_stored_data(stored_data)
+    
+    return jsonify({'status': 'success'})
+
+@app.route('/save-changes', methods=['POST'])
+def save_changes():
+    """Save changes to a specific row"""
+    stored_data = get_stored_data()
+    if not stored_data:
+        stored_data = {
+            'services': [],
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': '',
+            'header_title': 'Change Weekend'
+        }
+    
+    data = request.json
+    
+    # Find and update the service, or add a new one if not found
+    found = False
+    for service in stored_data['services']:
+        # Compare service name for existing entries, but allow empty names for new entries
+        if service['name'] == data['service'] or (not service['name'] and not data['service']):
+            service['name'] = data['service']
+            service['start_time'] = data['startTime']
+            service['end_time'] = data['endTime']
+            service['comments'] = data.get('comments', '')
+            service['priority'] = data.get('impactPriority', 'low')
+            service['end_date'] = data.get('endDate', stored_data['date'])
+            found = True
+            break
+    
+    if not found:
+        stored_data['services'].append({
+            'name': data['service'],
+            'start_time': data['startTime'],
+            'end_time': data['endTime'],
+            'end_date': data.get('endDate', stored_data['date']),
+            'comments': data.get('comments', ''),
+            'priority': data.get('impactPriority', 'low')
+        })
+    
+    # Clean up any empty rows that might have been created and not filled
+    stored_data['services'] = [s for s in stored_data['services'] if s['name'].strip()]
+    
+    # Update date if provided
+    if 'date' in data and data['date']:
+        stored_data['date'] = data['date']
+    
+    # Save to Redis
+    save_stored_data(stored_data)
+    return jsonify({'status': 'success'})
+
+@app.route('/delete-row', methods=['POST'])
+def delete_row():
+    """Delete a row from the stored data"""
+    stored_data = get_stored_data()
+    if not stored_data:
+        return jsonify({'status': 'error', 'message': 'No data to delete'})
+    
+    data = request.json
+    
+    stored_data['services'] = [
+        service for service in stored_data['services']
+        if service['name'] != data['service']
+    ]
+    
+    save_stored_data(stored_data)
+    return jsonify({'status': 'success'})
+
+@app.route('/save-title', methods=['POST'])
+def save_title():
+    """Save the header title"""
+    stored_data = get_stored_data()
+    if stored_data:
+        stored_data['header_title'] = request.json['title']
+        save_stored_data(stored_data)
+    return jsonify({'status': 'success'})
+
+@app.route('/save-parsed-data', methods=['POST'])
+def save_parsed_data():
+    """Save the entire dataset from parsed data editing"""
+    stored_data = get_stored_data()
+    if not stored_data:
+        stored_data = {
+            'services': [],
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'original_subject': '',
+            'original_body': '',
+            'header_title': 'Change Weekend'
+        }
+    
+    data = request.json
+    
+    # Replace the entire services array
+    stored_data['services'] = data['services']
+    
+    # Update the date if provided
+    if 'date' in data:
+        stored_data['date'] = data['date']
+    
+    # Save to Redis
+    save_stored_data(stored_data)
+    return jsonify({'status': 'success'})
+
+@app.route('/reset-data', methods=['POST'])
+def reset_data():
+    """Reset all stored data"""
+    redis_client.delete('change_management_data')
+    return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
