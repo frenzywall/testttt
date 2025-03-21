@@ -4623,6 +4623,229 @@ document.getElementById('addRow').addEventListener('click', function() {
 });
 
 // ...existing code...
+
+// Replace the existing resetForm event listener with this improved version
+// Make sure this code appears ONLY ONCE in the file
+document.addEventListener('DOMContentLoaded', function() {
+    const resetFormBtn = document.getElementById('resetForm');
+    
+    // Remove any existing event listeners by cloning and replacing the button
+    const newResetBtn = resetFormBtn.cloneNode(true);
+    resetFormBtn.parentNode.replaceChild(newResetBtn, resetFormBtn);
+    
+    // Add a single event listener to the new button
+    newResetBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (confirm('Are you sure you want to reset the form? This will clear all data.')) {
+            // Show loading indicator
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'sync-loading';
+            loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting data...';
+            loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+            document.body.appendChild(loadingEl);
+            
+            fetch('/reset-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Force a complete refresh with no caching
+                const reloadUrl = window.location.href.split('?')[0] + 
+                                '?nocache=' + new Date().getTime();
+                window.location.replace(reloadUrl);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.body.removeChild(loadingEl);
+                alert('Error resetting data. Please try again.');
+            });
+        }
+    });
+    
+    // Remove any other event listeners that might be registered elsewhere
+    const oldHandlers = getEventListeners || (el => ({}));
+    const existingResetHandlers = oldHandlers(document.getElementById('resetForm')) || {};
+    if (existingResetHandlers.click) {
+        existingResetHandlers.click.forEach(handler => {
+            if (handler !== newResetBtn.onclick) {
+                document.getElementById('resetForm').removeEventListener('click', handler);
+            }
+        });
+    }
+});
+
+// ...existing code...
+
+// Replace the syncAllDataToRedis function with this improved version
+function syncAllDataToRedis() {
+    const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+    const services = [];
+    
+    // If there are no rows, don't proceed
+    if (tableRows.length === 0) {
+        alert('No data to sync.');
+        return;
+    }
+    
+    // Gather data from all rows
+    tableRows.forEach(row => {
+        const cells = row.cells;
+        if (cells.length < 7) return;
+        
+        const serviceName = cells[0].textContent;
+        const date = cells[1].textContent;
+        const startTime = cells[2].dataset.original || cells[2].textContent;
+        const endTime = cells[3].dataset.original || cells[3].textContent;
+        const endDate = cells[4].textContent;
+        const comments = cells[5].textContent;
+        const priority = row.getAttribute('data-priority') || 'low';
+        
+        services.push({
+            name: serviceName,
+            start_time: startTime,
+            end_time: endTime,
+            end_date: endDate || date,
+            comments: comments,
+            priority: priority
+        });
+    });
+    
+    // Get the current header title
+    const headerTitle = document.getElementById('headerTitle').textContent;
+    
+    // Get the original email body if available
+    const emailBody = document.getElementById('emailBody');
+    const originalBody = emailBody ? emailBody.textContent : '';
+    
+    // Create the data object
+    const data = {
+        services: services,
+        date: services.length > 0 ? services[0].end_date : new Date().toISOString().split('T')[0],
+        header_title: headerTitle,
+        original_body: originalBody
+    };
+    
+    // Show loading animation
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'sync-loading';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing data...';
+    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+    document.body.appendChild(loadingEl);
+    
+    // Disable any unsaved changes warnings
+    window.onbeforeunload = null;
+    
+    // Send to server
+    fetch('/sync-all-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        cache: 'no-store'
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(loadingEl);
+        if (result.status === 'success') {
+            // Update the timestamp
+            document.getElementById('dataTimestamp').value = result.timestamp;
+            
+            const successEl = document.createElement('div');
+            successEl.className = 'sync-success';
+            successEl.innerHTML = '<i class="fas fa-check-circle"></i> Data synced successfully!';
+            successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+            document.body.appendChild(successEl);
+            
+            // Ask the user if they want to reload for a fresh state
+            if (confirm('Data synced successfully! Reload page to ensure you have the latest data?')) {
+                // Force a complete refresh with no caching
+                const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
+                window.location.replace(reloadUrl);
+            } else {
+                // Just remove the success message after a delay
+                setTimeout(() => {
+                    document.body.removeChild(successEl);
+                }, 3000);
+            }
+        } else {
+            alert('Error syncing data: ' + (result.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(loadingEl);
+        console.error('Error:', error);
+        alert('Error syncing data. Please try again.');
+    });
+}
+
+// Add a function to periodically check for updates from other tabs
+function setupUpdateChecker() {
+    const checkInterval = 10000; // Check every 10 seconds
+    
+    function checkForUpdates() {
+        const currentTimestamp = document.getElementById('dataTimestamp').value;
+        
+        fetch(`/check-updates?since=${currentTimestamp}&_=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.updated) {
+                // Show notification that data has been updated elsewhere
+                const updateNotice = document.createElement('div');
+                updateNotice.className = 'update-notice';
+                updateNotice.innerHTML = '<i class="fas fa-info-circle"></i> Data has been updated. <a href="#" id="refreshPage">Refresh</a> to see the latest changes.';
+                updateNotice.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000; text-align:center;';
+                document.body.appendChild(updateNotice);
+                
+                // When the refresh link is clicked
+                document.getElementById('refreshPage').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Force a complete refresh with no caching
+                    const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + Date.now();
+                    window.location.replace(reloadUrl);
+                });
+            }
+        })
+        .catch(error => console.error('Error checking for updates:', error));
+    }
+    
+    // Start periodic checking
+    setInterval(checkForUpdates, checkInterval);
+}
+
+// Initialize update checker on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing initialization code...
+    
+    setupUpdateChecker();
+    
+    // Add this to prevent the "confirm form resubmission" dialog
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+});
+
+// ...existing code...
+
+// Make sure our page starts fresh by adding cache control meta tags
 </script>
+
+<!-- Add these meta tags in the <head> section to prevent caching -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<!-- ...existing code... -->
+<!-- Add this hidden input to track data timestamp -->
+<input type="hidden" id="dataTimestamp" value="{{ data_timestamp|default(0) }}">
 </body>
 </html>

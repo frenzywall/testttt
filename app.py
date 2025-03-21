@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, make_response
 from datetime import datetime
 from dateutil import parser
 import pytz
@@ -119,7 +119,22 @@ def index():
     if request.method == 'GET':
         stored_data = get_stored_data()
         if stored_data:
-            return render_template('result.html', data=stored_data, header_title=stored_data.get('header_title', 'Change Weekend'))
+            # Set last_modified if not present
+            if 'last_modified' not in stored_data:
+                stored_data['last_modified'] = datetime.now().timestamp()
+                save_stored_data(stored_data)
+            
+            # Add cache control headers to the response
+            response = make_response(render_template(
+                'result.html', 
+                data=stored_data, 
+                header_title=stored_data.get('header_title', 'Change Weekend'),
+                data_timestamp=stored_data.get('last_modified', 0)
+            ))
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
         
         # Show empty landing page if no stored data
         empty_data = {
@@ -130,10 +145,21 @@ def index():
             'original_body': '',
             'error': None,
             'is_landing_page': True,
-            'header_title': 'Change Weekend'
+            'header_title': 'Change Weekend',
+            'last_modified': datetime.now().timestamp()
         }
-        return render_template('result.html', data=empty_data, header_title='Change Weekend')
-        
+        # Also add cache control headers to the empty response
+        response = make_response(render_template(
+            'result.html', 
+            data=empty_data, 
+            header_title='Change Weekend',
+            data_timestamp=empty_data['last_modified']
+        ))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    
     # POST method handling for file upload
     if 'file' not in request.files:
         return render_template('result.html', data={
@@ -247,10 +273,40 @@ def sync_all_data():
     if 'header_title' not in stored_data:
         stored_data['header_title'] = 'Change Weekend'
     
+    # Add a last_modified timestamp to track changes
+    stored_data['last_modified'] = datetime.now().timestamp()
+    
     # Save to Redis
     save_stored_data(stored_data)
     
-    return jsonify({'status': 'success'})
+    # Return with cache control headers
+    response = jsonify({
+        'status': 'success', 
+        'timestamp': stored_data['last_modified']
+    })
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+# Add a new endpoint to check if data has been updated
+@app.route('/check-updates', methods=['GET'])
+def check_updates():
+    """Check if data has been updated since provided timestamp"""
+    client_timestamp = request.args.get('since', 0, type=float)
+    
+    stored_data = get_stored_data() or {}
+    server_timestamp = stored_data.get('last_modified', 0)
+    
+    # Return whether the data has been updated since client's timestamp
+    response = jsonify({
+        'updated': server_timestamp > client_timestamp,
+        'timestamp': server_timestamp
+    })
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/save-changes', methods=['POST'])
 def save_changes():
@@ -359,8 +415,19 @@ def save_parsed_data():
 @app.route('/reset-data', methods=['POST'])
 def reset_data():
     """Reset all stored data"""
-    redis_client.delete('change_management_data')
-    return jsonify({'status': 'success'})
+    try:
+        # Delete the specific change management data key
+        redis_client.delete('change_management_data')
+        
+        # Return success with cache control headers to prevent caching
+        response = jsonify({'status': 'success', 'timestamp': datetime.now().timestamp()})
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    except Exception as e:
+        print(f"Error resetting data: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
