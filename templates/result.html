@@ -4004,98 +4004,105 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Function to update the main table with data from the parsed data table
   function updateMainTableFromParsedData() {
-    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
-    const mainTableBody = document.querySelector('#changeTable tbody');
+  const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+  const mainTableBody = document.querySelector('#changeTable tbody');
+  
+  // Clear the main table
+  mainTableBody.innerHTML = '';
+  
+  // Add rows from the parsed data table to the main table
+  parsedRows.forEach(parsedRow => {
+    if (parsedRow.cells[0].textContent.trim() === '') return; // Skip empty rows
     
-    // Clear the main table
-    mainTableBody.innerHTML = '';
+    const serviceName = parsedRow.cells[0].textContent;
+    const date = parsedRow.cells[1].textContent;
     
-    // Add rows from the parsed data table to the main table
-    parsedRows.forEach(parsedRow => {
-      if (parsedRow.cells[0].textContent.trim() === '') return; // Skip empty rows
+    // Parse time range (e.g., "09:00 - 11:00" to start and end times)
+    let startTime = '';
+    let endTime = '';
+    const timeRange = parsedRow.cells[2].textContent;
+    
+    // First check if timeRange is just a hyphen
+    if (timeRange.trim() === '-') {
+      startTime = '-';
+      endTime = '-';
+    } else if (timeRange.includes('-')) {
+      const timeParts = timeRange.split('-');
+      startTime = timeParts[0].trim();
+      endTime = timeParts[1].trim();
       
-      const serviceName = parsedRow.cells[0].textContent;
-      const date = parsedRow.cells[1].textContent;
-      
-      // Parse time range (e.g., "09:00 - 11:00" to start and end times)
-      let startTime = '';
-      let endTime = '';
-      const timeRange = parsedRow.cells[2].textContent;
-      
-      if (timeRange.includes('-')) {
-        const timeParts = timeRange.split('-');
-        startTime = timeParts[0].trim();
-        endTime = timeParts[1].trim();
-        
-        // If end time is empty but there was a hyphen, use "-" instead of empty string
-        if (!endTime && timeRange.trim().endsWith('-')) {
-          endTime = "-";
-        }
-      } else {
-        startTime = timeRange.trim();
-        // If only start time is provided and it ends with hyphen, add "-"
-        if (startTime.endsWith('-')) {
-          startTime = startTime.slice(0, -1).trim();
-          endTime = "-";
-        } else {
-          endTime = "-"; // Default value when no end time is specified
-        }
+      // If start time is empty, use "-" instead of empty string
+      if (startTime === '') {
+        startTime = '-';
       }
       
-      const comments = parsedRow.cells[3].textContent;
-      
-      // Create a new row for the main table
-      const newRow = document.createElement('tr');
-      newRow.setAttribute('data-priority', 'low'); // Default priority
-      
-      newRow.innerHTML = `
-        <td>${serviceName}</td>
-        <td>${date}</td>
-        <td data-original="${startTime}">${startTime}</td>
-        <td data-original="${endTime}">${endTime}</td>
-        <td>${date}</td>
-        <td>${comments}</td>
-        <td class="impact-cell">
-          <div class="impact-selector" data-value="low">
-            <div class="impact-selector-inner">
-              <div class="impact-option impact-option-low selected" data-value="low">
-                <span class="impact-dot"></span> Low
-              </div>
-              <div class="impact-option impact-option-medium" data-value="medium">
-                <span class="impact-dot"></span> Medium
-              </div>
-              <div class="impact-option impact-option-high" data-value="high">
-                <span class="impact-dot"></span> High
-              </div>
-            </div>
-          </div>
-        </td>
-        <td class="action-cell">
-          <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
-          <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
-          <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-        </td>
-      `;
-      
-      mainTableBody.appendChild(newRow);
-      initImpactSelector(newRow);
-    });
-    
-    // If timezone toggle is checked, convert times to IST
-    if (document.getElementById('tzToggle').checked) {
-      document.getElementById('tzToggle').dispatchEvent(new Event('change'));
+      // If end time is empty but there was a hyphen, use "-" instead of empty string
+      if (endTime === '') {
+        endTime = '-';
+      }
+    } else if (timeRange.trim() === '') {
+      // If timeRange is empty, use hyphens for both
+      startTime = '-';
+      endTime = '-';
+    } else {
+      startTime = timeRange.trim();
+      // If only start time is provided, set end time to hyphen
+      endTime = '-';
     }
     
-    // Apply active filter
-    applyActiveFilter();
+    const comments = parsedRow.cells[3].textContent;
     
-    // Check if table is empty
-    checkEmptyTable();
+    // Create a new row for the main table
+    const newRow = document.createElement('tr');
+    newRow.setAttribute('data-priority', 'low'); // Default priority
     
-    // Show a success message
-    alert('Changes saved successfully!');
+    newRow.innerHTML = `
+      <td>${serviceName}</td>
+      <td>${date}</td>
+      <td data-original="${startTime}">${startTime}</td>
+      <td data-original="${endTime}">${endTime}</td>
+      <td>${date}</td>
+      <td>${comments}</td>
+      <td class="impact-cell">
+        <div class="impact-selector" data-value="low">
+          <div class="impact-selector-inner">
+            <div class="impact-option impact-option-low selected" data-value="low">
+              <span class="impact-dot"></span> Low
+            </div>
+            <div class="impact-option impact-option-medium" data-value="medium">
+              <span class="impact-dot"></span> Medium
+            </div>
+            <div class="impact-option impact-option-high" data-value="high">
+              <span class="impact-dot"></span> High
+            </div>
+          </div>
+        </div>
+      </td>
+      <td class="action-cell">
+        <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+        <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+      </td>
+    `;
+    
+    mainTableBody.appendChild(newRow);
+    initImpactSelector(newRow);
+  });
+  
+  // If timezone toggle is checked, convert times to IST
+  if (document.getElementById('tzToggle').checked) {
+    document.getElementById('tzToggle').dispatchEvent(new Event('change'));
   }
   
+  // Apply active filter
+  applyActiveFilter();
+  
+  // Check if table is empty
+  checkEmptyTable();
+  
+  // Show a success message
+  alert('Changes saved successfully!');
+}
   // When a row in the parsed data table is clicked in edit mode
   document.querySelector('.parsed-data-table').addEventListener('click', function(e) {
     if (!isEditing) return;
