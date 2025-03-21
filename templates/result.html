@@ -4442,7 +4442,7 @@ function syncAllDataToRedis() {
     // Show loading animation
     const loadingEl = document.createElement('div');
     loadingEl.className = 'sync-loading';
-    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing data...';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> fetching latest data from redis...';
     loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
     document.body.appendChild(loadingEl);
     
