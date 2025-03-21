@@ -2521,6 +2521,202 @@
     max-height: 50%;
   }
 }
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1001; /* Increase z-index to be above nav bar */
+  overflow-y: auto;
+}
+
+.modal-content {
+  position: relative;
+  background: var(--glass-card);
+  margin: 70px auto; /* Increased top margin to avoid nav overlap */
+  padding: 20px;
+  width: 90%;
+  max-width: 1100px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid var(--glass-card-border);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: var(--glass-bg);
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+}
+
+.tool-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+  background: var(--glass-card);
+  color: var(--text-color);
+}
+
+.tool-btn:hover {
+  transform: translateY(-1px);
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Email viewer styles with dark mode support */
+.comparison-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 20px;
+  height: calc(100% - 120px);
+}
+
+.email-viewer, .parsed-data-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+
+.section-title {
+  padding: 10px 15px;
+  margin: 0;
+  background: var(--primary-color);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.email-body {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-color);
+  background: var(--glass-card);
+  height: 100%;
+  min-height: 450px; /* Increased height now that header is removed */
+}
+
+.parsed-data-container {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+  background: var(--glass-card);
+}
+
+.parsed-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+  background: var(--glass-card);
+  color: var(--text-color);
+}
+
+.parsed-data-table th, 
+.parsed-data-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  color: var(--text-color);
+}
+
+.comparison-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: var(--glass-bg);
+  border-radius: 0 0 8px 8px;
+  margin-top: 20px;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-color);
+}
+
+#emailSearch {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-color);
+}
+
+#searchBtn {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: none;
+  background: var(--primary-color);
+  color: white;
+  cursor: pointer;
+}
+
+.legend {
+  display: flex;
+  gap: 15px;
+  color: var(--text-color);
+}
+
+/* Updated search result and highlight styles */
+.highlight-match {
+  background-color: rgba(253, 224, 71, 0.3);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+[data-theme="dark"] .highlight-match {
+  background-color: rgba(253, 224, 71, 0.4);
+}
+
+.email-body .highlight-service {
+  background-color: rgba(37, 99, 235, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+[data-theme="dark"] .email-body .highlight-service {
+  background-color: rgba(37, 99, 235, 0.4);
+}
+
+.email-body .highlight-date {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+[data-theme="dark"] .email-body .highlight-date {
+  background-color: rgba(16, 185, 129, 0.4);
+}
+
+.email-body .highlight-time {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+[data-theme="dark"] .email-body .highlight-time {
+  background-color: rgba(245, 158, 11, 0.4);
+}
 </style>
 </head>
 <body>
@@ -2644,6 +2840,10 @@
                 </button>
                 <button class="btn danger-btn" id="resetForm">
                     <i class="fas fa-redo"></i> Reset
+                </button>
+                <!-- Add this new button for data synchronization -->
+                <button class="btn primary-btn" id="syncData">
+                    <i class="fas fa-sync-alt"></i> Sync Data
                 </button>
             </div>
         </div>
@@ -2771,19 +2971,18 @@
       <button class="tool-btn" id="decreaseFontSize">
         <i class="fas fa-search-minus"></i>
       </button>
+      <button class="tool-btn primary-btn" id="editDataBtn">
+        <i class="fas fa-edit"></i> Edit Data
+      </button>
+      <button class="tool-btn success-btn" id="saveDataBtn" style="display: none;">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
     </div>
 
     <div class="comparison-container">
       <div class="email-viewer">
         <h3 class="section-title">Original Email</h3>
-        <div class="email-header">
-          <div class="email-meta">
-            <span class="meta-label">Subject:</span>
-            <span>{{ data.original_subject }}</span>
-            <span class="meta-label">Date:</span>
-            <span>{{ data.date }}</span>
-          </div>
-        </div>
+        <!-- Removed the email-header section with subject and date -->
         <div class="email-body" id="emailBody">{{ data.original_body }}</div>
       </div>
 
@@ -3288,7 +3487,7 @@
         });
 
         document.getElementById('copyEmail').addEventListener('click', function() {
-            const textToCopy = `Subject: ${document.querySelector('.email-meta').children[1].textContent}\n\n${document.getElementById('emailBody').textContent}`;
+            const textToCopy = document.getElementById('emailBody').textContent;
             navigator.clipboard.writeText(textToCopy)
             .then(() => alert('Email content copied to clipboard!'));
         });
@@ -3677,6 +3876,252 @@ document.addEventListener('DOMContentLoaded', function() {
   const emailBody = document.getElementById('emailBody');
   const parsedDataRows = document.querySelectorAll('#parsedDataBody tr');
   
+  // New edit functionality
+  const editDataBtn = document.getElementById('editDataBtn');
+  const saveDataBtn = document.getElementById('saveDataBtn');
+  let isEditing = false;
+  
+  // Toggle edit mode for the parsed data table
+  editDataBtn.addEventListener('click', function() {
+    isEditing = true;
+    editDataBtn.style.display = 'none';
+    saveDataBtn.style.display = 'inline-flex';
+    
+    // Make all cells in the parsed data table editable
+    const cells = document.querySelectorAll('#parsedDataBody td');
+    cells.forEach(cell => {
+      cell.contentEditable = true;
+      cell.classList.add('editable');
+    });
+    
+    // Add a new row button to the parsed data table
+    const parsedDataContainer = document.querySelector('.parsed-data-container');
+    if (!document.getElementById('addParsedRow')) {
+      const addRowBtn = document.createElement('button');
+      addRowBtn.id = 'addParsedRow';
+      addRowBtn.className = 'btn success-btn';
+      addRowBtn.innerHTML = '<i class="fas fa-plus"></i> Add Row';
+      addRowBtn.style.margin = '10px 0';
+      
+      addRowBtn.addEventListener('click', function() {
+        const tbody = document.getElementById('parsedDataBody');
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-service', '');
+        newRow.innerHTML = `
+          <td contenteditable="true" class="editable"></td>
+          <td contenteditable="true" class="editable"></td>
+          <td contenteditable="true" class="editable"></td>
+          <td contenteditable="true" class="editable"></td>
+        `;
+        tbody.appendChild(newRow);
+      });
+      
+      parsedDataContainer.insertBefore(addRowBtn, parsedDataContainer.firstChild);
+    }
+  });
+  
+  // Save changes from the parsed data table to the main table
+  saveDataBtn.addEventListener('click', function() {
+    isEditing = false;
+    editDataBtn.style.display = 'inline-flex';
+    saveDataBtn.style.display = 'none';
+    
+    // Remove the editable state from all cells
+    const cells = document.querySelectorAll('#parsedDataBody td');
+    cells.forEach(cell => {
+      cell.contentEditable = false;
+      cell.classList.remove('editable');
+    });
+    
+    // Remove the add row button
+    const addRowBtn = document.getElementById('addParsedRow');
+    if (addRowBtn) {
+      addRowBtn.parentNode.removeChild(addRowBtn);
+    }
+    
+    // Collect data from the parsed table to send to the server
+    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+    const services = [];
+    
+    parsedRows.forEach(row => {
+      if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
+      
+      const serviceName = row.cells[0].textContent;
+      const date = row.cells[1].textContent;
+      
+      // Parse time range (e.g., "09:00 - 11:00" to start and end times)
+      let startTime = '';
+      let endTime = '';
+      const timeRange = row.cells[2].textContent;
+      
+      if (timeRange.includes('-')) {
+        const timeParts = timeRange.split('-');
+        startTime = timeParts[0].trim();
+        endTime = timeParts[1].trim();
+      } else {
+        startTime = timeRange;
+      }
+      
+      const comments = row.cells[3].textContent;
+      
+      // Add this service to our array
+      services.push({
+        name: serviceName,
+        start_time: startTime,
+        end_time: endTime,
+        end_date: date,
+        comments: comments,
+        priority: 'low'  // Default priority
+      });
+    });
+    
+    // Send data to server for persistence
+    fetch('/save-parsed-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        services: services,
+        date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        // Update the main table with the edited data
+        updateMainTableFromParsedData();
+      } else {
+        alert('Error saving data: ' + (data.message || 'Unknown error'));
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error saving data. Please try again.');
+    });
+  });
+
+  // Function to update the main table with data from the parsed data table
+  function updateMainTableFromParsedData() {
+    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+    const mainTableBody = document.querySelector('#changeTable tbody');
+    
+    // Clear the main table
+    mainTableBody.innerHTML = '';
+    
+    // Add rows from the parsed data table to the main table
+    parsedRows.forEach(parsedRow => {
+      if (parsedRow.cells[0].textContent.trim() === '') return; // Skip empty rows
+      
+      const serviceName = parsedRow.cells[0].textContent;
+      const date = parsedRow.cells[1].textContent;
+      
+      // Parse time range (e.g., "09:00 - 11:00" to start and end times)
+      let startTime = '';
+      let endTime = '';
+      const timeRange = parsedRow.cells[2].textContent;
+      
+      if (timeRange.includes('-')) {
+        const timeParts = timeRange.split('-');
+        startTime = timeParts[0].trim();
+        endTime = timeParts[1].trim();
+      } else {
+        startTime = timeRange;
+      }
+      
+      const comments = parsedRow.cells[3].textContent;
+      
+      // Create a new row for the main table
+      const newRow = document.createElement('tr');
+      newRow.setAttribute('data-priority', 'low'); // Default priority
+      
+      newRow.innerHTML = `
+        <td>${serviceName}</td>
+        <td>${date}</td>
+        <td data-original="${startTime}">${startTime}</td>
+        <td data-original="${endTime}">${endTime}</td>
+        <td>${date}</td>
+        <td>${comments}</td>
+        <td class="impact-cell">
+          <div class="impact-selector" data-value="low">
+            <div class="impact-selector-inner">
+              <div class="impact-option impact-option-low selected" data-value="low">
+                <span class="impact-dot"></span> Low
+              </div>
+              <div class="impact-option impact-option-medium" data-value="medium">
+                <span class="impact-dot"></span> Medium
+              </div>
+              <div class="impact-option impact-option-high" data-value="high">
+                <span class="impact-dot"></span> High
+              </div>
+            </div>
+          </div>
+        </td>
+        <td class="action-cell">
+          <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+          <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+          <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+        </td>
+      `;
+      
+      mainTableBody.appendChild(newRow);
+      initImpactSelector(newRow);
+    });
+    
+    // If timezone toggle is checked, convert times to IST
+    if (document.getElementById('tzToggle').checked) {
+      document.getElementById('tzToggle').dispatchEvent(new Event('change'));
+    }
+    
+    // Apply active filter
+    applyActiveFilter();
+    
+    // Check if table is empty
+    checkEmptyTable();
+    
+    // Show a success message
+    alert('Changes saved successfully!');
+  }
+  
+  // When a row in the parsed data table is clicked in edit mode
+  document.querySelector('.parsed-data-table').addEventListener('click', function(e) {
+    if (!isEditing) return;
+    
+    const cell = e.target.closest('td');
+    if (cell) {
+      // Add delete button if it doesn't exist
+      const row = cell.parentNode;
+      if (!row.querySelector('.delete-parsed-row')) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-parsed-row';
+        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+        deleteBtn.style.position = 'absolute';
+        deleteBtn.style.right = '-25px';
+        deleteBtn.style.top = '50%';
+        deleteBtn.style.transform = 'translateY(-50%)';
+        deleteBtn.style.background = 'var(--danger-color)';
+        deleteBtn.style.color = 'white';
+        deleteBtn.style.border = 'none';
+        deleteBtn.style.borderRadius = '50%';
+        deleteBtn.style.width = '20px';
+        deleteBtn.style.height = '20px';
+        deleteBtn.style.display = 'flex';
+        deleteBtn.style.alignItems = 'center';
+        deleteBtn.style.justifyContent = 'center';
+        deleteBtn.style.cursor = 'pointer';
+        
+        deleteBtn.addEventListener('click', function() {
+          if (confirm('Delete this row?')) {
+            row.remove();
+          }
+        });
+        
+        row.style.position = 'relative';
+        row.appendChild(deleteBtn);
+      }
+    }
+  });
+  
   let isHighlighted = false;
   
   // Toggle between side-by-side and stacked layout
@@ -3817,6 +4262,364 @@ document.addEventListener('DOMContentLoaded', function() {
   function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+});
+
+// ...existing code...
+
+// Save changes from the parsed data table to the main table
+  saveDataBtn.addEventListener('click', function() {
+    isEditing = false;
+    editDataBtn.style.display = 'inline-flex';
+    saveDataBtn.style.display = 'none';
+    
+    // Remove the editable state from all cells
+    const cells = document.querySelectorAll('#parsedDataBody td');
+    cells.forEach(cell => {
+      cell.contentEditable = false;
+      cell.classList.remove('editable');
+    });
+    
+    // Remove the add row button
+    const addRowBtn = document.getElementById('addParsedRow');
+    if (addRowBtn) {
+      addRowBtn.parentNode.removeChild(addRowBtn);
+    }
+    
+    // Collect data from the parsed table to send to the server
+    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+    const services = [];
+    
+    parsedRows.forEach(row => {
+      if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
+      
+      const serviceName = row.cells[0].textContent;
+      const date = row.cells[1].textContent;
+      
+      // Parse time range (e.g., "09:00 - 11:00" to start and end times)
+      let startTime = '';
+      let endTime = '';
+      const timeRange = row.cells[2].textContent;
+      
+      if (timeRange.includes('-')) {
+        const timeParts = timeRange.split('-');
+        startTime = timeParts[0].trim();
+        endTime = timeParts[1].trim();
+      } else {
+        startTime = timeRange;
+      }
+      
+      const comments = row.cells[3].textContent;
+      
+      // Add this service to our array
+      services.push({
+        name: serviceName,
+        start_time: startTime,
+        end_time: endTime,
+        end_date: date,
+        comments: comments,
+        priority: 'low'  // Default priority
+      });
+    });
+    
+    // Send data to server for persistence
+    fetch('/save-parsed-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        services: services,
+        date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        // Update the main table with the edited data
+        updateMainTableFromParsedData();
+      } else {
+        alert('Error saving data: ' + (data.message || 'Unknown error'));
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error saving data. Please try again.');
+    });
+  });
+
+// ...existing code...
+
+// Update the reset form handler to call the reset API
+document.getElementById('resetForm').addEventListener('click', function() {
+  if (confirm('Are you sure you want to reset the form? This will clear all data.')) {
+    fetch('/reset-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+      window.location.href = '/';
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      window.location.href = '/';
+    });
+  }
+});
+
+// Add this function to gather all data from the table and save it to Redis
+function syncAllDataToRedis() {
+    const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+    const services = [];
+    
+    // If there are no rows, don't proceed
+    if (tableRows.length === 0) {
+        alert('No data to sync.');
+        return;
+    }
+    
+    // Gather data from all rows
+    tableRows.forEach(row => {
+        const cells = row.cells;
+        if (cells.length < 7) return;
+        
+        const serviceName = cells[0].textContent;
+        const date = cells[1].textContent;
+        const startTime = cells[2].dataset.original || cells[2].textContent;
+        const endTime = cells[3].dataset.original || cells[3].textContent;
+        const endDate = cells[4].textContent;
+        const comments = cells[5].textContent;
+        const priority = row.getAttribute('data-priority') || 'low';
+        
+        services.push({
+            name: serviceName,
+            start_time: startTime,
+            end_time: endTime,
+            end_date: endDate || date,
+            comments: comments,
+            priority: priority
+        });
+    });
+    
+    // Get the current header title
+    const headerTitle = document.getElementById('headerTitle').textContent;
+    
+    // Get the original email body if available
+    const emailBody = document.getElementById('emailBody');
+    const originalBody = emailBody ? emailBody.textContent : '';
+    
+    // Create the data object
+    const data = {
+        services: services,
+        date: services.length > 0 ? services[0].end_date : new Date().toISOString().split('T')[0],
+        header_title: headerTitle,
+        original_body: originalBody
+    };
+    
+    // Show loading animation
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'sync-loading';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing data...';
+    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+    document.body.appendChild(loadingEl);
+    
+    // Send to server
+    fetch('/sync-all-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(loadingEl);
+        if (result.status === 'success') {
+            const successEl = document.createElement('div');
+            successEl.className = 'sync-success';
+            successEl.innerHTML = '<i class="fas fa-check-circle"></i> Data synced successfully!';
+            successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+            document.body.appendChild(successEl);
+            setTimeout(() => {
+                document.body.removeChild(successEl);
+            }, 3000);
+        } else {
+            alert('Error syncing data: ' + (result.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(loadingEl);
+        console.error('Error:', error);
+        alert('Error syncing data. Please try again.');
+    });
+}
+
+// Add event listener for the sync button
+document.addEventListener('DOMContentLoaded', function() {
+    const syncBtn = document.getElementById('syncData');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', syncAllDataToRedis);
+    }
+    
+    // Enhance the row save functionality to ensure data is saved to Redis
+    document.querySelector('table').addEventListener('click', function(e) {
+        if (e.target.closest('.save-btn')) {
+            const row = e.target.closest('tr');
+            const cells = row.getElementsByTagName('td');
+            
+            // Update original data attributes for time cells
+            const startTimeCell = cells[2];
+            const endTimeCell = cells[3];
+            
+            startTimeCell.dataset.original = startTimeCell.textContent;
+            endTimeCell.dataset.original = endTimeCell.textContent;
+
+            // Make cells not editable
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].contentEditable = false;
+                cells[i].classList.remove('editable');
+            }
+            
+            // Update UI
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.edit-btn').style.display = 'inline-flex';
+            
+            applyRowHighlight(row);
+            
+            // Get all data needed for saving
+            const rowData = {
+                service: cells[0].textContent,
+                date: cells[1].textContent,
+                startTime: cells[2].textContent,
+                endTime: cells[3].textContent,
+                endDate: cells[4].textContent,
+                comments: cells[5].textContent,
+                impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
+            };
+            
+            // Send to server
+            fetch('/save-changes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(rowData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    console.error('Error saving row:', data.message);
+                    alert('Error saving data. You may need to refresh the page and try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving row:', error);
+                alert('Network error while saving. Please try again.');
+            });
+        }
+    });
+    
+    // Enhanced impact selector to save changes immediately
+    document.querySelectorAll('.impact-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const tr = this.closest('tr');
+            if (!tr) return;
+            
+            const priority = this.getAttribute('data-value');
+            const selector = tr.querySelector('.impact-selector');
+            const cells = tr.cells;
+            
+            // After priority is set, save the change to Redis
+            const rowData = {
+                service: cells[0].textContent,
+                date: cells[1].textContent,
+                startTime: cells[2].dataset.original || cells[2].textContent,
+                endTime: cells[3].dataset.original || cells[3].textContent,
+                endDate: cells[4].textContent,
+                comments: cells[5].textContent,
+                impactPriority: priority
+            };
+            
+            fetch('/save-changes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(rowData)
+            })
+            .catch(error => console.error('Error saving priority change:', error));
+        });
+    });
+});
+
+// Enhanced function for adding a new row to save it immediately
+document.getElementById('addRow').addEventListener('click', function() {
+    const tbody = document.querySelector('tbody');
+    const newRow = document.createElement('tr');
+    newRow.setAttribute('data-priority', 'low');
+    
+    const emptyState = tbody.querySelector('.empty-state');
+    if (emptyState) {
+        tbody.removeChild(emptyState);
+    }
+    
+    const todayDate = new Date().toISOString().split('T')[0];
+    
+    newRow.innerHTML = `
+    <td contenteditable="true" class="editable"></td>
+    <td contenteditable="true" class="editable">${todayDate}</td>
+    <td contenteditable="true" class="editable"></td>
+    <td contenteditable="true" class="editable"></td>
+    <td contenteditable="true" class="editable">${todayDate}</td>
+    <td contenteditable="true" class="editable"></td>
+    <td class="impact-cell">
+        <div class="impact-selector" data-value="low">
+        <div class="impact-selector-inner">
+            <div class="impact-option impact-option-low selected" data-value="low">
+            <span class="impact-dot"></span> Low
+            </div>
+            <div class="impact-option impact-option-medium" data-value="medium">
+            <span class="impact-dot"></span> Medium
+            </div>
+            <div class="impact-option impact-option-high" data-value="high">
+            <span class="impact-dot"></span> High
+            </div>
+        </div>
+        </div>
+    </td>
+    <td class="action-cell">
+        <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
+        <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
+        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+    </td>
+    `;
+    tbody.appendChild(newRow);
+    
+    applyRowHighlight(newRow);
+    initImpactSelector(newRow);
+    applyActiveFilter();
+    
+    // Auto-save this empty row to Redis so it's preserved
+    const rowData = {
+        service: '',
+        date: todayDate,
+        startTime: '',
+        endTime: '',
+        endDate: todayDate,
+        comments: '',
+        impactPriority: 'low'
+    };
+    
+    fetch('/save-changes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(rowData)
+    }).catch(error => console.error('Error saving new row:', error));
 });
 
 // ...existing code...
