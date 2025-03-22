@@ -2342,6 +2342,7 @@
   height: 85vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Prevent container scroll */
 }
 
 .comparison-container {
@@ -2356,10 +2357,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   border-radius: 8px;
   border: 1px solid var(--glass-border);
   overflow: hidden;
+  position: relative; /* Add relative positioning */
 }
 
 .section-title {
@@ -2369,6 +2371,9 @@
   color: white;
   font-size: 16px;
   font-weight: 600;
+  position: sticky; /* Make sticky */
+  top: 0;
+  z-index: 1;
 }
 
 .email-body {
@@ -2379,18 +2384,34 @@
   font-family: monospace;
   font-size: 14px;
   line-height: 1.5;
+  color: var(--text-color);
+  background: var(--glass-card);
+  height: 100%;
+  min-height: 450px;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .parsed-data-container {
   flex: 1;
   overflow: auto;
   padding: 10px;
+  background: var(--glass-card);
+  overscroll-behavior: contain; /* Prevent scroll chaining */
+  height: 100%;
+  max-height: calc(100% - 38px); /* Account for the header height */
+  position: absolute;
+  top: 38px; /* Position right below section title */
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .parsed-data-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0;
+  background: var(--glass-card);
+  color: var(--text-color);
 }
 
 .parsed-data-table th, 
@@ -2398,6 +2419,7 @@
   text-align: left;
   padding: 8px 12px;
   border: 1px solid var(--glass-border);
+  color: var(--text-color);
 }
 
 .parsed-data-table tr {
@@ -2536,12 +2558,12 @@
 .modal-content {
   position: relative;
   background: var(--glass-card);
-  margin: 70px auto; /* Increased top margin to avoid nav overlap */
+  margin: 70px auto;
   padding: 20px;
   width: 90%;
   max-width: 1100px;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden; /* Changed from overflow-y: auto to hidden */
   border-radius: 8px;
   border: 1px solid var(--glass-card-border);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -2594,6 +2616,7 @@
   border-radius: 8px;
   border: 1px solid var(--glass-border);
   overflow: hidden;
+  position: relative; /* Add relative positioning */
 }
 
 .section-title {
@@ -2603,6 +2626,9 @@
   color: white;
   font-size: 16px;
   font-weight: 600;
+  position: sticky; /* Make sticky */
+  top: 0;
+  z-index: 1;
 }
 
 .email-body {
@@ -2616,7 +2642,8 @@
   color: var(--text-color);
   background: var(--glass-card);
   height: 100%;
-  min-height: 450px; /* Increased height now that header is removed */
+  min-height: 450px;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .parsed-data-container {
@@ -2624,6 +2651,14 @@
   overflow: auto;
   padding: 10px;
   background: var(--glass-card);
+  overscroll-behavior: contain; /* Prevent scroll chaining */
+  height: 100%;
+  max-height: calc(100% - 38px); /* Account for the header height */
+  position: absolute;
+  top: 38px; /* Position right below section title */
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .parsed-data-table {
@@ -2882,8 +2917,7 @@
             <thead>
             <tr>
                 <th class="sortable">Affected Service/Servers</th>
-                <th class="sortable">Date</th>
-                <th class="sortable time-column">
+                <th class="sortable">Date</                <th class="sortable time-column">
                 Start Time
                 <span class="time-zone">(Sweden)</span>
                 </th>
@@ -3377,7 +3411,7 @@
             
             this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
             
-            const rows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state)'));
+            const rows = Array.from(table.querySelector('tbody tr:not(.empty-state)'));
             rows.sort((a, b) => {
                 if (index === 5) {
                 const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
