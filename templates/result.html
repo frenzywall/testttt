@@ -2899,7 +2899,7 @@
             </thead>
             <tbody>
             {% for service in data.services %}
-            <tr data-priority="low">
+            <tr data-priority="{{ service.priority|default('low') }}">
                 <td>{{ service.name }}</td>
                 <td>{{ data.date }}</td>
                 <td>{{ service.start_time }}</td>
@@ -2907,15 +2907,15 @@
                 <td>{{ service.end_date }}</td>
                 <td>{{ service.comments }}</td>
                 <td class="impact-cell">
-                <div class="impact-selector" data-value="low">
+                <div class="impact-selector" data-value="{{ service.priority|default('low') }}">
                     <div class="impact-selector-inner">
-                    <div class="impact-option impact-option-low selected" data-value="low">
+                    <div class="impact-option impact-option-low {% if service.priority == 'low' or service.priority is not defined %}selected{% endif %}" data-value="low">
                         <span class="impact-dot"></span> Low
                     </div>
-                    <div class="impact-option impact-option-medium" data-value="medium">
+                    <div class="impact-option impact-option-medium {% if service.priority == 'medium' %}selected{% endif %}" data-value="medium">
                         <span class="impact-dot"></span> Medium
                     </div>
-                    <div class="impact-option impact-option-high" data-value="high">
+                    <div class="impact-option impact-option-high {% if service.priority == 'high' %}selected{% endif %}" data-value="high">
                         <span class="impact-dot"></span> High
                     </div>
                     </div>
@@ -4052,9 +4052,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const comments = parsedRow.cells[3].textContent;
     
+    // Get priority from the original row if available, otherwise default to low
+    const originalRow = Array.from(document.querySelectorAll('#changeTable tbody tr')).find(r => 
+      r.querySelector('td').textContent === serviceName
+    );
+    const priority = originalRow ? originalRow.getAttribute('data-priority') : 'low';
+    
     // Create a new row for the main table
     const newRow = document.createElement('tr');
-    newRow.setAttribute('data-priority', 'low'); // Default priority
+    newRow.setAttribute('data-priority', priority);
     
     newRow.innerHTML = `
       <td>${serviceName}</td>
@@ -4064,15 +4070,15 @@ document.addEventListener('DOMContentLoaded', function() {
       <td>${date}</td>
       <td>${comments}</td>
       <td class="impact-cell">
-        <div class="impact-selector" data-value="low">
+        <div class="impact-selector" data-value="${priority}">
           <div class="impact-selector-inner">
-            <div class="impact-option impact-option-low selected" data-value="low">
+            <div class="impact-option impact-option-low ${priority === 'low' ? 'selected' : ''}" data-value="low">
               <span class="impact-dot"></span> Low
             </div>
-            <div class="impact-option impact-option-medium" data-value="medium">
+            <div class="impact-option impact-option-medium ${priority === 'medium' ? 'selected' : ''}" data-value="medium">
               <span class="impact-dot"></span> Medium
             </div>
-            <div class="impact-option impact-option-high" data-value="high">
+            <div class="impact-option impact-option-high ${priority === 'high' ? 'selected' : ''}" data-value="high">
               <span class="impact-dot"></span> High
             </div>
           </div>
