@@ -1,13 +1,13 @@
-FROM python:3.12.9-slim-bookworm AS builder
+FROM python:3.11-slim-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libc6-dev python3-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
+RUN pip install --no-cache-dir --upgrade pip wheel "setuptools<66.0.0" && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.12.9-slim-bookworm
+FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1 \
