@@ -10,16 +10,14 @@ import re
 import tempfile
 import redis
 import json
-
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')  # Required for session
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')  
 
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
 tempfile.tempdir = temp_dir
 
-# Initialize Redis
 redis_client = redis.Redis(
     host=os.getenv('REDIS_HOST', 'redis'),
     port=int(os.getenv('REDIS_PORT', 6379)),
@@ -119,12 +117,9 @@ def index():
     if request.method == 'GET':
         stored_data = get_stored_data()
         if stored_data:
-            # Set last_modified if not present
             if 'last_modified' not in stored_data:
                 stored_data['last_modified'] = datetime.now().timestamp()
                 save_stored_data(stored_data)
-            
-            # Add cache control headers to the response
             response = make_response(render_template(
                 'result.html', 
                 data=stored_data, 
@@ -136,7 +131,7 @@ def index():
             response.headers['Expires'] = '0'
             return response
         
-        # Show empty landing page if no stored data
+
         empty_data = {
             'services': [],
             'date': datetime.now().strftime('%Y-%m-%d'),
@@ -148,7 +143,6 @@ def index():
             'header_title': 'Change Weekend',
             'last_modified': datetime.now().timestamp()
         }
-        # Also add cache control headers to the empty response
         response = make_response(render_template(
             'result.html', 
             data=empty_data, 
@@ -160,7 +154,6 @@ def index():
         response.headers['Expires'] = '0'
         return response
     
-    # POST method handling for file upload
     if 'file' not in request.files:
         return render_template('result.html', data={
             'services': [],
@@ -182,7 +175,6 @@ def index():
             'original_body': ''
         }, header_title='Change Weekend')
 
-    # Process the file
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.msg', delete=False) as temp_file:
@@ -223,8 +215,6 @@ def index():
                 header_title = f"{month_name[date_obj.month]} ChangeWeekend"
             except:
                 header_title = "Change Weekend"
-            
-            # Store data in Redis instead of session
             services_data['header_title'] = header_title
             save_stored_data(services_data)
             
@@ -255,15 +245,10 @@ def sync_all_data():
     
     if not data or 'services' not in data:
         return jsonify({'status': 'error', 'message': 'Invalid data structure'})
-    
-    # Make sure to preserve any original content that isn't in the current data
     stored_data = get_stored_data() or {}
-    
-    # Update with the new data
     for key in data:
         stored_data[key] = data[key]
     
-    # Make sure we have all required fields
     if 'services' not in stored_data:
         stored_data['services'] = []
     if 'date' not in stored_data:
@@ -273,13 +258,8 @@ def sync_all_data():
     if 'header_title' not in stored_data:
         stored_data['header_title'] = 'Change Weekend'
     
-    # Add a last_modified timestamp to track changes
     stored_data['last_modified'] = datetime.now().timestamp()
-    
-    # Save to Redis
     save_stored_data(stored_data)
-    
-    # Return with cache control headers
     response = jsonify({
         'status': 'success', 
         'timestamp': stored_data['last_modified']
@@ -289,7 +269,6 @@ def sync_all_data():
     response.headers['Expires'] = '0'
     return response
 
-# Add a new endpoint to check if data has been updated
 @app.route('/check-updates', methods=['GET'])
 def check_updates():
     """Check if data has been updated since provided timestamp"""
@@ -298,7 +277,6 @@ def check_updates():
     stored_data = get_stored_data() or {}
     server_timestamp = stored_data.get('last_modified', 0)
     
-    # Return whether the data has been updated since client's timestamp
     response = jsonify({
         'updated': server_timestamp > client_timestamp,
         'timestamp': server_timestamp
@@ -324,10 +302,8 @@ def save_changes():
     
     data = request.json
     
-    # Find and update the service, or add a new one if not found
     found = False
     for service in stored_data['services']:
-        # Compare service name for existing entries, but allow empty names for new entries
         if service['name'] == data['service'] or (not service['name'] and not data['service']):
             service['name'] = data['service']
             service['start_time'] = data['startTime']
@@ -348,14 +324,11 @@ def save_changes():
             'priority': data.get('impactPriority', 'low')
         })
     
-    # Clean up any empty rows that might have been created and not filled
     stored_data['services'] = [s for s in stored_data['services'] if s['name'].strip()]
     
-    # Update date if provided
     if 'date' in data and data['date']:
         stored_data['date'] = data['date']
     
-    # Save to Redis
     save_stored_data(stored_data)
     return jsonify({'status': 'success'})
 
@@ -401,14 +374,11 @@ def save_parsed_data():
     
     data = request.json
     
-    # Replace the entire services array
     stored_data['services'] = data['services']
     
-    # Update the date if provided
     if 'date' in data:
         stored_data['date'] = data['date']
     
-    # Save to Redis
     save_stored_data(stored_data)
     return jsonify({'status': 'success'})
 
@@ -416,10 +386,7 @@ def save_parsed_data():
 def reset_data():
     """Reset all stored data"""
     try:
-        # Delete the specific change management data key
         redis_client.delete('change_management_data')
-        
-        # Return success with cache control headers to prevent caching
         response = jsonify({'status': 'success', 'timestamp': datetime.now().timestamp()})
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
