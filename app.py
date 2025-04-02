@@ -399,6 +399,22 @@ def load_from_history(timestamp):
     response.headers['Expires'] = '0'
     return response
 
+@app.route('/delete-from-history/<timestamp>', methods=['DELETE'])
+def delete_from_history(timestamp):
+    """Delete a specific history entry by timestamp"""
+    history = get_stored_history()
+    
+    # Filter out the entry with matching timestamp
+    updated_history = [entry for entry in history if str(entry.get('timestamp')) != timestamp]
+    
+    if len(updated_history) == len(history):
+        return jsonify({'status': 'error', 'message': 'History entry not found'})
+    
+    # Save the updated history
+    redis_client.set('change_management_history', json.dumps(updated_history))
+    
+    return jsonify({'status': 'success'})
+
 @app.route('/save-changes', methods=['POST'])
 def save_changes():
     """Save changes to a specific row"""

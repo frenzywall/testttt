@@ -1956,7 +1956,10 @@ function openHistoryModal() {
                 </div>
                 <div class="history-item-actions">
                     <button class="history-item-btn load">
-                        <i class="fas fa-cloud-download-alt"></i> Load this version
+                        <i class="fas fa-cloud-download-alt"></i> Load
+                    </button>
+                    <button class="history-item-btn delete">
+                        <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
             `;
@@ -1969,9 +1972,16 @@ function openHistoryModal() {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const timestamp = this.closest('.history-item').dataset.timestamp;
-                if (confirm('Load this version? Current unsaved changes will be lost.')) {
-                    loadHistoryItem(timestamp);
-                }
+                loadHistoryItem(timestamp); // This will use our new custom dialog
+            });
+        });
+        
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.history-item-btn.delete').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const timestamp = this.closest('.history-item').dataset.timestamp;
+                deleteHistoryItem(timestamp, this.closest('.history-item')); // This will use our new custom dialog
             });
         });
         
@@ -1992,6 +2002,73 @@ function openHistoryModal() {
                 <p>Error loading history. Please try again.</p>
             </div>
         `;
+    });
+}
+
+// Add this new function to delete a history item
+function deleteHistoryItem(timestamp, itemElement) {
+    // Show custom confirmation dialog
+    createConfirmDialog({
+        type: 'danger',
+        icon: 'fa-trash',
+        title: 'Delete History Item',
+        message: 'Are you sure you want to delete this history item? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+    }).then(confirmed => {
+        if (!confirmed) return;
+        
+        // Show loading state
+        const loadingEl = document.createElement('div');
+        loadingEl.className = 'delete-loading';
+        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting history item...';
+        loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+        document.body.appendChild(loadingEl);
+        
+        // Send delete request
+        fetch(`/delete-from-history/${timestamp}`, {
+            method: 'DELETE',
+            cache: 'no-store'
+        })
+        .then(response => response.json())
+        .then(result => {
+            document.body.removeChild(loadingEl);
+            if (result.status === 'success') {
+                // Remove the item from UI with animation
+                itemElement.style.opacity = '0';
+                itemElement.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    itemElement.remove();
+                    
+                    // Check if history is now empty
+                    if (document.querySelectorAll('.history-item').length === 0) {
+                        document.getElementById('historyList').innerHTML = `
+                            <div class="empty-history">
+                                <i class="fas fa-inbox"></i>
+                                <p>No history items found</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Show success notification
+                    const successEl = document.createElement('div');
+                    successEl.className = 'delete-success';
+                    successEl.innerHTML = '<i class="fas fa-check-circle"></i> History item deleted';
+                    successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+                    document.body.appendChild(successEl);
+                    setTimeout(() => {
+                        document.body.removeChild(successEl);
+                    }, 3000);
+                }, 300);
+            } else {
+                alert('Error deleting history item: ' + (result.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            document.body.removeChild(loadingEl);
+            console.error('Error:', error);
+            alert('Error deleting history item. Please try again.');
+        });
     });
 }
 
@@ -2032,35 +2109,126 @@ function filterHistoryItems(searchTerm) {
 
 // Load a specific history item by timestamp
 function loadHistoryItem(timestamp) {
-    // Show loading state
-    const loadingEl = document.createElement('div');
-    loadingEl.className = 'sync-loading';
-    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
-    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-    document.body.appendChild(loadingEl);
+    // Show custom confirmation dialog
+    createConfirmDialog({
+        type: 'primary',
+        icon: 'fa-cloud-download-alt',
+        title: 'Load History Item',
+        message: 'Are you sure you want to load this version? Current unsaved changes will be lost.',
+        confirmText: 'Load',
+        cancelText: 'Cancel'
+    }).then(confirmed => {
+        if (!confirmed) return;
+        
+        // Show loading state
+        const loadingEl = document.createElement('div');
+        loadingEl.className = 'sync-loading';
+        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
+        loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+        document.body.appendChild(loadingEl);
+        
+        // Close the history modal
+        document.getElementById('historyModal').style.display = "none";
+        
+        // Fetch from server
+        fetch(`/load-from-history/${timestamp}`, {
+            method: 'GET',
+            cache: 'no-store'
+        })
+        .then(response => response.json())
+        .then(result => {
+            document.body.removeChild(loadingEl);
+            if (result.status === 'success') {
+                // Force a complete refresh with no caching
+                const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
+                window.location.replace(reloadUrl);
+            } else {
+                alert('Error loading data: ' + (result.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            document.body.removeChild(loadingEl);
+            console.error('Error:', error);
+            alert('Error loading data. Please try again.');
+        });
+    });
+}
+
+// Add this function to create custom confirmation dialogs
+function createConfirmDialog(options) {
+    // Remove any existing confirm dialogs
+    const existingDialogs = document.querySelectorAll('.custom-confirm-dialog');
+    existingDialogs.forEach(dialog => dialog.remove());
     
-    // Close the history modal
-    document.getElementById('historyModal').style.display = "none";
+    // Create the dialog container
+    const dialogOverlay = document.createElement('div');
+    dialogOverlay.className = 'custom-confirm-dialog';
     
-    // Fetch from server
-    fetch(`/load-from-history/${timestamp}`, {
-        method: 'GET',
-        cache: 'no-store'
-    })
-    .then(response => response.json())
-    .then(result => {
-        document.body.removeChild(loadingEl);
-        if (result.status === 'success') {
-            // Force a complete refresh with no caching
-            const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
-            window.location.replace(reloadUrl);
-        } else {
-            alert('Error loading data: ' + (result.message || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        document.body.removeChild(loadingEl);
-        console.error('Error:', error);
-        alert('Error loading data. Please try again.');
+    // Create dialog content with the provided options
+    dialogOverlay.innerHTML = `
+        <div class="custom-confirm-content ${options.type || 'info'}">
+            <div class="custom-confirm-icon">
+                <i class="fas ${options.icon || 'fa-question-circle'}"></i>
+            </div>
+            <h3>${options.title || 'Confirm'}</h3>
+            <p>${options.message || 'Are you sure?'}</p>
+            <div class="custom-confirm-actions">
+                <button class="custom-confirm-cancel">${options.cancelText || 'Cancel'}</button>
+                <button class="custom-confirm-ok ${options.type || 'info'}-btn">${options.confirmText || 'Confirm'}</button>
+            </div>
+        </div>
+    `;
+    
+    // Add to DOM
+    document.body.appendChild(dialogOverlay);
+    
+    // Add animation class after a short delay to trigger animation
+    setTimeout(() => dialogOverlay.classList.add('active'), 10);
+    
+    // Setup event handlers
+    const cancelBtn = dialogOverlay.querySelector('.custom-confirm-cancel');
+    const confirmBtn = dialogOverlay.querySelector('.custom-confirm-ok');
+    
+    return new Promise((resolve) => {
+        // Confirm action
+        confirmBtn.addEventListener('click', () => {
+            dialogOverlay.classList.remove('active');
+            setTimeout(() => {
+                dialogOverlay.remove();
+                resolve(true);
+            }, 300);
+        });
+        
+        // Cancel action
+        cancelBtn.addEventListener('click', () => {
+            dialogOverlay.classList.remove('active');
+            setTimeout(() => {
+                dialogOverlay.remove();
+                resolve(false);
+            }, 300);
+        });
+        
+        // Close when clicking outside (optional)
+        dialogOverlay.addEventListener('click', (e) => {
+            if (e.target === dialogOverlay) {
+                dialogOverlay.classList.remove('active');
+                setTimeout(() => {
+                    dialogOverlay.remove();
+                    resolve(false);
+                }, 300);
+            }
+        });
+        
+        // Close on escape key
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                dialogOverlay.classList.remove('active');
+                setTimeout(() => {
+                    dialogOverlay.remove();
+                    resolve(false);
+                }, 300);
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
     });
 }
