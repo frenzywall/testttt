@@ -19,9 +19,18 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 WORKDIR /app
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir --disable-pip-version-check /wheels/* && rm -rf /wheels
+
+# Create directory structure with proper permissions
+RUN mkdir -p /app/static/css /app/static/js /app/temp && \
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app/static && \
+    chmod 1777 /app/temp
+
+# Copy application files
+COPY --chown=appuser:appuser static/ ./static/
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser *.py .
-RUN mkdir -p /app/temp && chmod 1777 /app/temp
+
 USER appuser
 EXPOSE 5000
 CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]

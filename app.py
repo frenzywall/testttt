@@ -10,14 +10,23 @@ import re
 import tempfile
 import redis
 import json
-import uuid
 
-app = Flask(__name__, static_url_path='/static', static_folder='static')app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')  
+# Initialize Flask app
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')
 
+# Configure temp directory
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
 tempfile.tempdir = temp_dir
+
+# No longer try to create static directories - they are created in the Dockerfile
+# Instead, just log static directory info
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+print(f"Using static directory: {static_dir}")
+print(f"Static directory exists: {os.path.exists(static_dir)}")
+print(f"Static directory contents: {os.listdir(static_dir) if os.path.exists(static_dir) else 'directory does not exist'}")
 
 redis_client = redis.Redis(
     host=os.getenv('REDIS_HOST', 'redis'),
@@ -26,15 +35,10 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
-# Constants for Redis keys
-CURRENT_DATA_KEY = 'change_management_data'
-HISTORY_LIST_KEY = 'change_management_history'
-MAX_HISTORY_SIZE = 20  # Maximum number of history items to store
-
 def get_stored_data():
     """Get data from Redis"""
     try:
-        data = redis_client.get(CURRENT_DATA_KEY)
+        data = redis_client.get('change_management_data')
         return json.loads(data) if data else None
     except:
         return None
@@ -42,89 +46,9 @@ def get_stored_data():
 def save_stored_data(data):
     """Save data to Redis"""
     try:
-        # Ensure we have a unique ID for this dataset
-        if 'id' not in data:
-            data['id'] = str(uuid.uuid4())
-        
-        # Add timestamp if not present
-        if 'last_modified' not in data:
-            data['last_modified'] = datetime.now().timestamp()
-            
-        redis_client.set(CURRENT_DATA_KEY, json.dumps(data))
+        redis_client.set('change_management_data', json.dumps(data))
         return True
-    except Exception as e:
-        print(f"Error saving data: {e}")
-        return False
-
-def add_to_history(data):
-    """Add current data to history list"""
-    try:
-        # Ensure we have required fields
-        if 'id' not in data:
-            data['id'] = str(uuid.uuid4())
-        
-        if 'last_modified' not in data:
-            data['last_modified'] = datetime.now().timestamp()
-        
-        # Create history entry with minimal data
-        history_entry = {
-            'id': data['id'],
-            'timestamp': data['last_modified'],
-            'date': data.get('date', ''),
-            'header_title': data.get('header_title', 'Unnamed Upload'),
-            'service_count': len(data.get('services', [])),
-            'original_subject': data.get('original_subject', '')
-        }
-        
-        # Add to history list
-        redis_client.lpush(HISTORY_LIST_KEY, json.dumps(history_entry))
-        
-        # Store the full data with the ID as key
-        redis_client.set(f"data:{data['id']}", json.dumps(data))
-        
-        # Trim history list to max size
-        redis_client.ltrim(HISTORY_LIST_KEY, 0, MAX_HISTORY_SIZE - 1)
-        
-        return True
-    except Exception as e:
-        print(f"Error adding to history: {e}")
-        return False
-
-def get_history():
-    """Get list of historical uploads"""
-    try:
-        history_list = redis_client.lrange(HISTORY_LIST_KEY, 0, -1)
-        return [json.loads(item) for item in history_list]
-    except Exception as e:
-        print(f"Error getting history: {e}")
-        return []
-
-def get_history_item(item_id):
-    """Get a specific historical upload by ID"""
-    try:
-        data = redis_client.get(f"data:{item_id}")
-        return json.loads(data) if data else None
-    except Exception as e:
-        print(f"Error getting history item: {e}")
-        return None
-
-def delete_history_item(item_id):
-    """Delete a specific historical upload by ID"""
-    try:
-        # Remove the data
-        redis_client.delete(f"data:{item_id}")
-        
-        # Remove from the history list
-        history_list = redis_client.lrange(HISTORY_LIST_KEY, 0, -1)
-        for i, item in enumerate(history_list):
-            entry = json.loads(item)
-            if entry.get('id') == item_id:
-                redis_client.lrem(HISTORY_LIST_KEY, 1, item)
-                break
-        
-        return True
-    except Exception as e:
-        print(f"Error deleting history item: {e}")
+    except:
         return False
 
 def convert_sweden_to_ist(sweden_time_str, date_str):
@@ -202,8 +126,6 @@ def extract_date_from_subject(subject):
 def index():
     if request.method == 'GET':
         stored_data = get_stored_data()
-        history = get_history()
-        
         if stored_data:
             if 'last_modified' not in stored_data:
                 stored_data['last_modified'] = datetime.now().timestamp()
@@ -212,14 +134,14 @@ def index():
                 'result.html', 
                 data=stored_data, 
                 header_title=stored_data.get('header_title', 'Change Weekend'),
-                data_timestamp=stored_data.get('last_modified', 0),
-                history=history
+                data_timestamp=stored_data.get('last_modified', 0)
             ))
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
             return response
         
+
         empty_data = {
             'services': [],
             'date': datetime.now().strftime('%Y-%m-%d'),
@@ -235,8 +157,7 @@ def index():
             'result.html', 
             data=empty_data, 
             header_title='Change Weekend',
-            data_timestamp=empty_data['last_modified'],
-            history=history
+            data_timestamp=empty_data['last_modified']
         ))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -304,25 +225,10 @@ def index():
                 header_title = f"{month_name[date_obj.month]} ChangeWeekend"
             except:
                 header_title = "Change Weekend"
-            
             services_data['header_title'] = header_title
-            services_data['id'] = str(uuid.uuid4())
-            services_data['last_modified'] = datetime.now().timestamp()
-            services_data['original_subject'] = msg.subject
-            
-            # Save the data and add to history
             save_stored_data(services_data)
-            add_to_history(services_data)
             
-            # Get updated history
-            history = get_history()
-            
-            return render_template(
-                'result.html', 
-                data=services_data, 
-                header_title=header_title,
-                history=history
-            )
+            return render_template('result.html', data=services_data, header_title=header_title)
 
     except Exception as e:
         print(f"Error processing upload: {str(e)}")
@@ -486,72 +392,12 @@ def save_parsed_data():
     save_stored_data(stored_data)
     return jsonify({'status': 'success'})
 
-@app.route('/get-history', methods=['GET'])
-def get_upload_history():
-    history = get_history()
-    return jsonify({
-        'status': 'success',
-        'history': history
-    })
-
-@app.route('/load-history/<item_id>', methods=['GET'])
-def load_history(item_id):
-    item_data = get_history_item(item_id)
-    
-    if not item_data:
-        return jsonify({
-            'status': 'error',
-            'message': 'History item not found'
-        })
-    
-    save_stored_data(item_data)
-    
-    return jsonify({
-        'status': 'success',
-        'data': item_data
-    })
-
-@app.route('/delete-history/<item_id>', methods=['POST'])
-def delete_history(item_id):
-    success = delete_history_item(item_id)
-    
-    if not success:
-        return jsonify({
-            'status': 'error',
-            'message': 'Failed to delete history item'
-        })
-    
-    return jsonify({
-        'status': 'success'
-    })
-
-@app.route('/manage-history', methods=['GET'])
-def manage_history():
-    history = get_history()
-    return jsonify({
-        'status': 'success',
-        'history': history
-    })
-
 @app.route('/reset-data', methods=['POST'])
 def reset_data():
-    """Reset the current data but keep history"""
+    """Reset all stored data"""
     try:
-        clear_history = request.json.get('clear_history', False)
-        
-        if clear_history:
-            history = get_history()
-            for item in history:
-                delete_history_item(item['id'])
-            redis_client.delete(HISTORY_LIST_KEY)
-        
-        redis_client.delete(CURRENT_DATA_KEY)
-        
-        response = jsonify({
-            'status': 'success', 
-            'timestamp': datetime.now().timestamp(),
-            'history_cleared': clear_history
-        })
+        redis_client.delete('change_management_data')
+        response = jsonify({'status': 'success', 'timestamp': datetime.now().timestamp()})
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
