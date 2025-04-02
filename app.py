@@ -67,16 +67,37 @@ def save_to_history(data):
     try:
         history = get_stored_history()
         
-        # Create history entry with timestamp and snapshot of current data
-        history_entry = {
-            'timestamp': datetime.now().timestamp(),
-            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'title': data.get('header_title', 'Change Weekend'),
-            'data': data
-        }
+        # Create timestamp for new entry
+        current_timestamp = datetime.now().timestamp()
         
-        # Add to history and keep most recent 20 entries
-        history.insert(0, history_entry)
+        # Check for recent duplicates (within the last 60 seconds)
+        duplicate_found = False
+        if history:
+            latest_entry = history[0]
+            # If we have a recent entry (less than 60 seconds old) with the same title and service count
+            if (current_timestamp - latest_entry.get('timestamp', 0) < 60 and
+                latest_entry.get('title') == data.get('header_title', 'Change Weekend') and
+                len(latest_entry.get('data', {}).get('services', [])) == len(data.get('services', []))):
+                # Update the existing entry instead of creating a new one
+                latest_entry['data'] = data
+                latest_entry['timestamp'] = current_timestamp
+                latest_entry['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                duplicate_found = True
+        
+        # Only create a new entry if no recent duplicate was found
+        if not duplicate_found:
+            # Create history entry with timestamp and snapshot of current data
+            history_entry = {
+                'timestamp': current_timestamp,
+                'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'title': data.get('header_title', 'Change Weekend'),
+                'data': data
+            }
+            
+            # Add to history and keep most recent 20 entries
+            history.insert(0, history_entry)
+        
+        # Keep most recent 20 entries
         history = history[:20]
         
         # Save back to Redis

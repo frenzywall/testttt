@@ -864,83 +864,90 @@ parsedDataContainer.insertBefore(addRowBtn, parsedDataContainer.firstChild);
 
 // Save changes from the parsed data table to the main table
 saveDataBtn.addEventListener('click', function() {
-isEditing = false;
-editDataBtn.style.display = 'inline-flex';
-saveDataBtn.style.display = 'none';
+    isEditing = false;
+    editDataBtn.style.display = 'inline-flex';
+    saveDataBtn.style.display = 'none';
 
-// Remove the editable state from all cells
-const cells = document.querySelectorAll('#parsedDataBody td');
-cells.forEach(cell => {
-cell.contentEditable = false;
-cell.classList.remove('editable');
-});
+    // Remove the editable state from all cells
+    const cells = document.querySelectorAll('#parsedDataBody td');
+    cells.forEach(cell => {
+        cell.contentEditable = false;
+        cell.classList.remove('editable');
+    });
 
-// Remove the add row button
-const addRowBtn = document.getElementById('addParsedRow');
-if (addRowBtn) {
-addRowBtn.parentNode.removeChild(addRowBtn);
-}
+    // Remove the add row button
+    const addRowBtn = document.getElementById('addParsedRow');
+    if (addRowBtn) {
+        addRowBtn.parentNode.removeChild(addRowBtn);
+    }
 
-// Collect data from the parsed table to send to the server
-const parsedRows = document.querySelectorAll('#parsedDataBody tr');
-const services = [];
+    // Collect data from the parsed table to send to the server
+    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+    const services = [];
 
-parsedRows.forEach(row => {
-if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
+    parsedRows.forEach(row => {
+        if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
 
-const serviceName = row.cells[0].textContent;
-const date = row.cells[1].textContent;
+        const serviceName = row.cells[0].textContent;
+        const date = row.cells[1].textContent;
+        const timeRange = row.cells[2].textContent;
+        const comments = row.cells[3].textContent;
 
-// Parse time range (e.g., "09:00 - 11:00" to start and end times)
-let startTime = '';
-let endTime = '';
-const timeRange = row.cells[2].textContent;
+        let startTime = '';
+        let endTime = '';
 
-if (timeRange.includes('-')) {
-const timeParts = timeRange.split('-');
-startTime = timeParts[0].trim();
-endTime = timeParts[1].trim();
-} else {
-startTime = timeRange;
-}
+        if (timeRange.includes('-')) {
+            const timeParts = timeRange.split('-');
+            startTime = timeParts[0].trim();
+            endTime = timeParts[1].trim();
+        } else {
+            startTime = timeRange;
+        }
 
-const comments = row.cells[3].textContent;
+        services.push({
+            name: serviceName,
+            start_time: startTime,
+            end_time: endTime,
+            end_date: date,
+            comments: comments,
+            priority: 'low'  // Default priority
+        });
+    });
 
-// Add this service to our array
-services.push({
-name: serviceName,
-start_time: startTime,
-end_time: endTime,
-end_date: date,
-comments: comments,
-priority: 'low'  // Default priority
-});
-});
+    // Create loading indicator
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'sync-loading';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving changes...';
+    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+    document.body.appendChild(loadingEl);
 
-// Send data to server for persistence
-fetch('/save-parsed-data', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: JSON.stringify({
-services: services,
-date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
-})
-})
-.then(response => response.json())
-.then(data => {
-if (data.status === 'success') {
-// Update the main table with the edited data
-updateMainTableFromParsedData();
-} else {
-alert('Error saving data: ' + (data.message || 'Unknown error'));
-}
-})
-.catch(error => {
-console.error('Error:', error);
-alert('Error saving data. Please try again.');
-});
+    // Send data to server for persistence
+    fetch('/save-parsed-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            services: services,
+            date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.body.removeChild(loadingEl);
+        if (data.status === 'success') {
+            // Update the main table with the edited data
+            updateMainTableFromParsedData();
+            createNotification('success', 'Changes saved successfully!');
+        } else {
+            throw new Error(data.message || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.body.removeChild(loadingEl);
+        createNotification('error', 'Error saving changes: ' + error.message);
+    });
 });
 
 // Function to update the main table with data from the parsed data table
