@@ -2232,3 +2232,457 @@ function createConfirmDialog(options) {
         });
     });
 }
+
+// ...existing code...
+
+// Update the promptForPasskey function to always require a passkey
+function promptForPasskey(customMessage = "Please enter the passkey to access sync functionality") {
+    return new Promise((resolve) => {
+        // Create the dialog container
+        const dialogOverlay = document.createElement('div');
+        dialogOverlay.className = 'custom-confirm-dialog';
+        
+        // Create dialog content
+        dialogOverlay.innerHTML = `
+            <div class="custom-confirm-content">
+                <div class="custom-confirm-icon">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h3>Authentication Required</h3>
+                <p>${customMessage}</p>
+                <input type="password" id="passkey-input" class="passkey-input" placeholder="Enter passkey">
+                <div class="custom-confirm-actions">
+                    <button class="custom-confirm-cancel">Cancel</button>
+                    <button class="custom-confirm-ok primary-btn">Submit</button>
+                </div>
+            </div>
+        `;
+        
+        // Add to DOM
+        document.body.appendChild(dialogOverlay);
+        
+        // Add animation class after a short delay to trigger animation
+        setTimeout(() => dialogOverlay.classList.add('active'), 10);
+        
+        // Give focus to the input
+        setTimeout(() => {
+            const passkeyInput = document.getElementById('passkey-input');
+            if (passkeyInput) passkeyInput.focus();
+        }, 300);
+        
+        // Setup event handlers
+        const cancelBtn = dialogOverlay.querySelector('.custom-confirm-cancel');
+        const confirmBtn = dialogOverlay.querySelector('.custom-confirm-ok');
+        const passkeyInput = dialogOverlay.querySelector('#passkey-input');
+        
+        // Handle Enter key in the input field
+        passkeyInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmBtn.click();
+            }
+        });
+        
+        // Confirm action
+        confirmBtn.addEventListener('click', () => {
+            const passkey = passkeyInput.value.trim();
+            dialogOverlay.classList.remove('active');
+            
+            // Validate the passkey with the server
+            fetch('/validate-passkey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ passkey: passkey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    setTimeout(() => {
+                        dialogOverlay.remove();
+                        createNotification('success', 'Authentication successful!');
+                        resolve(true);
+                    }, 300);
+                } else {
+                    setTimeout(() => {
+                        dialogOverlay.remove();
+                        createNotification('error', 'Invalid passkey. Access denied.');
+                        resolve(false);
+                    }, 300);
+                }
+            })
+            .catch(error => {
+                setTimeout(() => {
+                    dialogOverlay.remove();
+                    createNotification('error', 'Error validating passkey. Please try again.');
+                    resolve(false);
+                }, 300);
+            });
+        });
+        
+        // Cancel action
+        cancelBtn.addEventListener('click', () => {
+            dialogOverlay.classList.remove('active');
+            setTimeout(() => {
+                dialogOverlay.remove();
+                resolve(false);
+            }, 300);
+        });
+        
+        // Close on escape key
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                dialogOverlay.classList.remove('active');
+                setTimeout(() => {
+                    dialogOverlay.remove();
+                    resolve(false);
+                }, 300);
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+    });
+}
+
+// Fix the sync dropdown behavior
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dropdown menu behavior
+    const syncDropdown = document.getElementById('syncDropdown');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
+    
+    if (syncDropdown) {
+        // Remove any existing click listeners to prevent duplicates
+        syncDropdown.replaceWith(syncDropdown.cloneNode(true));
+        
+        // Get the fresh reference to the cloned element
+        const freshSyncDropdown = document.getElementById('syncDropdown');
+        
+        freshSyncDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Always prompt for passkey
+            promptForPasskey().then(valid => {
+                if (valid) {
+                    // Toggle dropdown after successful authentication
+                    const dropdownParent = freshSyncDropdown.parentElement;
+                    dropdownParent.classList.toggle('open');
+                    
+                    // Setup dropdown item click handlers
+                    setupDropdownActions(dropdownParent);
+                }
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const dropdownParent = document.getElementById('syncDropdown').parentElement;
+            if (!dropdownParent.contains(e.target)) {
+                dropdownParent.classList.remove('open');
+            }
+        });
+    }
+});
+
+// This function sets up the dropdown item click handlers
+function setupDropdownActions(dropdownParent) {
+    // Handle dropdown item clicks
+    document.getElementById('syncToRedis').addEventListener('click', function() {
+        syncAllDataToRedis(false); // Regular sync without history
+        dropdownParent.classList.remove('open');
+    });
+    
+    document.getElementById('syncToHistory').addEventListener('click', function() {
+        syncAllDataToRedis(true); // Sync and save to history
+        dropdownParent.classList.remove('open');
+    });
+    
+    document.getElementById('viewHistory').addEventListener('click', function() {
+        openHistoryModal();
+        dropdownParent.classList.remove('open');
+    });
+}
+
+// ...existing code...
+
+// Add this function to create notifications
+function createNotification(type, message) {
+  // Remove any existing notifications
+  const existingNotifications = document.querySelectorAll('.notification');
+  existingNotifications.forEach(note => note.remove());
+  
+  // Create new notification
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  
+  // Add appropriate icon based on type
+  let icon = 'fa-info-circle';
+  if (type === 'error') icon = 'fa-exclamation-circle';
+  if (type === 'success') icon = 'fa-check-circle';
+  
+  notification.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+  document.body.appendChild(notification);
+  
+  // Animate in
+  setTimeout(() => notification.classList.add('show'), 10);
+  
+  // Auto-dismiss after 3 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300); // Wait for animation to complete
+  }, 3000);
+  
+  return notification;
+}
+
+// Update the resetForm event listener to use our custom dialog
+document.addEventListener('DOMContentLoaded', function() {
+  const resetFormBtn = document.getElementById('resetForm');
+  if (resetFormBtn) {
+    // Remove any existing event listeners
+    resetFormBtn.replaceWith(resetFormBtn.cloneNode(true));
+    const newResetBtn = document.getElementById('resetForm');
+    
+    // Add custom confirm dialog
+    newResetBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Show custom confirmation dialog
+      createConfirmDialog({
+        type: 'danger',
+        icon: 'fa-trash',
+        title: 'Reset Form',
+        message: 'Are you sure you want to reset the form? This will clear all data and cannot be undone.',
+        confirmText: 'Reset',
+        cancelText: 'Cancel'
+      }).then(confirmed => {
+        if (!confirmed) return;
+        
+        // Show loading indicator
+        const loadingEl = document.createElement('div');
+        loadingEl.className = 'sync-loading';
+        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting data...';
+        loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+        document.body.appendChild(loadingEl);
+        
+        fetch('/reset-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Force a complete refresh with no caching
+          const reloadUrl = window.location.href.split('?')[0] + 
+                         '?nocache=' + new Date().getTime();
+          window.location.replace(reloadUrl);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          document.body.removeChild(loadingEl);
+          createNotification('error', 'Error resetting data. Please try again.');
+        });
+      });
+    });
+  }
+});
+
+// Update the promptForPasskey function to properly show error messages
+function promptForPasskey(customMessage = "Please enter the passkey to access sync functionality") {
+  return new Promise((resolve) => {
+    // Create the dialog container
+    const dialogOverlay = document.createElement('div');
+    dialogOverlay.className = 'custom-confirm-dialog';
+    
+    // Create dialog content
+    dialogOverlay.innerHTML = `
+      <div class="custom-confirm-content">
+        <div class="custom-confirm-icon">
+          <i class="fas fa-key"></i>
+        </div>
+        <h3>Authentication Required</h3>
+        <p>${customMessage}</p>
+        <input type="password" id="passkey-input" class="passkey-input" placeholder="Enter passkey">
+        <div class="custom-confirm-actions">
+          <button class="custom-confirm-cancel">Cancel</button>
+          <button class="custom-confirm-ok primary-btn">Submit</button>
+        </div>
+      </div>
+    `;
+    
+    // Add to DOM
+    document.body.appendChild(dialogOverlay);
+    
+    // Add animation class after a short delay to trigger animation
+    setTimeout(() => dialogOverlay.classList.add('active'), 10);
+    
+    // Give focus to the input
+    setTimeout(() => {
+      const passkeyInput = document.getElementById('passkey-input');
+      if (passkeyInput) passkeyInput.focus();
+    }, 300);
+    
+    // Setup event handlers
+    const cancelBtn = dialogOverlay.querySelector('.custom-confirm-cancel');
+    const confirmBtn = dialogOverlay.querySelector('.custom-confirm-ok');
+    const passkeyInput = dialogOverlay.querySelector('#passkey-input');
+    
+    // Handle Enter key in the input field
+    passkeyInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmBtn.click();
+      }
+    });
+    
+    // Confirm action
+    confirmBtn.addEventListener('click', () => {
+      const passkey = passkeyInput.value.trim();
+      
+      // Validate the passkey with the server
+      fetch('/validate-passkey', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ passkey: passkey })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.valid) {
+          // Close dialog with success
+          dialogOverlay.classList.remove('active');
+          setTimeout(() => {
+            dialogOverlay.remove();
+            createNotification('success', 'Authentication successful!');
+            resolve(true);
+          }, 300);
+        } else {
+          // Show error but keep dialog open
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'passkey-error';
+          errorMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> Invalid passkey. Please try again.';
+          errorMessage.style.color = 'var(--danger-color)';
+          errorMessage.style.marginTop = '-10px';
+          errorMessage.style.marginBottom = '10px';
+          errorMessage.style.fontSize = '0.85rem';
+          
+          // Remove any existing error messages
+          const existingError = dialogOverlay.querySelector('.passkey-error');
+          if (existingError) existingError.remove();
+          
+          // Insert error before the actions
+          const actionsDiv = dialogOverlay.querySelector('.custom-confirm-actions');
+          actionsDiv.parentNode.insertBefore(errorMessage, actionsDiv);
+          
+          // Shake the dialog
+          dialogOverlay.querySelector('.custom-confirm-content').classList.add('shake');
+          setTimeout(() => {
+            dialogOverlay.querySelector('.custom-confirm-content').classList.remove('shake');
+          }, 500);
+          
+          // Clear the input and focus it
+          passkeyInput.value = '';
+          passkeyInput.focus();
+        }
+      })
+      .catch(error => {
+        dialogOverlay.classList.remove('active');
+        setTimeout(() => {
+          dialogOverlay.remove();
+          createNotification('error', 'Error validating passkey. Please try again.');
+          resolve(false);
+        }, 300);
+      });
+    });
+    
+    // Cancel action
+    cancelBtn.addEventListener('click', () => {
+      dialogOverlay.classList.remove('active');
+      setTimeout(() => {
+        dialogOverlay.remove();
+        resolve(false);
+      }, 300);
+    });
+    
+    // Close on escape key
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') {
+        dialogOverlay.classList.remove('active');
+        setTimeout(() => {
+          dialogOverlay.remove();
+          resolve(false);
+        }, 300);
+        document.removeEventListener('keydown', escHandler);
+      }
+    });
+  });
+}
+
+// ...existing code...
+
+// Update the resetForm event listener to require a passkey and use our custom dialog
+document.addEventListener('DOMContentLoaded', function() {
+  const resetFormBtn = document.getElementById('resetForm');
+  if (resetFormBtn) {
+    // Remove any existing event listeners
+    resetFormBtn.replaceWith(resetFormBtn.cloneNode(true));
+    const newResetBtn = document.getElementById('resetForm');
+    
+    // Add passkey authentication before showing the confirm dialog
+    newResetBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // First prompt for passkey authentication with a reset-specific message
+      promptForPasskey("Please enter the passkey to reset all data").then(valid => {
+        if (valid) {
+          // Only if authentication is successful, show the confirmation dialog
+          createConfirmDialog({
+            type: 'danger',
+            icon: 'fa-trash',
+            title: 'Reset Form',
+            message: 'Are you sure you want to reset the form? This will clear all data and cannot be undone.',
+            confirmText: 'Reset',
+            cancelText: 'Cancel'
+          }).then(confirmed => {
+            if (!confirmed) return;
+            
+            // Show loading indicator
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'sync-loading';
+            loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting data...';
+            loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+            document.body.appendChild(loadingEl);
+            
+            fetch('/reset-data', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+              // Force a complete refresh with no caching
+              const reloadUrl = window.location.href.split('?')[0] + 
+                             '?nocache=' + new Date().getTime();
+              window.location.replace(reloadUrl);
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              document.body.removeChild(loadingEl);
+              createNotification('error', 'Error resetting data. Please try again.');
+            });
+          });
+        }
+        // If authentication fails, promptForPasskey already shows an error notification
+      });
+    });
+  }
+});
+
+// ...existing code...

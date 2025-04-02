@@ -3238,6 +3238,7 @@ background-color: rgba(245, 158, 11, 0.4);
   transform: translateY(-20px) scale(0.95);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   color: var(--text-color);
+  box-sizing: border-box; /* Ensure padding is included in width */
 }
 
 .custom-confirm-dialog.active .custom-confirm-content {
@@ -3326,3 +3327,90 @@ background-color: rgba(245, 158, 11, 0.4);
 [data-theme="dark"] .custom-confirm-cancel:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* Passkey input styling */
+.passkey-input {
+  width: 100%;
+  padding: 0.75rem 0.75rem;
+  margin: 0.75rem 0 1.25rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-color);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  }
+
+.passkey-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb, 37, 99, 235), 0.2);
+  box-sizing: border-box; /* Ensure padding is included in width */
+  max-width: 100%;
+}
+
+/* Notification system */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  background: var(--glass-card);
+  border: 1px solid var(--glass-card-border);
+  color: var(--text-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(150%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 10000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.notification.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.notification.error {
+  border-left: 4px solid var(--danger-color);
+}
+
+.notification.success {
+  border-left: 4px solid var(--success-color);
+}
+
+.notification.info {
+  border-left: 4px solid var(--primary-color);
+}
+
+.notification i {
+  font-size: 1.2rem;
+}
+
+.notification.error i {
+  color: var(--danger-color);
+}
+
+.notification.success i {
+  color: var(--success-color);
+}
+
+.notification.info i {
+  color: var(--primary-color);
+}
+
+/* Add shake animation for error feedback */
+@keyframes softShake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+    20%, 40%, 60%, 80% { transform: translateX(3px); }
+  }
+  
+  .shake {
+    animation: softShake 0.7s ease-in-out both;
+  }

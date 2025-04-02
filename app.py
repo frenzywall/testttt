@@ -15,6 +15,9 @@ import json
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_testing')
 
+# Add passkey configuration - used for securing access to sync functionality
+PASSKEY = os.environ.get('PASSKEY', 'changemanager2024')  # Default passkey if not provided
+
 # Configure temp directory
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
@@ -524,6 +527,18 @@ def reset_data():
     except Exception as e:
         print(f"Error resetting data: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/validate-passkey', methods=['POST'])
+def validate_passkey():
+    """Validate the provided passkey against the configured one"""
+    data = request.json
+    provided_passkey = data.get('passkey', '')
+    
+    # Simple comparison - in a production environment, consider using a more secure method
+    if provided_passkey == PASSKEY:
+        return jsonify({'status': 'success', 'valid': True})
+    else:
+        return jsonify({'status': 'error', 'valid': False, 'message': 'Invalid passkey'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
