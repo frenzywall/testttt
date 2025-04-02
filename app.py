@@ -51,6 +51,38 @@ def save_stored_data(data):
     except:
         return False
 
+def get_stored_history():
+    """Get sync history from Redis"""
+    try:
+        history = redis_client.get('change_management_history')
+        return json.loads(history) if history else []
+    except:
+        return []
+
+def save_to_history(data):
+    """Save current data to history"""
+    try:
+        history = get_stored_history()
+        
+        # Create history entry with timestamp and snapshot of current data
+        history_entry = {
+            'timestamp': datetime.now().timestamp(),
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'title': data.get('header_title', 'Change Weekend'),
+            'data': data
+        }
+        
+        # Add to history and keep most recent 20 entries
+        history.insert(0, history_entry)
+        history = history[:20]
+        
+        # Save back to Redis
+        redis_client.set('change_management_history', json.dumps(history))
+        return True
+    except Exception as e:
+        print(f"Error saving to history: {str(e)}")
+        return False
+
 def convert_sweden_to_ist(sweden_time_str, date_str):
     """Convert Sweden TZ time into IST."""
     sweden_tz = pytz.timezone('Europe/Stockholm')
@@ -279,6 +311,43 @@ def sync_all_data():
     response.headers['Expires'] = '0'
     return response
 
+@app.route('/sync-to-history', methods=['POST'])
+def sync_to_history():
+    """Save all data to Redis and also save to history"""
+    data = request.json
+    
+    if not data or 'services' not in data:
+        return jsonify({'status': 'error', 'message': 'Invalid data structure'})
+    
+    # First sync to Redis
+    stored_data = get_stored_data() or {}
+    for key in data:
+        stored_data[key] = data[key]
+    
+    if 'services' not in stored_data:
+        stored_data['services'] = []
+    if 'date' not in stored_data:
+        stored_data['date'] = datetime.now().strftime('%Y-%m-%d')
+    if 'end_date' not in stored_data:
+        stored_data['end_date'] = stored_data['date']
+    if 'header_title' not in stored_data:
+        stored_data['header_title'] = 'Change Weekend'
+    
+    stored_data['last_modified'] = datetime.now().timestamp()
+    save_stored_data(stored_data)
+    
+    # Then save to history
+    save_to_history(stored_data)
+    
+    response = jsonify({
+        'status': 'success', 
+        'timestamp': stored_data['last_modified']
+    })
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 @app.route('/check-updates', methods=['GET'])
 def check_updates():
     """Check if data has been updated since provided timestamp"""
@@ -291,6 +360,40 @@ def check_updates():
         'updated': server_timestamp > client_timestamp,
         'timestamp': server_timestamp
     })
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+@app.route('/get-history', methods=['GET'])
+def get_history():
+    """Get the sync history"""
+    history = get_stored_history()
+    response = jsonify(history)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+@app.route('/load-from-history/<timestamp>', methods=['GET'])
+def load_from_history(timestamp):
+    """Load data from a specific history point"""
+    history = get_stored_history()
+    
+    # Find the entry with matching timestamp
+    selected_entry = None
+    for entry in history:
+        if str(entry.get('timestamp')) == timestamp:
+            selected_entry = entry
+            break
+    
+    if not selected_entry:
+        return jsonify({'status': 'error', 'message': 'History entry not found'})
+    
+    # Save the historical data as current data
+    save_stored_data(selected_entry['data'])
+    
+    response = jsonify({'status': 'success'})
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'

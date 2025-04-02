@@ -1744,3 +1744,323 @@ window.history.replaceState(null, null, window.location.href);
 // ...existing code...
 
 // Make sure our page starts fresh by adding cache control meta tags
+
+// Add history functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dropdown menu behavior
+    const syncDropdown = document.getElementById('syncDropdown');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
+    
+    if (syncDropdown) {
+        syncDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            syncDropdown.parentElement.classList.toggle('open');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!syncDropdown.parentElement.contains(e.target)) {
+                syncDropdown.parentElement.classList.remove('open');
+            }
+        });
+        
+        // Handle dropdown item clicks
+        document.getElementById('syncToRedis').addEventListener('click', function() {
+            syncAllDataToRedis(false); // Regular sync without history
+            syncDropdown.parentElement.classList.remove('open');
+        });
+        
+        document.getElementById('syncToHistory').addEventListener('click', function() {
+            syncAllDataToRedis(true); // Sync and save to history
+            syncDropdown.parentElement.classList.remove('open');
+        });
+        
+        document.getElementById('viewHistory').addEventListener('click', function() {
+            openHistoryModal();
+            syncDropdown.parentElement.classList.remove('open');
+        });
+    }
+    
+    // History modal
+    const historyModal = document.getElementById('historyModal');
+    const historyModalClose = historyModal.querySelector('.close');
+    
+    historyModalClose.addEventListener('click', function() {
+        historyModal.style.display = "none";
+    });
+    
+    window.addEventListener('click', function(event) {
+        if (event.target === historyModal) {
+            historyModal.style.display = "none";
+        }
+    });
+    
+    // History search functionality
+    const historySearch = document.getElementById('historySearch');
+    const historyClearSearch = document.getElementById('historyClearSearch');
+    
+    historySearch.addEventListener('input', function() {
+        filterHistoryItems(this.value);
+    });
+    
+    historyClearSearch.addEventListener('click', function() {
+        historySearch.value = '';
+        filterHistoryItems('');
+    });
+});
+
+// Enhanced version of syncAllDataToRedis to support history
+function syncAllDataToRedis(saveToHistory = false) {
+    const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+    const services = [];
+    
+    // If there are no rows, don't proceed
+    if (tableRows.length === 0) {
+        alert('No data to sync.');
+        return;
+    }
+    
+    // Gather data from all rows
+    tableRows.forEach(row => {
+        const cells = row.cells;
+        if (cells.length < 7) return;
+        
+        const serviceName = cells[0].textContent;
+        const date = cells[1].textContent;
+        const startTime = cells[2].dataset.original || cells[2].textContent;
+        const endTime = cells[3].dataset.original || cells[3].textContent;
+        const endDate = cells[4].textContent;
+        const comments = cells[5].textContent;
+        const priority = row.getAttribute('data-priority') || 'low';
+        
+        services.push({
+            name: serviceName,
+            start_time: startTime,
+            end_time: endTime,
+            end_date: endDate || date,
+            comments: comments,
+            priority: priority
+        });
+    });
+    
+    // Get the current header title
+    const headerTitle = document.getElementById('headerTitle').textContent;
+    
+    // Get the original email body if available
+    const emailBody = document.getElementById('emailBody');
+    const originalBody = emailBody ? emailBody.textContent : '';
+    
+    // Create the data object
+    const data = {
+        services: services,
+        date: services.length > 0 ? services[0].end_date : new Date().toISOString().split('T')[0],
+        header_title: headerTitle,
+        original_body: originalBody
+    };
+    
+    // Show loading animation
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'sync-loading';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + 
+                         (saveToHistory ? 'Syncing & saving to history...' : 'Syncing data...');
+    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+    document.body.appendChild(loadingEl);
+    
+    // Send to server
+    const endpoint = saveToHistory ? '/sync-to-history' : '/sync-all-data';
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        cache: 'no-store'
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(loadingEl);
+        if (result.status === 'success') {
+            // Update the timestamp
+            document.getElementById('dataTimestamp').value = result.timestamp;
+            
+            const successEl = document.createElement('div');
+            successEl.className = 'sync-success';
+            successEl.innerHTML = '<i class="fas fa-check-circle"></i> ' +
+                                (saveToHistory ? 'Data synced and saved to history!' : 'Data synced successfully!');
+            successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+            document.body.appendChild(successEl);
+            
+            setTimeout(() => {
+                document.body.removeChild(successEl);
+            }, 3000);
+            
+        } else {
+            alert('Error syncing data: ' + (result.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(loadingEl);
+        console.error('Error:', error);
+        alert('Error syncing data. Please try again.');
+    });
+}
+
+// Open history modal and load history items
+function openHistoryModal() {
+    const historyModal = document.getElementById('historyModal');
+    const historyList = document.getElementById('historyList');
+    
+    // Show loading state
+    historyList.innerHTML = '<div class="loading-history"><i class="fas fa-circle-notch fa-spin"></i> Loading history...</div>';
+    historyModal.style.display = "block";
+    
+    // Fetch history from server
+    fetch('/get-history', {
+        method: 'GET',
+        cache: 'no-store'
+    })
+    .then(response => response.json())
+    .then(history => {
+        if (history.length === 0) {
+            historyList.innerHTML = `
+                <div class="empty-history">
+                    <i class="fas fa-inbox"></i>
+                    <p>No history items found</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Populate history items
+        historyList.innerHTML = '';
+        history.forEach(item => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            historyItem.dataset.timestamp = item.timestamp;
+            
+            // Count services for summary
+            const serviceCount = item.data?.services?.length || 0;
+            
+            historyItem.innerHTML = `
+                <div class="history-item-header">
+                    <div class="history-item-title">
+                        <span class="history-item-badge"></span>
+                        ${item.title || 'Change Weekend'}
+                    </div>
+                    <div class="history-item-date">${item.date || 'Unknown date'}</div>
+                </div>
+                <div class="history-item-summary">
+                    ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
+                </div>
+                <div class="history-item-actions">
+                    <button class="history-item-btn load">
+                        <i class="fas fa-cloud-download-alt"></i> Load this version
+                    </button>
+                </div>
+            `;
+            
+            historyList.appendChild(historyItem);
+        });
+        
+        // Add event listeners to load buttons
+        document.querySelectorAll('.history-item-btn.load').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const timestamp = this.closest('.history-item').dataset.timestamp;
+                if (confirm('Load this version? Current unsaved changes will be lost.')) {
+                    loadHistoryItem(timestamp);
+                }
+            });
+        });
+        
+        // Make whole item clickable to expand (future enhancement)
+        document.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                if (!e.target.closest('.history-item-btn')) {
+                    // Future: toggle expanded view with more details
+                }
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading history:', error);
+        historyList.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading history. Please try again.</p>
+            </div>
+        `;
+    });
+}
+
+// Filter history items based on search input
+function filterHistoryItems(searchTerm) {
+    const items = document.querySelectorAll('.history-item');
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    items.forEach(item => {
+        const title = item.querySelector('.history-item-title').textContent.toLowerCase();
+        const date = item.querySelector('.history-item-date').textContent.toLowerCase();
+        
+        if (title.includes(lowerSearchTerm) || date.includes(lowerSearchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Check if we have any visible items
+    const visibleItems = document.querySelectorAll('.history-item[style="display: none;"]');
+    const emptyHistory = document.querySelector('.empty-history');
+    
+    if (visibleItems.length === items.length) {
+        if (!emptyHistory) {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML += `
+                <div class="empty-history">
+                    <i class="fas fa-search"></i>
+                    <p>No results found for "${searchTerm}"</p>
+                </div>
+            `;
+        }
+    } else if (emptyHistory) {
+        emptyHistory.remove();
+    }
+}
+
+// Load a specific history item by timestamp
+function loadHistoryItem(timestamp) {
+    // Show loading state
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'sync-loading';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
+    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+    document.body.appendChild(loadingEl);
+    
+    // Close the history modal
+    document.getElementById('historyModal').style.display = "none";
+    
+    // Fetch from server
+    fetch(`/load-from-history/${timestamp}`, {
+        method: 'GET',
+        cache: 'no-store'
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(loadingEl);
+        if (result.status === 'success') {
+            // Force a complete refresh with no caching
+            const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
+            window.location.replace(reloadUrl);
+        } else {
+            alert('Error loading data: ' + (result.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(loadingEl);
+        console.error('Error:', error);
+        alert('Error loading data. Please try again.');
+    });
+}

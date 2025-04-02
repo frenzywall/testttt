@@ -132,10 +132,24 @@
                 <button class="btn danger-btn" id="resetForm">
                     <i class="fas fa-redo"></i> Reset
                 </button>
-                <!-- Add this new button for data synchronization -->
-                <button class="btn primary-btn" id="syncData">
-                    <i class="fas fa-sync-alt"></i> Sync Data
-                </button>
+                <!-- Replace the existing sync button with this button group -->
+                <div class="dropdown">
+                    <button class="btn primary-btn dropdown-toggle" id="syncDropdown">
+                        <i class="fas fa-sync-alt"></i> Sync Data <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item" id="syncToRedis">
+                            <i class="fas fa-database"></i> Sync to Redis
+                        </button>
+                        <button class="dropdown-item" id="syncToHistory">
+                            <i class="fas fa-history"></i> Sync & Save to History
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="viewHistory">
+                            <i class="fas fa-clock"></i> View History
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -343,6 +357,27 @@
         </div>
         </div>
 
+        <!-- Add the history modal near the other modal elements -->
+        <div id="historyModal" class="modal">
+            <div class="modal-content history-modal">
+                <span class="close">&times;</span>
+                <h2><i class="fas fa-history"></i> Sync History</h2>
+                
+                <div class="history-search">
+                    <input type="text" id="historySearch" placeholder="Search history...">
+                    <button id="historyClearSearch"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="history-list" id="historyList">
+                    <!-- History items will be populated here by JavaScript -->
+                    <div class="empty-history">
+                        <i class="fas fa-inbox"></i>
+                        <p>No history items found</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
         
         <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
@@ -354,7 +389,6 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<!-- ...existing code... -->
 <!-- Add this hidden input to track data timestamp -->
 <input type="hidden" id="dataTimestamp" value="{{ data_timestamp|default(0) }}">
 </body>
