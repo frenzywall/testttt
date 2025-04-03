@@ -1497,36 +1497,7 @@ if (e.target.closest('.save-btn')) {
 });
 
 // Enhanced impact selector to save changes immediately
-document.querySelectorAll('.impact-option').forEach(option => {
-option.addEventListener('click', function() {
-    const tr = this.closest('tr');
-    if (!tr) return;
-    
-    const priority = this.getAttribute('data-value');
-    const selector = tr.querySelector('.impact-selector');
-    const cells = tr.cells;
-    
-    // After priority is set, save the change to Redis
-    const rowData = {
-        service: cells[0].textContent,
-        date: cells[1].textContent,
-        startTime: cells[2].dataset.original || cells[2].textContent,
-        endTime: cells[3].dataset.original || cells[3].textContent,
-        endDate: cells[4].textContent,
-        comments: cells[5].textContent,
-        impactPriority: priority
-    };
-    
-    fetch('/save-changes', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(rowData)
-    })
-    .catch(error => console.error('Error saving priority change:', error));
-});
-});
+
 });
 
 

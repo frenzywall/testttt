@@ -20,7 +20,6 @@ WORKDIR /app
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir --disable-pip-version-check /wheels/* && rm -rf /wheels
 
-# Create directory structure with proper permissions
 RUN mkdir -p /app/static/css /app/static/js /app/temp && \
     chown -R appuser:appuser /app && \
     chmod -R 755 /app/static && \
