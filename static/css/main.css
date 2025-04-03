@@ -1957,6 +1957,35 @@ th.sorted-desc::after {
 --highlight-color-end: transparent;
 }
 
+/* Ensure theme persists regardless of JavaScript execution */
+html[data-theme="dark"] {
+  --primary-color: #3b82f6;
+  --secondary-color: #94a3b8;
+  --background-color: #1a1f2e;
+  --surface-color: rgba(30, 41, 59, 0.7);
+  --glass-bg: rgba(30, 41, 59, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text-color: #e2e8f0;
+  --glass-card: rgba(30, 41, 59, 0.7);
+  --glass-card-border: rgba(255, 255, 255, 0.1);
+  --highlight-color-start: rgba(59, 130, 246, 0.2);
+  --highlight-color-end: transparent;
+}
+
+html[data-theme="light"] {
+  --primary-color: #2563eb;
+  --secondary-color: #475569;
+  --background-color: #f0f5ff;
+  --surface-color: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --text-color: #1e293b;
+  --glass-card: #ffffff;
+  --glass-card-border: rgba(0, 0, 0, 0.1);
+  --highlight-color-start: rgba(37, 99, 235, 0.15);
+  --highlight-color-end: transparent;
+}
+
 body {
 background: var(--background-color);
 color: var(--text-color);
