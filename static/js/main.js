@@ -1802,6 +1802,12 @@ document.addEventListener('DOMContentLoaded', function() {
             historyModal.style.display = "none";
         }
     });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && historyModal.style.display === "block") {
+            historyModal.style.display = "none";
+        }
+    });
     
     // History search functionality
     const historySearch = document.getElementById('historySearch');
@@ -1934,7 +1940,7 @@ function openHistoryModal() {
             historyList.innerHTML = `
                 <div class="empty-history">
                     <i class="fas fa-inbox"></i>
-                    <p>No history items found</p>
+                    <p>No synced history items found</p>
                 </div>
             `;
             return;
@@ -2052,7 +2058,7 @@ function deleteHistoryItem(timestamp, itemElement) {
                         document.getElementById('historyList').innerHTML = `
                             <div class="empty-history">
                                 <i class="fas fa-inbox"></i>
-                                <p>No history items found</p>
+                                <p>No synced history items found</p>
                             </div>
                         `;
                     }
