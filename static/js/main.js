@@ -75,52 +75,53 @@ function applyRowHighlight(row) {
 }
 
 document.getElementById('addRow').addEventListener('click', function() {
-    const tbody = document.querySelector('tbody');
-    const newRow = document.createElement('tr');
-    newRow.setAttribute('data-priority', 'low');
-    
-    const emptyState = tbody.querySelector('.empty-state');
-    if (emptyState) {
-    tbody.removeChild(emptyState);
-    }
-    
-    newRow.innerHTML = `
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td contenteditable="true" class="editable"></td>
-    <td class="impact-cell">
-        <div class="impact-selector" data-value="low">
-        <div class="impact-selector-inner">
-            <div class="impact-option impact-option-low selected" data-value="low">
-            <span class="impact-dot"></span> Low
+    ensureAuthenticated(() => {
+        const tbody = document.querySelector('tbody');
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-priority', 'low');
+        
+        const emptyState = tbody.querySelector('.empty-state');
+        if (emptyState) {
+        tbody.removeChild(emptyState);
+        }
+        
+        newRow.innerHTML = `
+        <td contenteditable="true" class="editable"></td>
+        <td contenteditable="true" class="editable"></td>
+        <td contenteditable="true" class="editable"></td>
+        <td contenteditable="true" class="editable"></td>
+        <td contenteditable="true" class="editable"></td>
+        <td contenteditable="true" class="editable"></td>
+        <td class="impact-cell">
+            <div class="impact-selector" data-value="low">
+            <div class="impact-selector-inner">
+                <div class="impact-option impact-option-low selected" data-value="low">
+                <span class="impact-dot"></span> Low
+                </div>
+                <div class="impact-option impact-option-medium" data-value="medium">
+                <span class="impact-dot"></span> Medium
+                </div>
+                <div class="impact-option impact-option-high" data-value="high">
+                <span class="impact-dot"></span> High
+                </div>
             </div>
-            <div class="impact-option impact-option-medium" data-value="medium">
-            <span class="impact-dot"></span> Medium
             </div>
-            <div class="impact-option impact-option-high" data-value="high">
-            <span class="impact-dot"></span> High
-            </div>
-        </div>
-        </div>
-    </td>
-    <td class="action-cell">
-        <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
-        <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
-        <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-    </td>
-    `;
-    tbody.appendChild(newRow);
-    
-    applyRowHighlight(newRow);
+        </td>
+        <td class="action-cell">
+            <button class="table-btn edit-btn" title="Edit" style="display: none;"><i class="fas fa-edit"></i></button>
+            <button class="table-btn save-btn" title="Save" style="display: inline-flex;"><i class="fas fa-save"></i></button>
+            <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+        </td>
+        `;
+        tbody.appendChild(newRow);
+        
+        applyRowHighlight(newRow);
 
-    initImpactSelector(newRow);
-    
-    applyActiveFilter();
+        initImpactSelector(newRow);
+        
+        applyActiveFilter();
+    }, "Please enter the passkey to add a new row");
 });
-
 
 function checkEmptyTable() {
     const tbody = document.querySelector('tbody');
@@ -145,58 +146,60 @@ function checkEmptyTable() {
 }
 
 document.querySelector('table').addEventListener('click', function(e) {
-    if (e.target.closest('.edit-btn')) {
-    const row = e.target.closest('tr');
-    const cells = row.getElementsByTagName('td');
-    for (let i = 0; i < cells.length - 1; i++) {
-        cells[i].contentEditable = true;
-        cells[i].classList.add('editable');
-    }
-    row.querySelector('.edit-btn').style.display = 'none';
-    row.querySelector('.save-btn').style.display = 'inline-flex';
-    }
-    
-    if (e.target.closest('.save-btn')) {
-    const row = e.target.closest('tr');
-    const cells = row.getElementsByTagName('td');
-    
-    const startTimeCell = cells[2];
-    const endTimeCell = cells[3];
-    
-    startTimeCell.dataset.original = startTimeCell.textContent;
-    endTimeCell.dataset.original = endTimeCell.textContent;
+    ensureAuthenticated(() => {
+        if (e.target.closest('.edit-btn')) {
+        const row = e.target.closest('tr');
+        const cells = row.getElementsByTagName('td');
+        for (let i = 0; i < cells.length - 1; i++) {
+            cells[i].contentEditable = true;
+            cells[i].classList.add('editable');
+        }
+        row.querySelector('.edit-btn').style.display = 'none';
+        row.querySelector('.save-btn').style.display = 'inline-flex';
+        }
+        
+        if (e.target.closest('.save-btn')) {
+        const row = e.target.closest('tr');
+        const cells = row.getElementsByTagName('td');
+        
+        const startTimeCell = cells[2];
+        const endTimeCell = cells[3];
+        
+        startTimeCell.dataset.original = startTimeCell.textContent;
+        endTimeCell.dataset.original = endTimeCell.textContent;
 
-    for (let i = 0; i < cells.length - 1; i++) {
-        cells[i].contentEditable = false;
-        cells[i].classList.remove('editable');
-    }
-    row.querySelector('.save-btn').style.display = 'none';
-    row.querySelector('.edit-btn').style.display = 'inline-flex';
-    
-    applyRowHighlight(row);
-    
-    const rowData = {
-        service: cells[0].textContent,
-        date: cells[1].textContent,
-        startTime: cells[2].textContent,
-        endTime: cells[3].textContent,
-        comments: cells[4].textContent,
-        impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
-    };
-    
-    fetch('/save-changes', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(rowData)
-    });
-    }
-    
-    if (e.target.closest('.delete-btn')) {
-    rowToDelete = e.target.closest('tr');
-    confirmDialog.classList.add('active');
-    }
+        for (let i = 0; i < cells.length - 1; i++) {
+            cells[i].contentEditable = false;
+            cells[i].classList.remove('editable');
+        }
+        row.querySelector('.save-btn').style.display = 'none';
+        row.querySelector('.edit-btn').style.display = 'inline-flex';
+        
+        applyRowHighlight(row);
+        
+        const rowData = {
+            service: cells[0].textContent,
+            date: cells[1].textContent,
+            startTime: cells[2].textContent,
+            endTime: cells[3].textContent,
+            comments: cells[4].textContent,
+            impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
+        };
+        
+        fetch('/save-changes', {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(rowData)
+        });
+        }
+        
+        if (e.target.closest('.delete-btn')) {
+        rowToDelete = e.target.closest('tr');
+        confirmDialog.classList.add('active');
+        }
+    }, "Please enter the passkey to edit or delete data");
 });
 
 document.getElementById('cancelDelete').addEventListener('click', function() {
@@ -692,8 +695,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
 
     uploadBtn.addEventListener('click', () => {
-        uploadModal.style.display = 'flex';
-        uploadZone.style.display = 'flex';
+        ensureAuthenticated(() => {
+            uploadModal.style.display = 'flex';
+            uploadZone.style.display = 'flex';
+        }, "Please enter the passkey to upload a file");
     });
 
     cancelUpload.addEventListener('click', () => {
@@ -2600,7 +2605,7 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
           dialogOverlay.classList.remove('active');
           setTimeout(() => {
             dialogOverlay.remove();
-            createNotification('success', 'Authentication successful, you can proceed with reset!');
+            createNotification('success', 'Authentication successful!');
             resolve(true);
           }, 500);
         } else {
@@ -2729,3 +2734,64 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ...existing code...
+
+// Add authentication helper functions and feature toggling
+function isAuthenticated() {
+    const authUntil = localStorage.getItem('authUntil');
+    return authUntil && Date.now() < parseInt(authUntil);
+}
+
+function ensureAuthenticated(callback, customMessage = "Please enter the passkey to perform this action") {
+    if (isAuthenticated()) {
+        callback();
+    } else {
+        promptForPasskey(customMessage).then(valid => {
+            if (valid) {
+                const expiry = Date.now() + (10 * 60 * 1000); // 10 minutes expiry
+                localStorage.setItem('authUntil', expiry);
+                enableRestrictedFeatures();
+                callback();
+            }
+        });
+    }
+}
+
+function disableRestrictedFeatures() {
+    document.querySelectorAll('.impact-selector').forEach(el => {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.5';
+    });
+    document.querySelectorAll('.action-cell').forEach(el => {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.5';
+    });
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.disabled = true;
+    }
+}
+
+function enableRestrictedFeatures() {
+    document.querySelectorAll('.impact-selector').forEach(el => {
+        el.style.pointerEvents = '';
+        el.style.opacity = '1';
+    });
+    document.querySelectorAll('.action-cell').forEach(el => {
+        el.style.pointerEvents = '';
+        el.style.opacity = '1';
+    });
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.disabled = false;
+    }
+}
+
+// On DOMContentLoaded, disable restricted features if not authenticated.
+document.addEventListener('DOMContentLoaded', function() {
+    if (!isAuthenticated()) {
+        disableRestrictedFeatures();
+    } else {
+        enableRestrictedFeatures();
+    }
+    // ...existing code...
+});
