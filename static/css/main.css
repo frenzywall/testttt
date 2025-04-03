@@ -2794,11 +2794,27 @@ background-color: rgba(245, 158, 11, 0.4);
     text-align: left;
     cursor: pointer;
     transition: all 0.2s;
+    position: relative;
   }
   
   .dropdown-item:hover {
     background-color: rgba(37, 99, 235, 0.1);
     color: var(--primary-color);
+  }
+  
+  .dropdown-item .info-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .dropdown-item:hover .info-icon {
+    opacity: 1;
   }
   
   .dropdown-divider {
@@ -2808,7 +2824,23 @@ background-color: rgba(245, 158, 11, 0.4);
     border-top: 1px solid var(--glass-border);
   }
   
-  /* Elegant, minimal history UI with glassmorphism */
+  /* Ensure sync dropdown button has the same size as other buttons */
+
+
+/* Make the sync button stand out */
+.dropdown > .btn.primary-btn {
+    background: linear-gradient(135deg, #5e72eb, #3b5bdb); /* A slightly different shade */
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transform: translateY(-2px);
+}
+
+.dropdown > .btn.primary-btn:hover {
+    background: linear-gradient(135deg, #5e72eb, #3b5bdb); /* A slightly different shade */
+    box-shadow: 0 6px 15px rgba(37, 99, 235, 0.4);
+}
+
+/* Elegant, minimal history UI with glassmorphism */
 /* Position the history modal to the right side */
 .history-modal {
     max-height: 80vh; /* Reduced to add more space at bottom */

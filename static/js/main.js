@@ -2387,6 +2387,43 @@ function setupDropdownActions(dropdownParent) {
     });
 }
 
+// Add info icons to the dropdown items
+document.addEventListener('DOMContentLoaded', function() {
+    const syncToRedisItem = document.getElementById('syncToRedis');
+    const syncToHistoryItem = document.getElementById('syncToHistory');
+    const viewHistoryItem = document.getElementById('viewHistory');
+
+    if (syncToRedisItem) {
+        const infoIcon = document.createElement('i');
+        infoIcon.className = 'fas fa-info-circle info-icon';
+        infoIcon.title = 'Sync data to Redis';
+        syncToRedisItem.appendChild(infoIcon);
+        infoIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    if (syncToHistoryItem) {
+        const infoIcon = document.createElement('i');
+        infoIcon.className = 'fas fa-info-circle info-icon';
+        infoIcon.title = 'Sync data and save to history';
+        syncToHistoryItem.appendChild(infoIcon);
+        infoIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    if (viewHistoryItem) {
+        const infoIcon = document.createElement('i');
+        infoIcon.className = 'fas fa-info-circle info-icon';
+        infoIcon.title = 'View sync history';
+        viewHistoryItem.appendChild(infoIcon);
+        infoIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+});
+
 // ...existing code...
 
 // Add this function to create notifications
