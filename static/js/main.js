@@ -1543,16 +1543,16 @@ if (confirm('Are you sure you want to reset the form? This will clear all data.'
 }
 });
 
-// Remove any other event listeners that might be registered elsewhere
-const oldHandlers = getEventListeners || (el => ({}));
-const existingResetHandlers = oldHandlers(document.getElementById('resetForm')) || {};
-if (existingResetHandlers.click) {
-existingResetHandlers.click.forEach(handler => {
-    if (handler !== newResetBtn.onclick) {
-        document.getElementById('resetForm').removeEventListener('click', handler);
-    }
-});
-}
+// Removed getEventListeners block to avoid "ReferenceError: getEventListeners is not defined"
+// const oldHandlers = getEventListeners || (el => ({}));
+// const existingResetHandlers = oldHandlers(document.getElementById('resetForm')) || {};
+// if (existingResetHandlers.click) {
+//     existingResetHandlers.click.forEach(handler => {
+//         if (handler !== newResetBtn.onclick) {
+//             document.getElementById('resetForm').removeEventListener('click', handler);
+//         }
+//     });
+// }
 });
 
 // ...existing code...
@@ -1738,25 +1738,38 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
-            if (!syncDropdown.parentElement.contains(e.target)) {
-                syncDropdown.parentElement.classList.remove('open');
+            const syncDropdown = document.getElementById('syncDropdown');
+            if (syncDropdown) {
+                const dropdownParent = syncDropdown.parentElement;
+                if (!dropdownParent.contains(e.target)) {
+                    dropdownParent.classList.remove('open');
+                }
             }
         });
         
         // Handle dropdown item clicks
         document.getElementById('syncToRedis').addEventListener('click', function() {
             syncAllDataToRedis(false); // Regular sync without history
-            syncDropdown.parentElement.classList.remove('open');
+            const dropdownParent = syncDropdown.parentElement;
+            if (dropdownParent) {
+                dropdownParent.classList.remove('open');
+            }
         });
         
         document.getElementById('syncToHistory').addEventListener('click', function() {
             syncAllDataToRedis(true); // Sync and save to history
-            syncDropdown.parentElement.classList.remove('open');
+            const dropdownParent = syncDropdown.parentElement;
+            if (dropdownParent) {
+                dropdownParent.classList.remove('open');
+            }
         });
         
         document.getElementById('viewHistory').addEventListener('click', function() {
             openHistoryModal();
-            syncDropdown.parentElement.classList.remove('open');
+            const dropdownParent = syncDropdown.parentElement;
+            if (dropdownParent) {
+                dropdownParent.classList.remove('open');
+            }
         });
     }
     
@@ -2360,9 +2373,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
-            const dropdownParent = document.getElementById('syncDropdown').parentElement;
-            if (!dropdownParent.contains(e.target)) {
-                dropdownParent.classList.remove('open');
+            const syncDropdown = document.getElementById('syncDropdown');
+            if (syncDropdown) {
+                const dropdownParent = syncDropdown.parentElement;
+                if (!dropdownParent.contains(e.target)) {
+                    dropdownParent.classList.remove('open');
+                }
             }
         });
     }
@@ -2373,17 +2389,23 @@ function setupDropdownActions(dropdownParent) {
     // Handle dropdown item clicks
     document.getElementById('syncToRedis').addEventListener('click', function() {
         syncAllDataToRedis(false); // Regular sync without history
-        dropdownParent.classList.remove('open');
+        if (dropdownParent) {
+            dropdownParent.classList.remove('open');
+        }
     });
     
     document.getElementById('syncToHistory').addEventListener('click', function() {
         syncAllDataToRedis(true); // Sync and save to history
-        dropdownParent.classList.remove('open');
+        if (dropdownParent) {
+            dropdownParent.classList.remove('open');
+        }
     });
     
     document.getElementById('viewHistory').addEventListener('click', function() {
         openHistoryModal();
-        dropdownParent.classList.remove('open');
+        if (dropdownParent) {
+            dropdownParent.classList.remove('open');
+        }
     });
 }
 
@@ -2578,9 +2600,9 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
           dialogOverlay.classList.remove('active');
           setTimeout(() => {
             dialogOverlay.remove();
-            createNotification('success', 'Authentication successful!');
+            createNotification('success', 'Authentication successful, you can proceed with reset!');
             resolve(true);
-          }, 300);
+          }, 500);
         } else {
           // Show error but keep dialog open
           const errorMessage = document.createElement('div');
