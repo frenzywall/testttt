@@ -1,0 +1,30 @@
+services:
+  nginx-proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+    networks:
+      - proxy-network
+    
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - proxy-network
+    depends_on:
+      - nginx-proxy
+
+networks:
+  proxy-network:
+    driver: bridge
