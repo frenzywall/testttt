@@ -148,58 +148,60 @@ function checkEmptyTable() {
 }
 
 document.querySelector('table').addEventListener('click', function(e) {
-    if (e.target.closest('.edit-btn')) {
-        const row = e.target.closest('tr');
-        const cells = row.getElementsByTagName('td');
-        for (let i = 0; i < cells.length - 1; i++) {
-            cells[i].contentEditable = true;
-            cells[i].classList.add('editable');
+    ensureAuthenticated(() => {
+        if (e.target.closest('.edit-btn')) {
+            const row = e.target.closest('tr');
+            const cells = row.getElementsByTagName('td');
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].contentEditable = true;
+                cells[i].classList.add('editable');
+            }
+            row.querySelector('.edit-btn').style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'inline-flex';
         }
-        row.querySelector('.edit-btn').style.display = 'none';
-        row.querySelector('.save-btn').style.display = 'inline-flex';
-    }
-    
-    if (e.target.closest('.save-btn')) {
-        const row = e.target.closest('tr');
-        const cells = row.getElementsByTagName('td');
-        
-        const startTimeCell = cells[2];
-        const endTimeCell = cells[3];
-        
-        startTimeCell.dataset.original = startTimeCell.textContent;
-        endTimeCell.dataset.original = endTimeCell.textContent;
 
-        for (let i = 0; i < cells.length - 1; i++) {
-            cells[i].contentEditable = false;
-            cells[i].classList.remove('editable');
+        if (e.target.closest('.save-btn')) {
+            const row = e.target.closest('tr');
+            const cells = row.getElementsByTagName('td');
+            
+            const startTimeCell = cells[2];
+            const endTimeCell = cells[3];
+            
+            startTimeCell.dataset.original = startTimeCell.textContent;
+            endTimeCell.dataset.original = endTimeCell.textContent;
+
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].contentEditable = false;
+                cells[i].classList.remove('editable');
+            }
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.edit-btn').style.display = 'inline-flex';
+            
+            applyRowHighlight(row);
+            
+            const rowData = {
+                service: cells[0].textContent,
+                date: cells[1].textContent,
+                startTime: cells[2].textContent,
+                endTime: cells[3].textContent,
+                comments: cells[4].textContent,
+                impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
+            };
+            
+            fetch('/save-changes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(rowData)
+            });
         }
-        row.querySelector('.save-btn').style.display = 'none';
-        row.querySelector('.edit-btn').style.display = 'inline-flex';
-        
-        applyRowHighlight(row);
-        
-        const rowData = {
-            service: cells[0].textContent,
-            date: cells[1].textContent,
-            startTime: cells[2].textContent,
-            endTime: cells[3].textContent,
-            comments: cells[4].textContent,
-            impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
-        };
-        
-        fetch('/save-changes', {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(rowData)
-        });
-    }
-    
-    if (e.target.closest('.delete-btn')) {
-        rowToDelete = e.target.closest('tr');
-        confirmDialog.classList.add('active');
-    }
+
+        if (e.target.closest('.delete-btn')) {
+            const rowToDelete = e.target.closest('tr');
+            confirmDialog.classList.add('active');
+        }
+    }, "Please enter the passkey to edit or delete data");
 });
 
 document.getElementById('cancelDelete').addEventListener('click', function() {
