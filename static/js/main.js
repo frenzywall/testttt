@@ -202,42 +202,49 @@ document.querySelector('table').addEventListener('click', function(e) {
 
         if (e.target.closest('.delete-btn')) {
             rowToDelete = e.target.closest('tr');
-            confirmDialog.classList.add('active');
+            
+            // Show custom confirmation dialog
+            createConfirmDialog({
+                type: 'danger',
+                icon: 'fa-trash',
+                title: 'Delete Row',
+                message: 'Are you sure you want to delete this row? This action cannot be undone.',
+                confirmText: 'Delete',
+                cancelText: 'Cancel'
+            }).then(confirmed => {
+                if (confirmed) {
+                    // Proceed with deletion
+                    if (rowToDelete) {
+                        rowToDelete.style.opacity = '0';
+                        rowToDelete.style.transform = 'translateX(20px)';
+                        setTimeout(() => {
+                            rowToDelete.remove();
+                            checkEmptyTable();
+                            
+                            const cells = rowToDelete.getElementsByTagName('td');
+                            const rowData = {
+                                service: cells[0].textContent,
+                                date: cells[1].textContent
+                            };
+                            
+                            fetch('/delete-row', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(rowData)
+                            });
+                            
+                            rowToDelete = null;
+                        }, 300);
+                    }
+                } else {
+                    // Deletion cancelled
+                    rowToDelete = null;
+                }
+            });
         }
     }, "Please enter the passkey to edit or delete data");
-});
-
-document.getElementById('cancelDelete').addEventListener('click', function() {
-    confirmDialog.classList.remove('active');
-    rowToDelete = null;
-});
-
-document.getElementById('confirmDelete').addEventListener('click', function() {
-    if (rowToDelete) {
-    rowToDelete.style.opacity = '0';
-    rowToDelete.style.transform = 'translateX(20px)';
-    setTimeout(() => {
-        rowToDelete.remove();
-        checkEmptyTable();
-        
-        const cells = rowToDelete.getElementsByTagName('td');
-        const rowData = {
-        service: cells[0].textContent,
-        date: cells[1].textContent
-        };
-        
-        fetch('/delete-row', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(rowData)
-        });
-        
-        rowToDelete = null;
-    }, 300);
-    }
-    confirmDialog.classList.remove('active');
 });
 
 document.addEventListener('DOMContentLoaded', function() {
