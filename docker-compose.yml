@@ -8,7 +8,10 @@ services:
       - FLASK_DEBUG=1
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - PASSKEY=passkey  # Add the passkey environment variable
+      - PASSKEY=passkey
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       - redis
     restart: unless-stopped
@@ -19,6 +22,8 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
 
 volumes:

@@ -1903,8 +1903,15 @@ function openHistoryModal() {
             historyItem.className = 'history-item';
             historyItem.dataset.timestamp = item.timestamp;
             
-            // Count services for summary
             const serviceCount = item.data?.services?.length || 0;
+            
+            // NEW: Convert saved UTC date to local timezone using the system's tz.
+            let formattedDate = 'Unknown date';
+            if (item.date) {
+                const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                formattedDate = DateTime.fromFormat(item.date, "yyyy-MM-dd HH:mm:ss", {zone: 'utc'})
+                                        .setZone(localTz)
+                                        .toFormat("yyyy-MM-dd, hh:mm a") + " (" + localTz + ")";            }
             
             historyItem.innerHTML = `
                 <div class="history-item-header">
@@ -1912,7 +1919,7 @@ function openHistoryModal() {
                         <span class="history-item-badge"></span>
                         ${item.title || 'Change Weekend'}
                     </div>
-                    <div class="history-item-date">${item.date || 'Unknown date'}</div>
+                    <div class="history-item-date">${formattedDate}</div>
                 </div>
                 <div class="history-item-summary">
                     ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
