@@ -510,6 +510,58 @@ function populateTimezoneSelectors() {
     toTzSelect.value = 'Asia/Kolkata';
 }
 
+// Global flag for conversion state remains unchanged
+let conversionEnabled = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing code...
+    
+    // Initialize timezone selectors
+    populateTimezoneSelectors();
+    
+    // Replace the button click with a checkbox change event listener
+    const convertToggleBtn = document.getElementById('convertToggleBtn');
+    if (convertToggleBtn) {
+        convertToggleBtn.addEventListener('change', () => {
+            conversionEnabled = convertToggleBtn.checked;
+            toggleTimezoneConversion();
+        });
+    }
+    
+    // ...existing code...
+});
+
+// Existing toggleTimezoneConversion function remains unchanged
+function toggleTimezoneConversion() {
+    const fromTzSelect = document.getElementById('fromTimezone');
+    const timeColumns = document.querySelectorAll('.time-column');
+    if (conversionEnabled) {
+        // Apply conversion using the existing handler
+        handleTimezoneChange();
+    } else {
+        // Revert header labels to show the "From" timezone
+        const fromTzLabel = fromTzSelect.options[fromTzSelect.selectedIndex].text;
+        if (timeColumns[0]) {
+            timeColumns[0].innerHTML = `Start Time<span class="time-zone">(${fromTzLabel})</span>`;
+        }
+        if (timeColumns[1]) {
+            timeColumns[1].innerHTML = `End Time<span class="time-zone">(${fromTzLabel})</span>`;
+        }
+        // Restore original times from data attributes
+        const rows = document.querySelectorAll('#changeTable tbody tr');
+        rows.forEach(row => {
+            const startTimeCell = row.querySelector('td:nth-child(3)');
+            const endTimeCell = row.querySelector('td:nth-child(4)');
+            if (startTimeCell && startTimeCell.dataset.original) {
+                startTimeCell.textContent = startTimeCell.dataset.original;
+            }
+            if (endTimeCell && endTimeCell.dataset.original) {
+                endTimeCell.textContent = endTimeCell.dataset.original;
+            }
+        });
+    }
+}
+
 // Initialize timezone selectors and add event listeners
 document.addEventListener('DOMContentLoaded', function() {
     // ...existing code...
@@ -517,17 +569,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize timezone selectors
     populateTimezoneSelectors();
     
-    // Add event listeners for timezone dropdowns
-    const fromTzSelect = document.getElementById('fromTimezone');
-    const toTzSelect = document.getElementById('toTimezone');
+    // Remove automatic conversion on dropdown change:
+    // const fromTzSelect = document.getElementById('fromTimezone');
+    // const toTzSelect = document.getElementById('toTimezone');
+    // if (fromTzSelect) { fromTzSelect.addEventListener('change', handleTimezoneChange); }
+    // if (toTzSelect) { toTzSelect.addEventListener('change', handleTimezoneChange); }
     
-    if (fromTzSelect) {
-        fromTzSelect.addEventListener('change', handleTimezoneChange);
+    // Instead, add a manual conversion trigger via a toggle button:
+    const convertToggleBtn = document.getElementById('convertToggleBtn');
+    if (convertToggleBtn) {
+        convertToggleBtn.addEventListener('click', handleTimezoneChange);
     }
     
-    if (toTzSelect) {
-        toTzSelect.addEventListener('change', handleTimezoneChange);
-    }
+    // ...existing code...
 });
 
 document.getElementById('copyEmail').addEventListener('click', function() {
