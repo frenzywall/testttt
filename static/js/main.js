@@ -5,7 +5,9 @@ const confirmDialog = document.getElementById('deleteConfirmDialog');
 let rowToDelete = null;
 
 viewOriginalBtn.onclick = function() {
-    modal.style.display = "block";
+    ensureAuthenticated(() => {
+        modal.style.display = "block";
+    }, "Please enter the passkey to compare and edit");
 }
 
 closeBtn.onclick = function() {
