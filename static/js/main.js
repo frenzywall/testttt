@@ -146,8 +146,7 @@ function checkEmptyTable() {
 }
 
 document.querySelector('table').addEventListener('click', function(e) {
-    ensureAuthenticated(() => {
-        if (e.target.closest('.edit-btn')) {
+    if (e.target.closest('.edit-btn')) {
         const row = e.target.closest('tr');
         const cells = row.getElementsByTagName('td');
         for (let i = 0; i < cells.length - 1; i++) {
@@ -156,9 +155,9 @@ document.querySelector('table').addEventListener('click', function(e) {
         }
         row.querySelector('.edit-btn').style.display = 'none';
         row.querySelector('.save-btn').style.display = 'inline-flex';
-        }
-        
-        if (e.target.closest('.save-btn')) {
+    }
+    
+    if (e.target.closest('.save-btn')) {
         const row = e.target.closest('tr');
         const cells = row.getElementsByTagName('td');
         
@@ -193,13 +192,12 @@ document.querySelector('table').addEventListener('click', function(e) {
             },
             body: JSON.stringify(rowData)
         });
-        }
-        
-        if (e.target.closest('.delete-btn')) {
+    }
+    
+    if (e.target.closest('.delete-btn')) {
         rowToDelete = e.target.closest('tr');
         confirmDialog.classList.add('active');
-        }
-    }, "Please enter the passkey to edit or delete data");
+    }
 });
 
 document.getElementById('cancelDelete').addEventListener('click', function() {
@@ -581,11 +579,13 @@ const editHeaderBtn = document.getElementById('editHeaderBtn');
 const saveHeaderBtn = document.getElementById('saveHeaderBtn');
 
 editHeaderBtn.addEventListener('click', function() {
-    headerTitle.contentEditable = true;
-    headerTitle.classList.add('editable');
-    headerTitle.focus();
-    editHeaderBtn.style.display = 'none';
-    saveHeaderBtn.style.display = 'flex';
+    ensureAuthenticated(() => {
+        headerTitle.contentEditable = true;
+        headerTitle.classList.add('editable');
+        headerTitle.focus();
+        editHeaderBtn.style.display = 'none';
+        saveHeaderBtn.style.display = 'flex';
+    }, "Please enter the passkey to edit title");
 });
 
 saveHeaderBtn.addEventListener('click', function() {
