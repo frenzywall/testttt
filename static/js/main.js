@@ -201,7 +201,7 @@ document.querySelector('table').addEventListener('click', function(e) {
         }
 
         if (e.target.closest('.delete-btn')) {
-            const rowToDelete = e.target.closest('tr');
+            rowToDelete = e.target.closest('tr');
             confirmDialog.classList.add('active');
         }
     }, "Please enter the passkey to edit or delete data");
@@ -1029,27 +1029,27 @@ saveDataBtn.addEventListener('click', function() {
     isEditing = false;
     editDataBtn.style.display = 'inline-flex';
     saveDataBtn.style.display = 'none';
-
+    
     // Remove the editable state from all cells
     const cells = document.querySelectorAll('#parsedDataBody td');
     cells.forEach(cell => {
         cell.contentEditable = false;
         cell.classList.remove('editable');
     });
-
+    
     // Remove the add row button
     const addRowBtn = document.getElementById('addParsedRow');
     if (addRowBtn) {
         addRowBtn.parentNode.removeChild(addRowBtn);
     }
-
+    
     // Create loading indicator
     const loadingEl = document.createElement('div');
     loadingEl.className = 'sync-loading';
     loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving changes locally...';
     loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
     document.body.appendChild(loadingEl);
-
+    
     // Short timeout to show loading indicator
     setTimeout(() => {
         document.body.removeChild(loadingEl);
@@ -1057,15 +1057,16 @@ saveDataBtn.addEventListener('click', function() {
         // Update the main table with the edited data
         updateMainTableFromParsedData();
         
-        // Show success notification
+        // Use createNotification for success message
         createNotification('success', 'Changes saved locally!');
         
         // Show sync reminder notification after a short delay
         setTimeout(() => {
-            createNotification('info', 'Remember to click "Sync" to update changes across devices', 5000);
-        }, 1000);
-    }, 500);
+            createNotification('info', 'Remember to click "Sync" to update changes across devices');
+        }, 3000);
+    }, 1000);
 });
+
 // Function to update the main table with data from the parsed data table
 function updateMainTableFromParsedData() {
 const parsedRows = document.querySelectorAll('#parsedDataBody tr');
@@ -1159,9 +1160,16 @@ mainTableBody.appendChild(newRow);
 initImpactSelector(newRow);
 });
 
-// If timezone toggle is checked, convert times to IST
-if (document.getElementById('tzToggle').checked) {
-document.getElementById('tzToggle').dispatchEvent(new Event('change'));
+// If timezone toggle is checked, convert times - FIX: Safely check if element exists
+const tzToggle = document.getElementById('tzToggle');
+if (tzToggle && tzToggle.checked) {
+    tzToggle.dispatchEvent(new Event('change'));
+} else {
+    // Try convertToggleBtn as an alternative if that's what's actually in the DOM
+    const convertToggleBtn = document.getElementById('convertToggleBtn');
+    if (convertToggleBtn && convertToggleBtn.checked) {
+        convertToggleBtn.dispatchEvent(new Event('change'));
+    }
 }
 
 // Apply active filter
@@ -1170,6 +1178,7 @@ applyActiveFilter();
 // Check if table is empty
 checkEmptyTable();
 }
+
 // When a row in the parsed data table is clicked in edit mode
 document.querySelector('.parsed-data-table').addEventListener('click', function(e) {
 if (!isEditing) return;
@@ -1356,59 +1365,59 @@ return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // ...existing code...
 
 // Save changes from the parsed data table to the main table
-saveDataBtn.addEventListener('click', function() {
-isEditing = false;
-editDataBtn.style.display = 'inline-flex';
-saveDataBtn.style.display = 'none';
+// saveDataBtn.addEventListener('click', function() {
+// isEditing = false;
+// editDataBtn.style.display = 'inline-flex';
+// saveDataBtn.style.display = 'none';
 
-// Remove the editable state from all cells
-const cells = document.querySelectorAll('#parsedDataBody td');
-cells.forEach(cell => {
-cell.contentEditable = false;
-cell.classList.remove('editable');
-});
+// // Remove the editable state from all cells
+// const cells = document.querySelectorAll('#parsedDataBody td');
+// cells.forEach(cell => {
+// cell.contentEditable = false;
+// cell.classList.remove('editable');
+// });
 
-// Remove the add row button
-const addRowBtn = document.getElementById('addParsedRow');
-if (addRowBtn) {
-addRowBtn.parentNode.removeChild(addRowBtn);
-}
+// // Remove the add row button
+// const addRowBtn = document.getElementById('addParsedRow');
+// if (addRowBtn) {
+// addRowBtn.parentNode.removeChild(addRowBtn);
+// }
 
-// Collect data from the parsed table to send to the server
-const parsedRows = document.querySelectorAll('#parsedDataBody tr');
-const services = [];
+// // Collect data from the parsed table to send to the server
+// const parsedRows = document.querySelectorAll('#parsedDataBody tr');
+// const services = [];
 
-parsedRows.forEach(row => {
-if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
+// parsedRows.forEach(row => {
+// if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
 
-const serviceName = row.cells[0].textContent;
-const date = row.cells[1].textContent;
+// const serviceName = row.cells[0].textContent;
+// const date = row.cells[1].textContent;
 
-// Parse time range (e.g., "09:00 - 11:00" to start and end times)
-let startTime = '';
-let endTime = '';
-const timeRange = row.cells[2].textContent;
+// // Parse time range (e.g., "09:00 - 11:00" to start and end times)
+// let startTime = '';
+// let endTime = '';
+// const timeRange = row.cells[2].textContent;
 
-if (timeRange.includes('-')) {
-const timeParts = timeRange.split('-');
-startTime = timeParts[0].trim();
-endTime = timeParts[1].trim();
-} else {
-startTime = timeRange;
-}
+// if (timeRange.includes('-')) {
+// const timeParts = timeRange.split('-');
+// startTime = timeParts[0].trim();
+// endTime = timeParts[1].trim();
+// } else {
+// startTime = timeRange;
+// }
 
-const comments = row.cells[3].textContent;
+// const comments = row.cells[3].textContent;
 
-// Add this service to our array
-services.push({
-name: serviceName,
-start_time: startTime,
-end_time: endTime,
-end_date: date,
-comments: comments,
-priority: 'low'  // Default priority
-});
-});
+// // Add this service to our array
+// services.push({
+// name: serviceName,
+// start_time: startTime,
+// end_time: endTime,
+// end_date: date,
+// comments: comments,
+// priority: 'low'  // Default priority
+// });
+// });
 
 // Send data to server for persistence
 // fetch('/save-parsed-data', {
@@ -1434,7 +1443,7 @@ priority: 'low'  // Default priority
 // console.error('Error:', error);
 // alert('Error saving data. Please try again.');
 // });
- });
+//  });
 
 // ...existing code...
 
@@ -2870,14 +2879,30 @@ function ensureAuthenticated(callback, customMessage = "Please enter the passkey
 }
 
 function disableRestrictedFeatures() {
-    document.querySelectorAll('.impact-selector').forEach(el => {
-        el.style.pointerEvents = 'none';
-        el.style.opacity = '0.5';
+    // Add a global overlay to all restricted elements
+    document.querySelectorAll('.impact-selector, .action-cell').forEach(el => {
+        // First, add an overlay div to capture all clicks before they reach the element
+        const overlay = document.createElement('div');
+        overlay.className = 'auth-required-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.1)';
+        overlay.style.zIndex = '10';
+        overlay.style.cursor = 'not-allowed';
+        overlay.setAttribute('data-requires-auth', 'true');
+        
+        // If the element doesn't have position relative, add it
+        if (window.getComputedStyle(el).position === 'static') {
+            el.style.position = 'relative';
+        }
+        
+        el.appendChild(overlay);
+        el.classList.add('restricted-feature');
     });
-    document.querySelectorAll('.action-cell').forEach(el => {
-        el.style.pointerEvents = 'none';
-        el.style.opacity = '0.5';
-    });
+    
     const fileInput = document.getElementById('fileInput');
     if (fileInput) {
         fileInput.disabled = true;
@@ -2885,26 +2910,62 @@ function disableRestrictedFeatures() {
 }
 
 function enableRestrictedFeatures() {
-    document.querySelectorAll('.impact-selector').forEach(el => {
-        el.style.pointerEvents = '';
-        el.style.opacity = '1';
+    // Remove all authentication overlays
+    document.querySelectorAll('.auth-required-overlay').forEach(overlay => {
+        overlay.remove();
     });
-    document.querySelectorAll('.action-cell').forEach(el => {
-        el.style.pointerEvents = '';
-        el.style.opacity = '1';
+    
+    // Remove the restricted-feature class
+    document.querySelectorAll('.restricted-feature').forEach(el => {
+        el.classList.remove('restricted-feature');
     });
+    
     const fileInput = document.getElementById('fileInput');
     if (fileInput) {
         fileInput.disabled = false;
     }
 }
 
-// On DOMContentLoaded, disable restricted features if not authenticated.
+// Add a global click listener for all auth-required elements
+document.addEventListener('click', function(e) {
+    const authOverlay = e.target.closest('.auth-required-overlay');
+    
+    if (authOverlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get the correct authentication message based on the element
+        let authMessage = "Please enter the passkey to perform this action";
+        const parentEl = authOverlay.parentElement;
+        
+        if (parentEl.classList.contains('impact-selector')) {
+            authMessage = "Please enter the passkey to change impact priority";
+        } else if (parentEl.classList.contains('action-cell')) {
+            authMessage = "Please enter the passkey to edit or delete data";
+        }
+        
+        ensureAuthenticated(() => {
+            // Once authenticated, enable features and trigger the click on the original element
+            enableRestrictedFeatures();
+        }, authMessage);
+    }
+}, true); // Use capture phase to intercept events before they reach their targets
+
+// On DOMContentLoaded, check authentication status and set up features
 document.addEventListener('DOMContentLoaded', function() {
+    // Check authentication status
     if (!isAuthenticated()) {
         disableRestrictedFeatures();
     } else {
         enableRestrictedFeatures();
     }
+    
+    // Set up periodic check for auth expiration
+    setInterval(() => {
+        if (!isAuthenticated() && !document.querySelector('.auth-required-overlay')) {
+            disableRestrictedFeatures();
+        }
+    }, 30000); // Check every 30 seconds
+    
     // ...existing code...
 });
