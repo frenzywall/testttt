@@ -156,15 +156,21 @@
         <div class="tz-toggle">
             <div class="tz-toggle-label">
                 <i class="fas fa-globe"></i>
-                <span id="tzLabel">Show times in IST</span>
+                <span>Timezone Conversion</span>
             </div>
-            <label class="switch">
-                <input type="checkbox" id="tzToggle">
-                <span class="slider"></span>
-            </label>
+            <div class="tz-selectors">
+                <div class="tz-select-group">
+                    <label for="fromTimezone">From:</label>
+                    <select id="fromTimezone" class="timezone-select"></select>
+                </div>
+                <div class="tz-select-group">
+                    <label for="toTimezone">To:</label>
+                    <select id="toTimezone" class="timezone-select"></select>
+                </div>
+            </div>
             <div class="time-conversion-warning">
                 <i class="fas fa-exclamation-triangle"></i>
-                <span>Time format should be HH:MM for accurate conversion</span>
+                <span>Times shown are converted across timezones</span>
             </div>
         </div>
 

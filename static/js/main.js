@@ -1,3 +1,6 @@
+// Import Luxon library for DateTime operations
+const { DateTime } = luxon || window.luxon;
+
 const modal = document.getElementById('emailModal');
 const viewOriginalBtn = document.getElementById('viewOriginal');
 const closeBtn = document.getElementsByClassName('close')[0];
@@ -356,81 +359,175 @@ document.querySelectorAll('th.sortable').forEach(header => {
     });
 });
 
-const tzToggle = document.getElementById('tzToggle');
-const DateTime = luxon.DateTime;
+const tzControl = document.getElementById('tzControl');
+const fromTzSelect = document.getElementById('fromTimezone');
+const toTzSelect = document.getElementById('toTimezone');
 
-function convertToIST(timeStr, dateStr) {
+// Fixed timezone conversion function
+function convertTimezone(timeStr, dateStr, fromTz, toTz) {
     try {
-    if (timeStr === "-") {
-        return "-";
-    }
-    
-    if (timeStr.includes('-')) {
-        const [start, end] = timeStr.split('-');
-        return `${convertToIST(start.trim(), dateStr)}-${convertToIST(end.trim(), dateStr)}`;
-    }
+        // Handle special cases
+        if (!timeStr || timeStr === "-" || timeStr.trim() === "") {
+            return "-";
+        }
+        
+        // Handle time ranges (e.g., "08:00-10:00")
+        if (timeStr.includes('-')) {
+            const [start, end] = timeStr.split('-');
+            const convertedStart = convertTimezone(start.trim(), dateStr, fromTz, toTz);
+            const convertedEnd = end.trim() ? convertTimezone(end.trim(), dateStr, fromTz, toTz) : "-";
+            return `${convertedStart}-${convertedEnd}`;
+        }
 
-    const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
-        zone: 'Europe/Stockholm'
-    });
-    
-    const istTime = dt.setZone('Asia/Kolkata');
-    return istTime.toFormat('hh:mm a');
+        // Parse the DateTime object using the 24-hour format
+        const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
+            zone: fromTz
+        });
+        
+        if (!dt.isValid) {
+            console.error('Invalid date/time:', timeStr, dateStr, dt.invalidReason, dt.invalidExplanation);
+            return 'Invalid time';
+        }
+        
+        // Convert to target timezone and format as 12-hour time with AM/PM
+        const convertedTime = dt.setZone(toTz);
+        return convertedTime.toFormat('hh:mm a');
     } catch (e) {
-    console.error('Error converting time:', e);
-    return 'Invalid time';
+        console.error('Error converting time:', e, 'for time:', timeStr, 'date:', dateStr);
+        return 'Invalid time';
     }
 }
 
-tzToggle.addEventListener('change', function() {
+// Updated handler for timezone conversion to ensure proper values are passed
+function handleTimezoneChange() {
+    const fromTzSelect = document.getElementById('fromTimezone');
+    const toTzSelect = document.getElementById('toTimezone');
+    
+    if (!fromTzSelect || !toTzSelect) return;
+    
     const timeColumns = document.querySelectorAll('.time-column');
-    const tzLabel = document.getElementById('tzLabel');
     const warning = document.querySelector('.time-conversion-warning');
     
-    if (this.checked) {
-    timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(IST)</span>';
-    timeColumns[1].innerHTML = 'End Time<span class="time-zone">(IST)</span>';
-    tzLabel.textContent = 'Showing times in IST';
+    const fromTz = fromTzSelect.value;
+    const toTz = toTzSelect.value;
+    
+    // Get user-friendly timezone names for display
+    const fromTzLabel = fromTzSelect.options[fromTzSelect.selectedIndex].text;
+    const toTzLabel = toTzSelect.options[toTzSelect.selectedIndex].text;
+    
+    if (fromTz !== toTz) {
+        // Show converted timezone in column headers
+        if (timeColumns[0]) timeColumns[0].innerHTML = `Start Time<span class="time-zone">(${toTzLabel})</span>`;
+        if (timeColumns[1]) timeColumns[1].innerHTML = `End Time<span class="time-zone">(${toTzLabel})</span>`;
+        if (warning) warning.style.display = 'flex';
     } else {
-    timeColumns[0].innerHTML = 'Start Time<span class="time-zone">(Sweden)</span>';
-    timeColumns[1].innerHTML = 'End Time<span class="time-zone">(Sweden)</span>';
-    tzLabel.textContent = 'Show times in IST';
+        // Show original timezone in column headers
+        if (timeColumns[0]) timeColumns[0].innerHTML = `Start Time<span class="time-zone">(${fromTzLabel})</span>`;
+        if (timeColumns[1]) timeColumns[1].innerHTML = `End Time<span class="time-zone">(${fromTzLabel})</span>`;
+        if (warning) warning.style.display = 'none';
     }
-    
-    warning.style.display = this.checked ? 'flex' : 'none';
 
+    // Convert the times in each table row
     const rows = document.querySelectorAll('#changeTable tbody tr');
-    const dateCell = rows[0]?.querySelector('td:nth-child(2)');
-    const date = dateCell?.textContent || '2025-02-15';
-
-    rows.forEach(row => {
-    const startTimeCell = row.querySelector('td:nth-child(3)');
-    const endTimeCell = row.querySelector('td:nth-child(4)');
     
-    if (startTimeCell && endTimeCell) {
-        if (this.checked) {
-        if (!startTimeCell.dataset.original) {
-            startTimeCell.dataset.original = startTimeCell.textContent;
-        }
-        if (!endTimeCell.dataset.original) {
-            endTimeCell.dataset.original = endTimeCell.textContent;
-        }
-        
-        const startTimeConverted = convertToIST(startTimeCell.dataset.original, date);
-        const endTimeConverted = convertToIST(endTimeCell.dataset.original, date);
-        
-        startTimeCell.textContent = startTimeConverted;
-        endTimeCell.textContent = endTimeConverted;
-        } else {
-        if (startTimeCell.dataset.original) {
-            startTimeCell.textContent = startTimeCell.dataset.original;
-        }
-        if (endTimeCell.dataset.original) {
-            endTimeCell.textContent = endTimeCell.dataset.original;
-        }
-        }
+    // Get the date from the first row, or use fallback
+    let dateStr;
+    if (rows.length > 0) {
+        const dateCell = rows[0].querySelector('td:nth-child(2)');
+        dateStr = dateCell ? dateCell.textContent : '';
     }
+    
+    if (!dateStr) dateStr = '2023-01-01'; // Fallback date if none is found
+    
+    rows.forEach(row => {
+        const startTimeCell = row.querySelector('td:nth-child(3)');
+        const endTimeCell = row.querySelector('td:nth-child(4)');
+        
+        if (startTimeCell && endTimeCell) {
+            if (fromTz !== toTz) {
+                // Save original values if not already saved
+                if (!startTimeCell.dataset.original) {
+                    startTimeCell.dataset.original = startTimeCell.textContent;
+                }
+                if (!endTimeCell.dataset.original) {
+                    endTimeCell.dataset.original = endTimeCell.textContent;
+                }
+                
+                // Convert times
+                const startTimeConverted = convertTimezone(startTimeCell.dataset.original, dateStr, fromTz, toTz);
+                const endTimeConverted = convertTimezone(endTimeCell.dataset.original, dateStr, fromTz, toTz);
+                
+                startTimeCell.textContent = startTimeConverted;
+                endTimeCell.textContent = endTimeConverted;
+            } else {
+                // Restore original times
+                if (startTimeCell.dataset.original) {
+                    startTimeCell.textContent = startTimeCell.dataset.original;
+                }
+                if (endTimeCell.dataset.original) {
+                    endTimeCell.textContent = endTimeCell.dataset.original;
+                }
+            }
+        }
     });
+}
+
+// Function to populate timezone dropdowns with common options
+function populateTimezoneSelectors() {
+    const fromTzSelect = document.getElementById('fromTimezone');
+    const toTzSelect = document.getElementById('toTimezone');
+    
+    if (!fromTzSelect || !toTzSelect) return;
+    
+    const commonTimezones = [
+        { value: 'Europe/Stockholm', label: 'Stockholm (CET/CEST)' },
+        { value: 'Asia/Kolkata', label: 'India (IST)' },
+        { value: 'UTC', label: 'UTC' },
+        { value: 'America/New_York', label: 'New York (EST/EDT)' },
+        { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
+        { value: 'Europe/London', label: 'London (GMT/BST)' },
+        { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+        { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+        { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+        { value: 'Asia/Singapore', label: 'Singapore (SGT)' }
+    ];
+    
+    // Clear existing options
+    fromTzSelect.innerHTML = '';
+    toTzSelect.innerHTML = '';
+    
+    // Add new options
+    commonTimezones.forEach(tz => {
+        const fromOption = new Option(tz.label, tz.value);
+        const toOption = new Option(tz.label, tz.value);
+        
+        fromTzSelect.add(fromOption);
+        toTzSelect.add(toOption);
+    });
+    
+    // Set default values - Sweden to IST to maintain backward compatibility
+    fromTzSelect.value = 'Europe/Stockholm';
+    toTzSelect.value = 'Asia/Kolkata';
+}
+
+// Initialize timezone selectors and add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing code...
+    
+    // Initialize timezone selectors
+    populateTimezoneSelectors();
+    
+    // Add event listeners for timezone dropdowns
+    const fromTzSelect = document.getElementById('fromTimezone');
+    const toTzSelect = document.getElementById('toTimezone');
+    
+    if (fromTzSelect) {
+        fromTzSelect.addEventListener('change', handleTimezoneChange);
+    }
+    
+    if (toTzSelect) {
+        toTzSelect.addEventListener('change', handleTimezoneChange);
+    }
 });
 
 document.getElementById('copyEmail').addEventListener('click', function() {
@@ -1605,7 +1702,7 @@ if (result.status === 'success') {
     // Ask the user if they want to reload for a fresh state
     if (confirm('Data uploaded successfully! Reload page to ensure you have the latest data :)')) {
         // Force a complete refresh with no caching
-        const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
+        const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + Date.now();
         window.location.replace(reloadUrl);
     } else {
         // Just remove the success message after a delay

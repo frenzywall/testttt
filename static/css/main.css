@@ -3476,3 +3476,93 @@ background-color: rgba(245, 158, 11, 0.4);
   .shake {
     animation: softShake 0.7s ease-in-out both;
   }
+
+/* Timezone Selector Styles */
+.tz-selectors {
+    display: flex;
+    gap: 15px;
+    margin-left: 15px;
+    flex-wrap: wrap;
+}
+
+.tz-select-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timezone-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timezone-select:hover, .timezone-select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+/* Update the time conversion warning for universal use */
+.time-conversion-warning {
+    margin-left: auto;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: var(--warning-color);
+    font-size: 0.8rem;
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .timezone-select {
+    background: rgba(30, 41, 59, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .timezone-select:hover,
+[data-theme="dark"] .timezone-select:focus {
+    border-color: var(--primary-color);
+    background: rgba(30, 41, 59, 0.4);
+}
+
+/* Enhanced responsive design for timezone section */
+@media (max-width: 768px) {
+    .tz-toggle {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .tz-selectors {
+        flex-direction: column;
+        margin-left: 0;
+        gap: 10px;
+        width: 100%;
+    }
+    
+    .tz-select-group {
+        width: 100%;
+    }
+    
+    .timezone-select {
+        width: 100%;
+    }
+    
+    .time-conversion-warning {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+}
