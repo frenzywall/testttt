@@ -830,6 +830,7 @@ let isEditing = false;
 
 // Toggle edit mode for the parsed data table
 editDataBtn.addEventListener('click', function() {
+ensureAuthenticated(() => {
 isEditing = true;
 editDataBtn.style.display = 'none';
 saveDataBtn.style.display = 'inline-flex';
@@ -865,6 +866,7 @@ tbody.appendChild(newRow);
 
 parsedDataContainer.insertBefore(addRowBtn, parsedDataContainer.firstChild);
 }
+}, "Please enter the passkey to edit parsed data");
 });
 
 // Save changes from the parsed data table to the main table
@@ -886,75 +888,29 @@ saveDataBtn.addEventListener('click', function() {
         addRowBtn.parentNode.removeChild(addRowBtn);
     }
 
-    // Collect data from the parsed table to send to the server
-    const parsedRows = document.querySelectorAll('#parsedDataBody tr');
-    const services = [];
-
-    parsedRows.forEach(row => {
-        if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
-
-        const serviceName = row.cells[0].textContent;
-        const date = row.cells[1].textContent;
-        const timeRange = row.cells[2].textContent;
-        const comments = row.cells[3].textContent;
-
-        let startTime = '';
-        let endTime = '';
-
-        if (timeRange.includes('-')) {
-            const timeParts = timeRange.split('-');
-            startTime = timeParts[0].trim();
-            endTime = timeParts[1].trim();
-        } else {
-            startTime = timeRange;
-        }
-
-        services.push({
-            name: serviceName,
-            start_time: startTime,
-            end_time: endTime,
-            end_date: date,
-            comments: comments,
-            priority: 'low'  // Default priority
-        });
-    });
-
     // Create loading indicator
     const loadingEl = document.createElement('div');
     loadingEl.className = 'sync-loading';
-    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving changes...';
+    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving changes locally...';
     loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
     document.body.appendChild(loadingEl);
 
-    // Send data to server for persistence
-    fetch('/save-parsed-data', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            services: services,
-            date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+    // Short timeout to show loading indicator
+    setTimeout(() => {
         document.body.removeChild(loadingEl);
-        if (data.status === 'success') {
-            // Update the main table with the edited data
-            updateMainTableFromParsedData();
-            createNotification('success', 'Changes saved successfully!');
-        } else {
-            throw new Error(data.message || 'Unknown error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.body.removeChild(loadingEl);
-        createNotification('error', 'Error saving changes: ' + error.message);
-    });
+        
+        // Update the main table with the edited data
+        updateMainTableFromParsedData();
+        
+        // Show success notification
+        createNotification('success', 'Changes saved locally!');
+        
+        // Show sync reminder notification after a short delay
+        setTimeout(() => {
+            createNotification('info', 'Remember to click "Sync" to update changes across devices', 5000);
+        }, 1000);
+    }, 500);
 });
-
 // Function to update the main table with data from the parsed data table
 function updateMainTableFromParsedData() {
 const parsedRows = document.querySelectorAll('#parsedDataBody tr');
@@ -1058,9 +1014,6 @@ applyActiveFilter();
 
 // Check if table is empty
 checkEmptyTable();
-
-// Show a success message
-alert('Changes saved successfully!');
 }
 // When a row in the parsed data table is clicked in edit mode
 document.querySelector('.parsed-data-table').addEventListener('click', function(e) {
@@ -1105,8 +1058,10 @@ let isHighlighted = false;
 
 // Toggle between side-by-side and stacked layout
 toggleLayoutBtn.addEventListener('click', function() {
+ensureAuthenticated(() => {
 const modalContent = document.querySelector('.modal-content');
 modalContent.classList.toggle('layout-stacked');
+}, "Please enter the passkey to change comparison layout");
 });
 
 // Highlight data in the email content
@@ -1301,30 +1256,30 @@ priority: 'low'  // Default priority
 });
 
 // Send data to server for persistence
-fetch('/save-parsed-data', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: JSON.stringify({
-services: services,
-date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
-})
-})
-.then(response => response.json())
-.then(data => {
-if (data.status === 'success') {
-// Update the main table with the edited data
-updateMainTableFromParsedData();
-} else {
-alert('Error saving data: ' + (data.message || 'Unknown error'));
-}
-})
-.catch(error => {
-console.error('Error:', error);
-alert('Error saving data. Please try again.');
-});
-});
+// fetch('/save-parsed-data', {
+// method: 'POST',
+// headers: {
+// 'Content-Type': 'application/json'
+// },
+// body: JSON.stringify({
+// services: services,
+// date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
+// })
+// })
+// .then(response => response.json())
+// .then(data => {
+// if (data.status === 'success') {
+// // Update the main table with the edited data
+// updateMainTableFromParsedData();
+// } else {
+// alert('Error saving data: ' + (data.message || 'Unknown error'));
+// }
+// })
+// .catch(error => {
+// console.error('Error:', error);
+// alert('Error saving data. Please try again.');
+// });
+ });
 
 // ...existing code...
 
@@ -1738,7 +1693,9 @@ document.addEventListener('DOMContentLoaded', function() {
         syncDropdown.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            syncDropdown.parentElement.classList.toggle('open');
+            ensureAuthenticated(() => {
+                syncDropdown.parentElement.classList.toggle('open');
+            }, "Please enter the passkey to access sync functionality");
         });
         
         // Close dropdown when clicking outside
@@ -2023,7 +1980,7 @@ function deleteHistoryItem(timestamp, itemElement) {
         // Show loading state
         const loadingEl = document.createElement('div');
         loadingEl.className = 'delete-loading';
-        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting history item...';
+        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting history item from redis...';
         loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
         document.body.appendChild(loadingEl);
         
@@ -2034,37 +1991,40 @@ function deleteHistoryItem(timestamp, itemElement) {
         })
         .then(response => response.json())
         .then(result => {
-            document.body.removeChild(loadingEl);
-            if (result.status === 'success') {
-                // Remove the item from UI with animation
-                itemElement.style.opacity = '0';
-                itemElement.style.transform = 'translateX(20px)';
-                setTimeout(() => {
-                    itemElement.remove();
-                    
-                    // Check if history is now empty
-                    if (document.querySelectorAll('.history-item').length === 0) {
-                        document.getElementById('historyList').innerHTML = `
-                            <div class="empty-history">
-                                <i class="fas fa-inbox"></i>
-                                <p>No synced history items found</p>
-                            </div>
-                        `;
-                    }
-                    
-                    // Show success notification
-                    const successEl = document.createElement('div');
-                    successEl.className = 'delete-success';
-                    successEl.innerHTML = '<i class="fas fa-check-circle"></i> History item deleted';
-                    successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-                    document.body.appendChild(successEl);
+            // Add artificial delay of 1.5 seconds
+            setTimeout(() => {
+                document.body.removeChild(loadingEl);
+                if (result.status === 'success') {
+                    // Remove the item from UI with animation
+                    itemElement.style.opacity = '0';
+                    itemElement.style.transform = 'translateX(20px)';
                     setTimeout(() => {
-                        document.body.removeChild(successEl);
-                    }, 3000);
-                }, 300);
-            } else {
-                alert('Error deleting history item: ' + (result.message || 'Unknown error'));
-            }
+                        itemElement.remove();
+                        
+                        // Check if history is now empty
+                        if (document.querySelectorAll('.history-item').length === 0) {
+                            document.getElementById('historyList').innerHTML = `
+                                <div class="empty-history">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>No synced history items found</p>
+                                </div>
+                            `;
+                        }
+                        
+                        // Show success notification
+                        const successEl = document.createElement('div');
+                        successEl.className = 'delete-success';
+                        successEl.innerHTML = '<i class="fas fa-check-circle"></i> History item deleted';
+                        successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+                        document.body.appendChild(successEl);
+                        setTimeout(() => {
+                            document.body.removeChild(successEl);
+                        }, 3000);
+                    }, 300);
+                } else {
+                    alert('Error deleting history item: ' + (result.message || 'Unknown error'));
+                }
+            }, 1200); 
         })
         .catch(error => {
             document.body.removeChild(loadingEl);
@@ -2072,9 +2032,7 @@ function deleteHistoryItem(timestamp, itemElement) {
             alert('Error deleting history item. Please try again.');
         });
     });
-}
-
-// Filter history items based on search input
+}// Filter history items based on search input
 function filterHistoryItems(searchTerm) {
     const items = document.querySelectorAll('.history-item');
     const lowerSearchTerm = searchTerm.toLowerCase();
@@ -2363,17 +2321,14 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             e.stopPropagation();
             
-            // Always prompt for passkey
-            promptForPasskey().then(valid => {
-                if (valid) {
-                    // Toggle dropdown after successful authentication
-                    const dropdownParent = freshSyncDropdown.parentElement;
-                    dropdownParent.classList.toggle('open');
-                    
-                    // Setup dropdown item click handlers
-                    setupDropdownActions(dropdownParent);
-                }
-            });
+            ensureAuthenticated(() => {
+                // Toggle dropdown after successful authentication
+                const dropdownParent = freshSyncDropdown.parentElement;
+                dropdownParent.classList.toggle('open');
+                
+                // Setup dropdown item click handlers
+                setupDropdownActions(dropdownParent);
+            }, "Please enter the passkey to access sync functionality");
         });
         
         // Close dropdown when clicking outside
@@ -2686,49 +2641,45 @@ document.addEventListener('DOMContentLoaded', function() {
       e.stopPropagation();
       
       // First prompt for passkey authentication with a reset-specific message
-      promptForPasskey("Please enter the passkey to reset all data").then(valid => {
-        if (valid) {
-          // Only if authentication is successful, show the confirmation dialog
-          createConfirmDialog({
-            type: 'danger',
-            icon: 'fa-trash',
-            title: 'Reset Form',
-            message: 'Are you sure you want to reset the form? This will clear all data and cannot be undone.',
-            confirmText: 'Reset',
-            cancelText: 'Cancel'
-          }).then(confirmed => {
-            if (!confirmed) return;
-            
-            // Show loading indicator
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'sync-loading';
-            loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting data...';
-            loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-            document.body.appendChild(loadingEl);
-            
-            fetch('/reset-data', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-              // Force a complete refresh with no caching
-              const reloadUrl = window.location.href.split('?')[0] + 
-                             '?nocache=' + new Date().getTime();
-              window.location.replace(reloadUrl);
-            })
-            .catch(error => {
-              console.error('Error:', error);
-              document.body.removeChild(loadingEl);
-              createNotification('error', 'Error resetting data. Please try again.');
-            });
+      ensureAuthenticated(() => {
+        createConfirmDialog({
+          type: 'danger',
+          icon: 'fa-trash',
+          title: 'Reset Form',
+          message: 'Are you sure you want to reset the form? This will clear all data and cannot be undone.',
+          confirmText: 'Reset',
+          cancelText: 'Cancel'
+        }).then(confirmed => {
+          if (!confirmed) return;
+          
+          // Show loading indicator
+          const loadingEl = document.createElement('div');
+          loadingEl.className = 'sync-loading';
+          loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting data...';
+          loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--danger-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+          document.body.appendChild(loadingEl);
+          
+          fetch('/reset-data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+          })
+          .then(response => response.json())
+          .then(data => {
+            // Force a complete refresh with no caching
+            const reloadUrl = window.location.href.split('?')[0] + 
+                           '?nocache=' + new Date().getTime();
+            window.location.replace(reloadUrl);
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            document.body.removeChild(loadingEl);
+            createNotification('error', 'Error resetting data. Please try again.');
           });
-        }
-        // If authentication fails, promptForPasskey already shows an error notification
-      });
+        });
+      }, "Please enter the passkey to reset all data");
     });
   }
 });
