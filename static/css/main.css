@@ -2207,6 +2207,14 @@ margin-left: auto;
 margin-right: auto;
 }
 
+/* Override for .tz-toggle to allow full-width stretching when zoomed out */
+.tz-toggle,
+.filter-controls,
+.nav-container {
+    max-width: none;
+    width: 100%;
+}
+
 [data-theme="dark"] td.editable {
 background-color: rgba(255, 243, 205, 0.1);
 color: #fff;
