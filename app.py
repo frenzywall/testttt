@@ -282,7 +282,6 @@ def index():
             except:
                 header_title = "Change Weekend"
             services_data['header_title'] = header_title
-            save_stored_data(services_data)
             
             return render_template('result.html', data=services_data, header_title=header_title)
 
@@ -505,10 +504,8 @@ def delete_row():
 @app.route('/save-title', methods=['POST'])
 def save_title():
     """Save the header title"""
-    stored_data = get_stored_data()
-    if stored_data:
-        stored_data['header_title'] = request.json['title']
-        save_stored_data(stored_data)
+    stored_data = get_stored_data() or {}
+    stored_data['header_title'] = request.json['title']
     return jsonify({'status': 'success'})
 
 @app.route('/save-parsed-data', methods=['POST'])
