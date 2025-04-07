@@ -1,0 +1,290 @@
+/**
+ * Change Tracker Styles - Styling for sync status indicators
+ */
+
+/* Sync Status Indicator */
+.sync-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.15));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    margin: 0 1rem;
+    transition: all 0.3s ease;
+    max-width: 220px;
+}
+
+/* Different status styles */
+.sync-status-indicator.status-no-changes .sync-status-icon i {
+    color: #94a3b8; /* Gray for no changes */
+}
+
+.sync-status-indicator.status-unsaved .sync-status-icon i {
+    color: #f59e0b; /* Amber for unsaved changes */
+    animation: pulse 2s infinite;
+}
+
+.sync-status-indicator.status-syncing .sync-status-icon i {
+    color: #3b82f6; /* Blue for syncing */
+    animation: spin 1s linear infinite;
+}
+
+.sync-status-indicator.status-synced .sync-status-icon i {
+    color: #10b981; /* Green for synced */
+}
+
+/* Status text styles */
+.sync-status-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-no-changes .sync-status-text {
+    color: #94a3b8; /* Gray for no changes */
+}
+
+.status-unsaved .sync-status-text {
+    color: #f59e0b; /* Amber for unsaved changes */
+}
+
+.status-syncing .sync-status-text {
+    color: #3b82f6; /* Blue for syncing */
+}
+
+.status-synced .sync-status-text {
+    color: #10b981; /* Green for synced */
+}
+
+/* Animation for unsaved changes indicator */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+}
+
+/* Animation for syncing indicator */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Dark theme compatibility */
+[data-theme="dark"] .sync-status-indicator {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Positioning for the indicator based on screen size */
+@media (max-width: 768px) {
+    .sync-status-indicator {
+        margin: 0.5rem 0;
+        max-width: 100%;
+    }
+}
+
+/* Transitions for status changes */
+.sync-status-icon i {
+    transition: color 0.3s ease;
+}
+
+/* Make the indicator stand out when there are changes */
+.sync-status-indicator.status-unsaved {
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+/* Additional button styles to match the change tracker */
+.btn.sync-now-btn {
+    background: #f59e0b;
+    color: white;
+    border: none;
+    transform: translateY(0);
+    transition: all 0.3s ease;
+}
+
+.btn.sync-now-btn:hover {
+    background: #d97706;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Git-inspired change tracking status indicator */
+.git-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    margin-left: auto;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.git-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--glass-bg);
+    border-radius: 50%;
+    color: var(--text-color);
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.git-status-stages {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.git-stage {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    opacity: 0.5;
+}
+
+.git-stage i {
+    font-size: 0.75rem;
+}
+
+.git-stage span {
+    font-size: 0.75rem;
+    display: none; /* Hide text by default for compact view */
+}
+
+.git-stage:hover span {
+    display: inline; /* Show on hover */
+}
+
+.git-stage-arrow {
+    opacity: 0.4;
+    transition: all 0.3s ease;
+}
+
+.git-change-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    background: var(--glass-bg);
+    border-radius: 11px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: var(--text-color);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+}
+
+/* Status specific styles */
+/* No changes (default) */
+.git-stage.active {
+    opacity: 1;
+    border-color: var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.git-stage.complete {
+    opacity: 1;
+    border-color: var(--success-color);
+    background: rgba(var(--success-color-rgb, 22, 163, 74), 0.1);
+    color: var(--success-color);
+}
+
+.git-stage.processing {
+    opacity: 1;
+    border-color: var(--primary-color);
+    background: rgba(var(--primary-color-rgb, 37, 99, 235), 0.1);
+    color: var(--primary-color);
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(var(--primary-color-rgb, 37, 99, 235), 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(var(--primary-color-rgb, 37, 99, 235), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--primary-color-rgb, 37, 99, 235), 0); }
+}
+
+/* Has changes */
+.git-status-indicator.has-changes .git-change-count {
+    background: rgba(var(--warning-color-rgb, 245, 158, 11), 0.2);
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+    font-weight: 700;
+}
+
+.git-status-indicator.has-changes .git-status-icon {
+    color: var(--warning-color);
+}
+
+/* Syncing */
+.git-status-indicator.syncing .git-change-count {
+    background: rgba(var(--primary-color-rgb, 37, 99, 235), 0.2);
+    color: var(--primary-color);
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Synced */
+.git-status-indicator.synced .git-change-count {
+    background: rgba(var(--success-color-rgb, 22, 163, 74), 0.2);
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .git-status-indicator {
+    background: rgba(30, 41, 59, 0.3);
+}
+
+[data-theme="dark"] .git-stage.active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .git-status-indicator {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .git-stage span {
+        display: inline; /* Always show text on mobile */
+    }
+}
+
+/* Expanded view on hover */
+.git-status-indicator:hover {
+    padding: 6px 16px;
+}
+
+.git-status-indicator:hover .git-stage span {
+    display: inline;
+}

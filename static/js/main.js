@@ -220,21 +220,10 @@ document.querySelector('table').addEventListener('click', function(e) {
                         setTimeout(() => {
                             rowToDelete.remove();
                             checkEmptyTable();
-                            
-                            const cells = rowToDelete.getElementsByTagName('td');
-                            const rowData = {
-                                service: cells[0].textContent,
-                                date: cells[1].textContent
-                            };
-                            
-                            fetch('/delete-row', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(rowData)
-                            });
-                            
+                            // Mark deletion change for existing/new rows
+                            if (window.ChangeTracker) {
+                                ChangeTracker.markUnsaved();
+                            }
                             rowToDelete = null;
                         }, 300);
                     }
@@ -1369,92 +1358,7 @@ return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 });
 
-// ...existing code...
 
-// Save changes from the parsed data table to the main table
-// saveDataBtn.addEventListener('click', function() {
-// isEditing = false;
-// editDataBtn.style.display = 'inline-flex';
-// saveDataBtn.style.display = 'none';
-
-// // Remove the editable state from all cells
-// const cells = document.querySelectorAll('#parsedDataBody td');
-// cells.forEach(cell => {
-// cell.contentEditable = false;
-// cell.classList.remove('editable');
-// });
-
-// // Remove the add row button
-// const addRowBtn = document.getElementById('addParsedRow');
-// if (addRowBtn) {
-// addRowBtn.parentNode.removeChild(addRowBtn);
-// }
-
-// // Collect data from the parsed table to send to the server
-// const parsedRows = document.querySelectorAll('#parsedDataBody tr');
-// const services = [];
-
-// parsedRows.forEach(row => {
-// if (row.cells[0].textContent.trim() === '') return; // Skip empty rows
-
-// const serviceName = row.cells[0].textContent;
-// const date = row.cells[1].textContent;
-
-// // Parse time range (e.g., "09:00 - 11:00" to start and end times)
-// let startTime = '';
-// let endTime = '';
-// const timeRange = row.cells[2].textContent;
-
-// if (timeRange.includes('-')) {
-// const timeParts = timeRange.split('-');
-// startTime = timeParts[0].trim();
-// endTime = timeParts[1].trim();
-// } else {
-// startTime = timeRange;
-// }
-
-// const comments = row.cells[3].textContent;
-
-// // Add this service to our array
-// services.push({
-// name: serviceName,
-// start_time: startTime,
-// end_time: endTime,
-// end_date: date,
-// comments: comments,
-// priority: 'low'  // Default priority
-// });
-// });
-
-// Send data to server for persistence
-// fetch('/save-parsed-data', {
-// method: 'POST',
-// headers: {
-// 'Content-Type': 'application/json'
-// },
-// body: JSON.stringify({
-// services: services,
-// date: document.querySelector('#parsedDataBody tr td:nth-child(2)').textContent // Use the date from first row
-// })
-// })
-// .then(response => response.json())
-// .then(data => {
-// if (data.status === 'success') {
-// // Update the main table with the edited data
-// updateMainTableFromParsedData();
-// } else {
-// alert('Error saving data: ' + (data.message || 'Unknown error'));
-// }
-// })
-// .catch(error => {
-// console.error('Error:', error);
-// alert('Error saving data. Please try again.');
-// });
-//  });
-
-// ...existing code...
-
-// Update the reset form handler to call the reset API
 document.getElementById('resetForm').addEventListener('click', function() {
 if (confirm('Are you sure you want to reset the form? This will clear all data.')) {
 fetch('/reset-data', {
@@ -1841,14 +1745,18 @@ setInterval(checkForUpdates, checkInterval);
 
 // Initialize update checker on page load
 document.addEventListener('DOMContentLoaded', function() {
-// ...existing initialization code...
+    // ...existing initialization code...
 
-setupUpdateChecker();
+    // Only set up the update checker if there is existing data
+    const dataTimestamp = document.getElementById('dataTimestamp');
+    if (dataTimestamp && dataTimestamp.value !== '0') {
+        setupUpdateChecker();
+    }
 
-// Add this to prevent the "confirm form resubmission" dialog
-if (window.history.replaceState) {
-window.history.replaceState(null, null, window.location.href);
-}
+    // Add this to prevent the "confirm form resubmission" dialog
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
 });
 // ...existing code...
 

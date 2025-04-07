@@ -283,6 +283,10 @@ def index():
                 header_title = "Change Weekend"
             services_data['header_title'] = header_title
             
+            # Update the last_modified timestamp
+            services_data['last_modified'] = datetime.now().timestamp()
+            save_stored_data(services_data)
+            
             return render_template('result.html', data=services_data, header_title=header_title)
 
     except Exception as e:
