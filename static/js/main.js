@@ -158,12 +158,66 @@ document.querySelector('table').addEventListener('click', function(e) {
         if (e.target.closest('.edit-btn')) {
             const row = e.target.closest('tr');
             const cells = row.getElementsByTagName('td');
+            
+            // Store original values and make cells editable
             for (let i = 0; i < cells.length - 1; i++) {
+                if (i === cells.length - 2) { // Skip the impact-cell
+                    continue;
+                }
+                cells[i].dataset.original = cells[i].textContent;
                 cells[i].contentEditable = true;
                 cells[i].classList.add('editable');
             }
+            
+            // Store original HTML for the impact-cell
+            const impactCell = row.querySelector('.impact-cell');
+            impactCell.dataset.original = impactCell.innerHTML;
+
             row.querySelector('.edit-btn').style.display = 'none';
             row.querySelector('.save-btn').style.display = 'inline-flex';
+
+            // Add keydown listener for Escape key
+            row.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    // Revert changes
+                    for (let i = 0; i < cells.length - 1; i++) {
+                        if (i === cells.length - 2) { // Skip the impact-cell
+                            continue;
+                        }
+                        cells[i].textContent = cells[i].dataset.original;
+                        cells[i].contentEditable = false;
+                        cells[i].classList.remove('editable');
+                    }
+                    
+                    // Revert impact-cell HTML
+                    impactCell.innerHTML = impactCell.dataset.original;
+                    initImpactSelector(row); // Re-initialize the impact selector
+
+                    row.querySelector('.save-btn').style.display = 'none';
+                    row.querySelector('.edit-btn').style.display = 'inline-flex';
+
+                    // Remove keydown listener
+                    row.removeEventListener('keydown', arguments.callee);
+                }
+            });
+            
+            // Add touch listener for Escape key on mobile
+            document.addEventListener('touchstart', function(e) {
+                if (row.contains(e.target) || !row.querySelector('.save-btn[style*="display: inline-flex;"]')) {
+                    return; // Prevent touch event if the touch is inside the row or the row is not in edit mode
+                }
+                
+                // Simulate Escape key press
+                const escapeEvent = new KeyboardEvent('keydown', {
+                    key: 'Escape',
+                    code: 'Escape',
+                    keyCode: 27,
+                    which: 27,
+                    bubbles: true,
+                    cancelable: true
+                });
+                row.dispatchEvent(escapeEvent);
+            });
         }
 
         if (e.target.closest('.save-btn')) {
