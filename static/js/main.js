@@ -131,22 +131,25 @@ document.getElementById('addRow').addEventListener('click', function() {
 function checkEmptyTable() {
     const tbody = document.querySelector('tbody');
     if (tbody.children.length === 0) {
-    const emptyRow = document.createElement('tr');
-    emptyRow.classList.add('empty-state');
-    emptyRow.innerHTML = `
-        <td colspan="6">
-        <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
-        <div class="empty-state-text">No changes found</div>
-        <button class="btn primary-btn" id="emptyAddRow">
-            <i class="fas fa-plus"></i> Add Row
-        </button>
-        </td>
-    `;
-    tbody.appendChild(emptyRow);
-    
-    document.getElementById('emptyAddRow').addEventListener('click', function() {
-        document.getElementById('addRow').click();
-    });
+        const emptyRow = document.createElement('tr');
+        emptyRow.classList.add('empty-state');
+        emptyRow.innerHTML = `
+            <td colspan="6">
+            <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+            <div class="empty-state-text">No changes found</div>
+            <button class="btn primary-btn" id="emptyAddRow">
+                <i class="fas fa-plus"></i> Add Row
+            </button>
+            </td>
+        `;
+        tbody.appendChild(emptyRow);
+        
+        document.getElementById('emptyAddRow').addEventListener('click', function(e) {
+            // Prevent the table's click delegation from firing
+            e.stopPropagation();
+            e.preventDefault();
+            document.getElementById('addRow').click();
+        });
     }
 }
 
@@ -2282,113 +2285,6 @@ function createConfirmDialog(options) {
 // ...existing code...
 
 // Update the promptForPasskey function to always require a passkey
-function promptForPasskey(customMessage = "Please enter the passkey to access sync functionality") {
-    return new Promise((resolve) => {
-        // Create the dialog container
-        const dialogOverlay = document.createElement('div');
-        dialogOverlay.className = 'custom-confirm-dialog';
-        
-        // Create dialog content
-        dialogOverlay.innerHTML = `
-            <div class="custom-confirm-content">
-                <div class="custom-confirm-icon">
-                    <i class="fas fa-key"></i>
-                </div>
-                <h3>Authentication Required</h3>
-                <p>${customMessage}</p>
-                <input type="password" id="passkey-input" class="passkey-input" placeholder="Enter passkey">
-                <div class="custom-confirm-actions">
-                    <button class="custom-confirm-cancel">Cancel</button>
-                    <button class="custom-confirm-ok primary-btn">Submit</button>
-                </div>
-            </div>
-        `;
-        
-        // Add to DOM
-        document.body.appendChild(dialogOverlay);
-        
-        // Add animation class after a short delay to trigger animation
-        setTimeout(() => dialogOverlay.classList.add('active'), 10);
-        
-        // Give focus to the input
-        setTimeout(() => {
-            const passkeyInput = document.getElementById('passkey-input');
-            if (passkeyInput) passkeyInput.focus();
-        }, 300);
-        
-        // Setup event handlers
-        const cancelBtn = dialogOverlay.querySelector('.custom-confirm-cancel');
-        const confirmBtn = dialogOverlay.querySelector('.custom-confirm-ok');
-        const passkeyInput = dialogOverlay.querySelector('#passkey-input');
-        
-        // Handle Enter key in the input field
-        passkeyInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                confirmBtn.click();
-            }
-        });
-        
-        // Confirm action
-        confirmBtn.addEventListener('click', () => {
-            const passkey = passkeyInput.value.trim();
-            dialogOverlay.classList.remove('active');
-            
-            // Validate the passkey with the server
-            fetch('/validate-passkey', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ passkey: passkey })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.valid) {
-                    setTimeout(() => {
-                        dialogOverlay.remove();
-                        createNotification('success', 'Authentication successful!');
-                        resolve(true);
-                    }, 300);
-                } else {
-                    setTimeout(() => {
-                        dialogOverlay.remove();
-                        createNotification('error', 'Invalid passkey. Access denied.');
-                        resolve(false);
-                    }, 300);
-                }
-            })
-            .catch(error => {
-                setTimeout(() => {
-                    dialogOverlay.remove();
-                    createNotification('error', 'Error validating passkey. Please try again.');
-                    resolve(false);
-                }, 300);
-            });
-        });
-        
-        // Cancel action
-        cancelBtn.addEventListener('click', () => {
-            dialogOverlay.classList.remove('active');
-            setTimeout(() => {
-                dialogOverlay.remove();
-                resolve(false);
-            }, 300);
-        });
-        
-        // Close on escape key
-        document.addEventListener('keydown', function escHandler(e) {
-            if (e.key === 'Escape') {
-                dialogOverlay.classList.remove('active');
-                setTimeout(() => {
-                    dialogOverlay.remove();
-                    resolve(false);
-                }, 300);
-                document.removeEventListener('keydown', escHandler);
-            }
-        });
-    });
-}
 
 // Fix the sync dropdown behavior
 document.addEventListener('DOMContentLoaded', function() {
