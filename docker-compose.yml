@@ -9,6 +9,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - PASSKEY=passkey
+      - SECRET_KEY=secret
+      - INTERNAL_ENV=true
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
