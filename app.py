@@ -43,13 +43,6 @@ if not os.path.exists(temp_dir):
 tempfile.tempdir = temp_dir
 
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-logger.info(f"Using static directory: {static_dir}")
-logger.info(f"Static directory exists: {os.path.exists(static_dir)}")
-if os.path.exists(static_dir):
-    logger.info(f"Static directory contents: {os.listdir(static_dir)}")
-else:
-    logger.warning("Static directory does not exist")
-
 try:
     redis_client = redis.Redis(
         host=os.getenv('REDIS_HOST', 'redis'),
@@ -618,20 +611,44 @@ def reset_data():
 
 @app.after_request
 def add_security_headers(response):
-    csp_directives = [
-        "default-src 'self'",
-        "script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com",
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com",
-        "img-src 'self' https://www.ericsson.com data:",
-        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com https://unpkg.com https://cdn.jsdelivr.net",
-        "connect-src 'self'",
-        "frame-src 'self'",
-        "object-src 'none'",
-        "base-uri 'self'"
-    ]
+    # Check if we're in a development/internal environment
+    is_internal_env = os.environ.get('INTERNAL_ENV', 'true').lower() == 'true'
+    
+    if is_internal_env:
+        # More relaxed CSP for internal company use but no WebSockets
+        csp_directives = [
+            "default-src 'self' * data:",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:",
+            "style-src 'self' 'unsafe-inline' https: http:",
+            "img-src 'self' data: https: http:",
+            "font-src 'self' data: https: http:",
+            "connect-src 'self' https: http:",  # Removed WebSocket support (ws: wss:)
+            "frame-src 'self' https: http:",
+            "object-src 'self'"
+        ]
+    else:
+        # Original stricter CSP for public-facing deployments
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com",
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com",
+            "img-src 'self' https://www.ericsson.com data:",
+            "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com https://unpkg.com https://cdn.jsdelivr.net",
+            "connect-src 'self'",
+            "frame-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'"
+        ]
+    
     response.headers['Content-Security-Policy'] = "; ".join(csp_directives)
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
+    
+    # For internal applications, you might want to allow framing within your company domains
+    if is_internal_env:
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    else:
+        response.headers['X-Frame-Options'] = 'DENY'
+        
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
