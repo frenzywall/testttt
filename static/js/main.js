@@ -923,7 +923,6 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadZone.classList.remove('drag-over');
     });
 
-
     uploadZone.addEventListener('dragover', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -995,6 +994,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('uploadForm').submit();
                 }
             }, 100);
+        }
+    });
+
+    // Add event listener for clicks outside the modal
+    window.addEventListener('click', function(event) {
+        if (event.target == uploadModal) {
+            uploadModal.style.display = 'none';
+            uploadPreview.style.display = 'none';
+            uploadZone.classList.remove('drag-over');
+        }
+    });
+
+    // Add event listener for Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && uploadModal.style.display === 'flex') {
+            uploadModal.style.display = 'none';
+            uploadPreview.style.display = 'none';
+            uploadZone.classList.remove('drag-over');
+        }
+    });
+
+    // Add event listener for touches outside the modal for mobile devices
+    window.addEventListener('touchstart', function(event) {
+        if (event.target == uploadModal) {
+            uploadModal.style.display = 'none';
+            uploadPreview.style.display = 'none';
+            uploadZone.classList.remove('drag-over');
         }
     });
 });
