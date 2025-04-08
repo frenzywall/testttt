@@ -248,13 +248,7 @@ document.querySelector('table').addEventListener('click', function(e) {
                 impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
             };
             
-            fetch('/save-changes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(rowData)
-            });
+            // Removed fetch to '/save-changes' so that no data is synced implicitly.
         }
 
         if (e.target.closest('.delete-btn')) {
@@ -1580,27 +1574,9 @@ if (e.target.closest('.save-btn')) {
         impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
     };
     
-    // Send to server
-    fetch('/save-changes', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(rowData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status !== 'success') {
-            console.error('Error saving row:', data.message);
-            alert('Error saving data. You may need to refresh the page and try again.');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving row:', error);
-        alert('Network error while saving. Please try again.');
+
+    }
     });
-}
-});
 
 // Enhanced impact selector to save changes immediately
 

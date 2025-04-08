@@ -529,7 +529,6 @@ th, td {
     text-align: left;
     position: relative;
     transition: all 0.2s;
-    vertical-align: middle; /* Ensure all cell contents are middle-aligned */
 }
 
 th {
@@ -589,30 +588,22 @@ tr:hover {
     display: flex;
     gap: 8px;
     justify-content: flex-start;
-    align-items: center; /* Center items vertically */
-    height: 100%; /* Ensure the cell takes full height */
-    vertical-align: middle; /* Set vertical alignment for the cell content */
 }
 
 .table-btn {
     padding: 8px;
     min-width: 32px;
-    height: 32px; /* Set a fixed height */
     justify-content: center;
-    align-items: center;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     font-size: 0.8rem;
     display: flex;
+    align-items: center;
+    gap: 6px;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin: auto 0; /* Center vertically in available space */
-}
-
-.table-btn:hover {
-    transform: translateY(-2px);
 }
 
 .edit-btn {
@@ -2061,7 +2052,6 @@ background: var(--glass-bg);
 td {
 color: var(--text-color);
 border-bottom: 1px solid var(--glass-border);
-vertical-align: middle; /* Ensure all cell contents are middle-aligned */
 }
 
 tr:nth-child(even) {
