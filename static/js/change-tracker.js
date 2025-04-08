@@ -161,6 +161,13 @@ const ChangeTracker = {
         this.removeBeforeUnloadWarning();
     },
     
+    // Reset the counter to zero (for when table is empty)
+    resetCounter: function() {
+        this.changeCount = 0;
+        this.updateStatus('no-changes');
+        this.removeBeforeUnloadWarning();
+    },
+    
     // Add warning before page unload if there are unsaved changes
     addBeforeUnloadWarning: function() {
         window.onbeforeunload = function() {
@@ -179,6 +186,40 @@ const ChangeTracker = {
         if (document.querySelector('td.editable')) {
             this.markUnsaved();
         }
+    },
+    
+    // Helper function to check if a row is empty
+    isEmptyRow: function(row) {
+        if (!row) return false;
+        
+        // Get only the content cells (first 6 cells - exclude impact priority and actions)
+        // Assuming structure: service, date, start time, end time, end date, comments, impact, actions
+        const contentCells = Array.from(row.cells).slice(0, 6);
+
+        return contentCells.every(cell => {
+            const content = cell.textContent.trim();
+            // Consider various forms of empty content
+            return content === '' || 
+                   content === '-' || 
+                   content === '–' || // en dash
+                   content === 'N/A' ||
+                   content === 'n/a';
+        });
+    },
+    
+    // Helper function to check if a row is newly added and unsaved
+    isUnsavedNewRow: function(row) {
+        if (!row) return false;
+        
+        // Newly added rows have their save button visible
+        const saveBtn = row.querySelector('.save-btn');
+        const isSaveBtnVisible = saveBtn && 
+            window.getComputedStyle(saveBtn).display !== 'none';
+        
+        // Check both if save button is visible and the row is empty
+        const result = isSaveBtnVisible && this.isEmptyRow(row);
+        
+        return result;
     },
     
     // Attach event listeners to detect changes
@@ -215,8 +256,8 @@ const ChangeTracker = {
         document.addEventListener('click', event => {
             const deleteBtn = event.target.closest('.delete-btn');
             if (deleteBtn) {
-                // Instead of marking as unsaved immediately, wait for confirmation
-                // We'll look for confirmation dialog interactions
+                // Store a reference to the row being deleted
+                this.rowToDelete = deleteBtn.closest('tr');
             }
         });
         
@@ -224,8 +265,21 @@ const ChangeTracker = {
         document.addEventListener('click', event => {
             // Look for confirmation button in delete confirmation dialog
             const confirmDeleteBtn = event.target.closest('.confirm-delete-btn, .delete-confirm-btn');
-            if (confirmDeleteBtn) {
-                this.markUnsaved();
+            if (confirmDeleteBtn && this.rowToDelete) {
+                
+                // Only mark as unsaved if:
+                // 1. The row is not empty
+                // 2. The row is not a newly added, unsaved row
+                const isEmpty = this.isEmptyRow(this.rowToDelete);
+                const isUnsaved = this.isUnsavedNewRow(this.rowToDelete);
+                
+                if (!isEmpty && !isUnsaved) {
+                    this.markUnsaved();
+                } else {
+                }
+                
+                // Clear the reference after handling
+                this.rowToDelete = null;
             }
         });
         

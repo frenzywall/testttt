@@ -275,12 +275,27 @@ document.querySelector('table').addEventListener('click', function(e) {
                         rowToDelete.style.opacity = '0';
                         rowToDelete.style.transform = 'translateX(20px)';
                         setTimeout(() => {
+                            // Only mark as unsaved if the row is not empty
+                            if (window.ChangeTracker) {
+                                // Check if row is empty before marking as unsaved
+                                const isEmpty = window.ChangeTracker.isEmptyRow(rowToDelete);
+                                const isUnsavedNew = window.ChangeTracker.isUnsavedNewRow(rowToDelete);
+                                
+                                // Only mark as unsaved if the row had actual content
+                                if (!isEmpty && !isUnsavedNew) {
+                                    ChangeTracker.markUnsaved();
+                                }
+                            }
+                            
                             rowToDelete.remove();
                             checkEmptyTable();
-                            // Mark deletion change for existing/new rows
-                            if (window.ChangeTracker) {
-                                ChangeTracker.markUnsaved();
+                            
+                            // Reset counter if the table is now empty
+                            const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+                            if (tableRows.length === 0 && window.ChangeTracker) {
+                                ChangeTracker.resetCounter();
                             }
+                            
                             rowToDelete = null;
                         }, 300);
                     }
@@ -355,7 +370,6 @@ function applyActiveFilter() {
     const filterValue = activeFilter ? activeFilter.getAttribute('data-filter') : 'all';
     const rows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
     
-    console.log('Applying filter:', filterValue);
     
     rows.forEach(row => {
     const priority = row.getAttribute('data-priority');
@@ -2214,49 +2228,68 @@ function filterHistoryItems(searchTerm) {
 function loadHistoryItem(timestamp) {
     // Show custom confirmation dialog
     createConfirmDialog({
-        type: 'primary',
-        icon: 'fa-cloud-download-alt',
-        title: 'Load History Item',
-        message: 'Are you sure you want to load this version? Current unsaved changes will be lost.',
-        confirmText: 'Load',
-        cancelText: 'Cancel'
+      type: 'primary',
+      icon: 'fa-cloud-download-alt',
+      title: 'Load History Item',
+      message: 'Are you sure you want to load this version? Current unsaved changes will be lost.',
+      confirmText: 'Load',
+      cancelText: 'Cancel'
     }).then(confirmed => {
-        if (!confirmed) return;
-        
-        // Show loading state
-        const loadingEl = document.createElement('div');
-        loadingEl.className = 'sync-loading';
-        loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
-        loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-        document.body.appendChild(loadingEl);
-        
-        // Close the history modal
-        document.getElementById('historyModal').style.display = "none";
-        
-        // Fetch from server
+      if (!confirmed) return;
+  
+      // Show loading state
+      const loadingEl = document.createElement('div');
+      loadingEl.className = 'sync-loading';
+      loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
+      loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+      document.body.appendChild(loadingEl);
+  
+      // Close the history modal
+      document.getElementById('historyModal').style.display = "none";
+  
+      // Add a small delay to make loading feel more substantial
+      setTimeout(() => {
         fetch(`/load-from-history/${timestamp}`, {
-            method: 'GET',
-            cache: 'no-store'
+          method: 'GET',
+          cache: 'no-store'
         })
         .then(response => response.json())
         .then(result => {
-            document.body.removeChild(loadingEl);
-            if (result.status === 'success') {
-                // Force a complete refresh with no caching
-                const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
-                window.location.replace(reloadUrl);
-            } else {
-                alert('Error loading data: ' + (result.message || 'Unknown error'));
-            }
+          document.body.removeChild(loadingEl);
+          
+          if (result.status === 'success') {
+            // Store the sync reminder in localStorage to show after reload
+            localStorage.setItem('showSyncReminder', 'true');
+            
+            // Reload the page
+            const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
+            window.location.replace(reloadUrl);
+          } else {
+            createNotification('error', 'Error loading data: ' + (result.message || 'Unknown error'));
+          }
         })
         .catch(error => {
-            document.body.removeChild(loadingEl);
-            console.error('Error:', error);
-            alert('Error loading data. Please try again.');
+          document.body.removeChild(loadingEl);
+          console.error('Error:', error);
+          createNotification('error', 'Error loading data. Please try again.');
         });
+      }, 450);
     });
-}
-
+  }
+  
+  // Add this code to your main script that runs on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check if we need to show the sync reminder
+    if (localStorage.getItem('showSyncReminder') === 'true') {
+      // Clear the flag
+      localStorage.removeItem('showSyncReminder');
+      
+      // Show notification after a short delay to ensure page is fully loaded
+      setTimeout(() => {
+        createNotification('info', 'Remember to sync the loaded history item to make the changes global.');
+      }, 1000);
+    }
+  });
 // Add this function to create custom confirmation dialogs
 function createConfirmDialog(options) {
     // Remove any existing confirm dialogs
