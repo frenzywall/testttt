@@ -24,12 +24,11 @@ RUN mkdir -p /app/static/css /app/static/js /app/temp && \
     chown -R appuser:appuser /app && \
     chmod -R 755 /app/static && \
     chmod 1777 /app/temp
-
-# Copy application files
+    
 COPY --chown=appuser:appuser static/ ./static/
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser *.py .
 
 USER appuser
 EXPOSE 5000
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "app:app"]
