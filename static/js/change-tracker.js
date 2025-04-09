@@ -228,7 +228,19 @@ const ChangeTracker = {
         const saveHeaderBtn = document.getElementById('saveHeaderBtn');
         if (saveHeaderBtn) {
             saveHeaderBtn.addEventListener('click', () => {
-                this.markUnsaved();
+                // Get the title before the edit
+                const originalTitle = document.querySelector('.header-title').textContent.trim();
+                
+                // Wait for the title to be updated (assuming it's updated synchronously)
+                // You might need to adjust the timing if the update is asynchronous
+                setTimeout(() => {
+                    const newTitle = document.querySelector('.header-title').textContent.trim();
+                    
+                    // Compare the titles
+                    if (originalTitle !== newTitle) {
+                        this.markUnsaved();
+                    }
+                }, 0);
             });
         }
         
