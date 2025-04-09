@@ -923,6 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadZone.classList.remove('drag-over');
     });
 
+
     uploadZone.addEventListener('dragover', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -996,7 +997,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }
     });
-
     // Add event listener for clicks outside the modal
     window.addEventListener('click', function(event) {
         if (event.target == uploadModal) {
@@ -2238,17 +2238,26 @@ function loadHistoryItem(timestamp) {
       cancelText: 'Cancel'
     }).then(confirmed => {
       if (!confirmed) return;
-  
+      
       // Show loading state
       const loadingEl = document.createElement('div');
+      loadingEl.id = 'history-loading-indicator';
       loadingEl.className = 'sync-loading';
       loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading data from history...';
       loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
       document.body.appendChild(loadingEl);
-  
+      
       // Close the history modal
       document.getElementById('historyModal').style.display = "none";
-  
+      
+      // Function to safely remove loading element
+      const removeLoadingElement = () => {
+        const loadingElement = document.getElementById('history-loading-indicator');
+        if (loadingElement && loadingElement.parentNode) {
+          loadingElement.parentNode.removeChild(loadingElement);
+        }
+      };
+      
       // Add a small delay to make loading feel more substantial
       setTimeout(() => {
         fetch(`/load-from-history/${timestamp}`, {
@@ -2257,21 +2266,20 @@ function loadHistoryItem(timestamp) {
         })
         .then(response => response.json())
         .then(result => {
-          document.body.removeChild(loadingEl);
+          removeLoadingElement();
           
           if (result.status === 'success') {
-            // Store the sync reminder in localStorage to show after reload
-            localStorage.setItem('showSyncReminder', 'true');
+            // Call the updateUIWithHistoryData function with the history data
+            updateUIWithHistoryData(result.data);
             
-            // Reload the page
-            const reloadUrl = window.location.href.split('?')[0] + '?nocache=' + new Date().getTime();
-            window.location.replace(reloadUrl);
+            // Show success notification
+            createNotification('success', 'History item loaded successfully!');
           } else {
             createNotification('error', 'Error loading data: ' + (result.message || 'Unknown error'));
           }
         })
         .catch(error => {
-          document.body.removeChild(loadingEl);
+          removeLoadingElement();
           console.error('Error:', error);
           createNotification('error', 'Error loading data. Please try again.');
         });
@@ -2279,20 +2287,84 @@ function loadHistoryItem(timestamp) {
     });
   }
   
-  // Add this code to your main script that runs on page load
-  document.addEventListener('DOMContentLoaded', function() {
-    // Check if we need to show the sync reminder
-    if (localStorage.getItem('showSyncReminder') === 'true') {
-      // Clear the flag
-      localStorage.removeItem('showSyncReminder');
-      
-      // Show notification after a short delay to ensure page is fully loaded
-      setTimeout(() => {
-        createNotification('info', 'Remember to sync the loaded history item to make the changes global.');
-      }, 1000);
+  // Implement the updateUIWithHistoryData function that was missing
+  function updateUIWithHistoryData(data) {
+    if (!data || !data.services) {
+      console.error('Invalid history data format');
+      return;
     }
-  });
-// Add this function to create custom confirmation dialogs
+    
+    try {
+      // Update header title
+      if (data.header_title) {
+        document.getElementById('headerTitle').textContent = data.header_title;
+      }
+      
+      // Update original email body if available
+      const emailBody = document.getElementById('emailBody');
+      if (emailBody && data.original_body) {
+        emailBody.textContent = data.original_body;
+      }
+      
+      // Clear existing table data
+      const tbody = document.querySelector('#changeTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+      
+      // Add rows for each service
+      if (data.services && Array.isArray(data.services)) {
+        data.services.forEach(service => {
+          const newRow = document.createElement('tr');
+          newRow.setAttribute('data-priority', service.priority || 'low');
+          
+          newRow.innerHTML = `
+            <td>${service.name || ''}</td>
+            <td>${service.end_date || data.date || ''}</td>
+            <td data-original="${service.start_time || ''}">${service.start_time || ''}</td>
+            <td data-original="${service.end_time || ''}">${service.end_time || ''}</td>
+            <td>${service.end_date || data.date || ''}</td>
+            <td>${service.comments || ''}</td>
+            <td class="impact-cell">
+              <div class="impact-selector" data-value="${service.priority || 'low'}">
+                <div class="impact-selector-inner">
+                  <div class="impact-option impact-option-low ${(service.priority === 'low' || !service.priority) ? 'selected' : ''}" data-value="low">
+                    <span class="impact-dot"></span> Low
+                  </div>
+                  <div class="impact-option impact-option-medium ${service.priority === 'medium' ? 'selected' : ''}" data-value="medium">
+                    <span class="impact-dot"></span> Medium
+                  </div>
+                  <div class="impact-option impact-option-high ${service.priority === 'high' ? 'selected' : ''}" data-value="high">
+                    <span class="impact-dot"></span> High
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="action-cell">
+              <button class="table-btn edit-btn" title="Edit"><i class="fas fa-edit"></i></button>
+              <button class="table-btn save-btn" style="display: none;" title="Save"><i class="fas fa-save"></i></button>
+              <button class="table-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
+          `;
+          
+          tbody.appendChild(newRow);
+        });
+      } else {
+        console.warn('data.services is not a valid array:', data.services);
+      }
+      
+      // Initialize impact selectors and apply filters
+      document.querySelectorAll('tr').forEach(row => {
+        initImpactSelector(row);
+      });
+      
+      applyActiveFilter();
+      checkEmptyTable();
+    } catch (error) {
+      console.error('Error updating UI with history data:', error);
+      createNotification('error', 'Failed to display history data');
+    }
+  }
 function createConfirmDialog(options) {
     // Remove any existing confirm dialogs
     const existingDialogs = document.querySelectorAll('.custom-confirm-dialog');
