@@ -477,9 +477,11 @@ def load_from_history(timestamp):
     if not selected_entry:
         return jsonify({'status': 'error', 'message': 'History entry not found'})
     
-    save_stored_data(selected_entry['data'])
+    # Set a temporary session key to store the data (without saving to Redis)
+    session['temp_history_data'] = selected_entry['data']
     
-    response = jsonify({'status': 'success'})
+    # Return success without modifying the main Redis data
+    response = jsonify({'status': 'success', 'data': selected_entry['data']})
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
@@ -616,26 +618,6 @@ def reset_data():
         logger.error(f"Error resetting data: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)})
 
-@app.after_request
-def add_security_headers(response):
-    csp_directives = [
-        "default-src 'self'",
-        "script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com",
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com",
-        "img-src 'self' https://www.ericsson.com data:",
-        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com https://unpkg.com https://cdn.jsdelivr.net",
-        "connect-src 'self'",
-        "frame-src 'self'",
-        "object-src 'none'",
-        "base-uri 'self'"
-    ]
-    response.headers['Content-Security-Policy'] = "; ".join(csp_directives)
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    return response
-    
 @app.route('/validate-passkey', methods=['POST'])
 @rate_limit
 def validate_passkey():
