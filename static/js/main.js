@@ -3,7 +3,7 @@ const { DateTime } = luxon || window.luxon;
 
 const modal = document.getElementById('emailModal');
 const viewOriginalBtn = document.getElementById('viewOriginal');
-const closeBtn = document.getElementsByClassName('close')[0];
+const closeBtn = document.querySelector('#emailModal .close');
 const confirmDialog = document.getElementById('deleteConfirmDialog');
 let rowToDelete = null;
 

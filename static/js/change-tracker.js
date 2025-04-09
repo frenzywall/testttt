@@ -222,6 +222,22 @@ const ChangeTracker = {
         return result;
     },
     
+    // Store original values before editing
+    storeOriginalValues: function(row) {
+        if (!row) return;
+        
+        row.originalValues = Array.from(row.cells).map(cell => cell.textContent.trim());
+    },
+    
+    // Compare original and current values
+    hasRowChanged: function(row) {
+        if (!row || !row.originalValues) return true; // If no original values, consider it changed
+        
+        const currentValues = Array.from(row.cells).map(cell => cell.textContent.trim());
+        
+        return !row.originalValues.every((originalValue, index) => originalValue === currentValues[index]);
+    },
+    
     // Attach event listeners to detect changes
     attachEventListeners: function() {
         // Listen for save to the header title
@@ -244,12 +260,28 @@ const ChangeTracker = {
             });
         }
         
-        // Listen for save buttons in the table rows - but NOT immediately after adding a row
+        // Listen for save buttons in the table rows
         document.addEventListener('click', event => {
             const saveBtn = event.target.closest('.save-btn');
             if (saveBtn) {
-                // Only mark as unsaved if it's not from a newly added row that hasn't been saved yet
-                this.markUnsaved();
+                const row = saveBtn.closest('tr');
+                
+                // Only mark as unsaved if the row has actually changed
+                if (this.hasRowChanged(row)) {
+                    this.markUnsaved();
+                }
+                
+                // Clear original values after save
+                row.originalValues = null;
+            }
+        });
+        
+        // Listen for edit buttons in the table rows
+        document.addEventListener('click', event => {
+            const editBtn = event.target.closest('.edit-btn');
+            if (editBtn) {
+                const row = editBtn.closest('tr');
+                this.storeOriginalValues(row);
             }
         });
         
