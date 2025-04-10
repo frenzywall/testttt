@@ -833,7 +833,10 @@ headerTitle.addEventListener('keydown', function(e) {
 });
 
 function showLoading() {
-    document.querySelector('.loading-overlay').style.display = 'flex';
+    const overlay = document.querySelector('.loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    }
 }
 
 function hideLoading() {
@@ -851,14 +854,14 @@ function showError(message) {
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
     if (this.files.length > 0) {
-    const file = this.files[0];
-    if (!file.name.toLowerCase().endswith('.msg')) {
+      const file = this.files[0];
+      if (!file.name.toLowerCase().endsWith('.msg')) {
         showError('Please upload a .MSG file');
         return;
-    }
-    
-    showLoading();
-    document.getElementById('uploadForm').submit();
+      }
+      createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
+      showLoading();
+      document.getElementById('uploadForm').submit();
     }
 });
 
@@ -885,22 +888,33 @@ function initializeFileUpload() {
     const errorToast = document.getElementById('errorToast');
 
     if (fileInput && uploadForm) {
-    fileInput.addEventListener('change', function(e) {
+      fileInput.addEventListener('change', function(e) {
         if (this.files.length > 0) {
-        const file = this.files[0];
-        if (!file.name.toLowerCase().endswith('.msg')) {
+          const file = this.files[0];
+          if (!file.name.toLowerCase().endsWith('.msg')) {
             showError('Please upload a .MSG file');
             return;
-        }
-        
-        if (loadingOverlay) {
+          }
+          createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
+          if (loadingOverlay) {
             loadingOverlay.style.display = 'flex';
+          }
+          uploadForm.submit();
         }
-        
-        uploadForm.submit();
+      });
+    }
+}
+// New: update hidden input when AI processing checkbox toggles
+const useAiCheckbox = document.getElementById('useAiProcessing');
+if (useAiCheckbox) {
+    useAiCheckbox.addEventListener('change', function() {
+        document.getElementById('useAiInput').value = this.checked;
+        if (this.checked) {
+            createNotification('success', 'AI processing enabled');
+        } else {
+            createNotification('info', 'Standard processing selected');
         }
     });
-    }
 }
 document.addEventListener('DOMContentLoaded', function() {
     const uploadBtn = document.getElementById('uploadBtn');
@@ -964,6 +978,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.style.width = `${progress}%`;
                 if (progress >= 100) {
                     clearInterval(interval);
+                    
+                    // Set the value of the hidden input based on the toggle state
+                    const useAiCheckbox = document.getElementById('useAiProcessing');
+                    document.getElementById('useAiInput').value = useAiCheckbox.checked;
+                    
                     document.getElementById('uploadForm').submit();
                 }
             }, 100);
@@ -992,6 +1011,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.style.width = `${progress}%`;
                 if (progress >= 100) {
                     clearInterval(interval);
+                    
+                    // Set the value of the hidden input based on the toggle state
+                    const useAiCheckbox = document.getElementById('useAiProcessing');
+                    document.getElementById('useAiInput').value = useAiCheckbox.checked;
+                    
                     document.getElementById('uploadForm').submit();
                 }
             }, 100);
@@ -2552,14 +2576,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // ...existing code...
 
 // Add this function to create notifications
-function createNotification(type, message) {
-  // Remove any existing notifications
-  const existingNotifications = document.querySelectorAll('.notification');
+function createNotification(type, message, persistent = false) {
+  // Remove existing notifications of the same type
+  const existingNotifications = document.querySelectorAll(`.notification.${type}:not(.persistent)`);
   existingNotifications.forEach(note => note.remove());
   
   // Create new notification
   const notification = document.createElement('div');
   notification.className = `notification ${type}`;
+  if (persistent) {
+    notification.classList.add('persistent');
+  }
   
   // Add appropriate icon based on type
   let icon = 'fa-info-circle';
@@ -2572,11 +2599,13 @@ function createNotification(type, message) {
   // Animate in
   setTimeout(() => notification.classList.add('show'), 10);
   
-  // Auto-dismiss after 3 seconds
-  setTimeout(() => {
-    notification.classList.remove('show');
-    setTimeout(() => notification.remove(), 300); // Wait for animation to complete
-  }, 3000);
+  // Auto-dismiss after 3 seconds only for non-persistent notifications
+  if (!persistent) {
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300); // Wait for animation to complete
+    }, 3000);
+  }
   
   return notification;
 }

@@ -10,7 +10,8 @@ services:
       - REDIS_PORT=6379
       - PASSKEY=passkey
       - SECRET_KEY=secret
-      - INTERNAL_ENV=true
+      - GEMINI_MODEL=gemini-2.0-flash
+      - GEMINI_API_KEY=your_gemini_api_key
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
