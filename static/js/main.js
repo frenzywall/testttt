@@ -852,18 +852,7 @@ function showError(message) {
     }, 5000);
 }
 
-document.getElementById('fileInput').addEventListener('change', function(e) {
-    if (this.files.length > 0) {
-      const file = this.files[0];
-      if (!file.name.toLowerCase().endsWith('.msg')) {
-        showError('Please upload a .MSG file');
-        return;
-      }
-      createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
-      showLoading();
-      document.getElementById('uploadForm').submit();
-    }
-});
+
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileUpload();
@@ -885,23 +874,27 @@ function initializeFileUpload() {
     const fileInput = document.getElementById('fileInput');
     const uploadForm = document.getElementById('uploadForm');
     const loadingOverlay = document.querySelector('.loading-overlay');
-    const errorToast = document.getElementById('errorToast');
-
+    
     if (fileInput && uploadForm) {
-      fileInput.addEventListener('change', function(e) {
-        if (this.files.length > 0) {
-          const file = this.files[0];
-          if (!file.name.toLowerCase().endsWith('.msg')) {
-            showError('Please upload a .MSG file');
-            return;
-          }
-          createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
-          if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
-          }
-          uploadForm.submit();
-        }
-      });
+        fileInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                if (!file.name.toLowerCase().endsWith('.msg')) {
+                    showError('Please upload a .MSG file');
+                    return;
+                }
+                createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
+                
+                // Show loading state
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'flex';
+                } else {
+                    showLoading(); // Fallback to the showLoading function if overlay doesn't exist
+                }
+                
+                uploadForm.submit();
+            }
+        });
     }
 }
 // New: update hidden input when AI processing checkbox toggles
