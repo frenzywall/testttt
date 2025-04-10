@@ -35,6 +35,7 @@
 
     <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" style="display: none;">
         <input type="file" name="file" id="fileInput" accept=".msg">
+        <input type="hidden" name="use_ai" id="useAiInput" value="false">
     </form>
 
     <div id="infoModal" class="info-modal">
@@ -354,9 +355,19 @@
                 </div>
             </div>
             </div>
-            <button class="btn secondary-btn" id="cancelUpload" style="margin-top: 1rem;">
-            Cancel
-            </button>
+            <!-- New inline row for Cancel button and AI Processing toggle -->
+            <div class="upload-controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <button class="btn secondary-btn" id="cancelUpload">Cancel</button>
+                <div class="processing-toggle" style="display: flex; align-items: center;">
+                    <span id="processingLabel" style="margin-right: 0.5rem;">AI Processing</span>
+                    <div class="toggle-switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="useAiProcessing" name="use_ai" value="true">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
         </div>
 

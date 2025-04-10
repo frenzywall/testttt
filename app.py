@@ -308,6 +308,9 @@ def index():
             'original_body': ''
         }, header_title='Change Weekend')
 
+    # Check if the user wants to use AI processing
+    use_ai = request.form.get('use_ai') == 'true'
+
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.msg', delete=False) as temp_file:
@@ -330,9 +333,16 @@ def index():
                 'body': msg.body
             }
 
-            services_data = email_parser.process_email_content(email_data)
+            # Use AI processing if requested, otherwise use regular parsing
+            if use_ai:
+                import ai_processor
+                services_data = ai_processor.process_email_content(email_data)
+                logger.info("Using AI processing for email content")
+            else:
+                services_data = email_parser.process_email_content(email_data)
+                logger.info("Using standard processing for email content")
             
-            if 'error' in services_data:
+            if 'error' in services_data and services_data['error']:
                 return render_template('result.html', data={
                     'services': [],
                     'error': services_data['error'],
@@ -349,6 +359,7 @@ def index():
             except:
                 header_title = "Change Weekend"
             services_data['header_title'] = header_title
+            services_data['processing_method'] = 'AI' if use_ai else 'Standard'
             
             return render_template('result.html', data=services_data, header_title=header_title)
 
