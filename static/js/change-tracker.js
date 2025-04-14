@@ -240,26 +240,30 @@ const ChangeTracker = {
     
     // Attach event listeners to detect changes
     attachEventListeners: function() {
-        // Listen for save to the header title
+        // Listen for edit and save to the header title
+        const editHeaderBtn = document.getElementById('editHeaderBtn');
         const saveHeaderBtn = document.getElementById('saveHeaderBtn');
-        if (saveHeaderBtn) {
-            saveHeaderBtn.addEventListener('click', () => {
-                // Get the title before the edit
-                const originalTitle = document.querySelector('.header-title').textContent.trim();
-                
-                // Wait for the title to be updated (assuming it's updated synchronously)
-                // You might need to adjust the timing if the update is asynchronous
-                setTimeout(() => {
-                    const newTitle = document.querySelector('.header-title').textContent.trim();
-                    
-                    // Compare the titles
-                    if (originalTitle !== newTitle) {
-                        this.markUnsaved();
-                    }
-                }, 0);
+        let originalTitle = '';
+
+        if (editHeaderBtn) {
+            editHeaderBtn.addEventListener('click', () => {
+                // Store the original title when edit begins
+                originalTitle = document.querySelector('.header-title').textContent.trim();
             });
         }
-        
+
+        if (saveHeaderBtn) {
+            saveHeaderBtn.addEventListener('click', () => {
+                // Compare with the new title after save
+                const newTitle = document.querySelector('.header-title').textContent.trim();
+                
+                // Compare the titles and only mark as unsaved if changed
+                if (originalTitle !== newTitle) {
+                    this.markUnsaved();
+                }
+            });
+        }
+
         // Listen for save buttons in the table rows
         document.addEventListener('click', event => {
             const saveBtn = event.target.closest('.save-btn');
