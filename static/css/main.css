@@ -2769,7 +2769,7 @@ background-color: rgba(245, 158, 11, 0.4);
     position: absolute;
     top: 100%;
     right: 0;
-    z-index: 1000;
+    z-index: 90; /* Lower than nav-header's z-index */
     display: none;
     min-width: 200px;
     padding: 0.5rem 0;
