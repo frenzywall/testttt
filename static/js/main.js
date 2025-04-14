@@ -2732,12 +2732,13 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
           // Show error but keep dialog open
           const errorMessage = document.createElement('div');
           errorMessage.className = 'passkey-error';
-          errorMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> Invalid passkey. Please try again.';
+          // Use the message from the server response, or a default if none provided
+          errorMessage.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${data.message || 'Invalid passkey. Please try again.'}`;
           errorMessage.style.color = 'var(--danger-color)';
           errorMessage.style.marginTop = '-10px';
           errorMessage.style.marginBottom = '10px';
           errorMessage.style.fontSize = '0.85rem';
-          
+
           // Remove any existing error messages
           const existingError = dialogOverlay.querySelector('.passkey-error');
           if (existingError) existingError.remove();
