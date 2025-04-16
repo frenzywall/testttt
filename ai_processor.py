@@ -2,8 +2,8 @@ import os
 import json
 from datetime import datetime
 import re
-from google import genai
-from google.genai import types
+import boto3
+import botocore
 import time
 import logging
 
@@ -11,9 +11,11 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('email_processor')
 
-# Configure Gemini API
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-pro")
+# Configure Amazon Q Client
+AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+Q_MODEL_ID = os.environ.get("Q_MODEL_ID", "amazon.titan-text-express-v1")
 
 # Services to track in change management emails with detailed information
 SERVICES = {
@@ -70,28 +72,39 @@ SERVICES = {
 # Get list of service names
 SERVICE_NAMES = list(SERVICES.keys())
 
-def check_gemini_connection():
-    """Check if Gemini API is accessible and configured"""
-    if not GEMINI_API_KEY:
-        return {'connected': False, 'error': 'GEMINI_API_KEY environment variable not set'}
+def check_amazon_q_connection():
+    """Check if Amazon Q API is accessible and configured"""
+    if not AWS_ACCESS_KEY or not AWS_SECRET_KEY:
+        return {'connected': False, 'error': 'AWS credentials environment variables not set'}
     
     try:
         # Create a client to test connectivity
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.list_models()
+        session = boto3.Session(
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION
+        )
+        client = session.client('bedrock-runtime')
+        # Simple operation to check connection
+        client.list_foundation_models()
         return {'connected': True, 'error': None}
     except Exception as e:
-        return {'connected': False, 'error': f'Cannot connect to Gemini API: {str(e)}'}
+        return {'connected': False, 'error': f'Cannot connect to Amazon Q API: {str(e)}'}
 
-def check_model_availability(model_name):
+def check_model_availability(model_id):
     """Check if the specified model is available"""
-    if not GEMINI_API_KEY:
+    if not AWS_ACCESS_KEY or not AWS_SECRET_KEY:
         return False
     
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.list_models()
-        return any(model_name in model.name for model in models)
+        session = boto3.Session(
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION
+        )
+        client = session.client('bedrock-runtime')
+        models = client.list_foundation_models()
+        return any(model_id in model.modelId for model in models.get('modelSummaries', []))
     except Exception:
         return False
 
@@ -105,7 +118,7 @@ def generate_services_info_for_prompt():
 
 def process_email_content(email_data):
     """
-    Process email content using Gemini API and return structured data
+    Process email content using Amazon Q and return structured data
     
     Args:
         email_data: Dictionary containing email data with keys:
@@ -117,12 +130,20 @@ def process_email_content(email_data):
     Returns:
         Dictionary with parsed change management information
     """
-    if not GEMINI_API_KEY:
-        logger.error("GEMINI_API_KEY environment variable not set")
-        return generate_error_response("GEMINI_API_KEY environment variable not set", email_data)
+    if not AWS_ACCESS_KEY or not AWS_SECRET_KEY:
+        logger.error("AWS credentials environment variables not set")
+        return generate_error_response("AWS credentials environment variables not set", email_data)
     
-    # Initialize Gemini client
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    # Initialize Amazon Q client
+    try:
+        session = boto3.Session(
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION
+        )
+        client = session.client('bedrock-runtime')
+    except Exception as e:
+        return generate_error_response(f"Failed to initialize Amazon Q client: {str(e)}", email_data)
     
     subject = email_data.get('subject', '')
     body = email_data.get('body', '')
@@ -170,10 +191,10 @@ I need you to extract information about each service in the exact format specifi
    - Use context clues to determine impact even when not explicitly stated.
 
 Return the data as valid JSON with this exact structure:
-{{
+{
   "date": "YYYY-MM-DD",
   "services": [
-    {{
+    {
       "name": "SERVICE_NAME",
       "date": "YYYY-MM-DD",
       "start_time": "HH:MM",
@@ -181,31 +202,27 @@ Return the data as valid JSON with this exact structure:
       "end_date": "YYYY-MM-DD", 
       "impact": "IMPACTED or NOT_IMPACTED",
       "comments": "EXACT default impact description or 'No Impact.'"
-    }},
+    },
     ... repeat for all services listed in SERVICE DETAILS ...
   ]
-}}
+}
 
 Your output MUST contain all services listed in SERVICE DETAILS, even if they aren't mentioned in the email.
 Only output valid JSON that matches this structure exactly, with no additional text or explanations outside the JSON.
 """
     
-    # Create content for the request
-    contents = [
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=prompt)]
-        ),
-    ]
-    
-    # Configure the generation parameters
-    generate_config = types.GenerateContentConfig(
-        temperature=0.1,
-        top_p=0.95,
-        top_k=64,
-        max_output_tokens=8192,
-        response_mime_type="application/json"
-    )
+    # Prepare request for Amazon Q
+    request_body = {
+        "modelId": Q_MODEL_ID,
+        "contentType": "application/json",
+        "accept": "application/json",
+        "body": {
+            "prompt": prompt,
+            "temperature": 0.1,
+            "topP": 0.95,
+            "maxTokens": 4096
+        }
+    }
     
     # Send request to the model with retry logic
     max_retries = 3
@@ -214,16 +231,17 @@ Only output valid JSON that matches this structure exactly, with no additional t
     
     while retry_count < max_retries:
         try:
-            logger.info(f"Sending request to Gemini API (attempt {retry_count + 1})")
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=contents,
-                config=generate_config
-            )
-            logger.info("Successfully received response from Gemini API")
+            logger.info(f"Sending request to Amazon Q API (attempt {retry_count + 1})")
             
-            # Extract the result text
-            result = response.text
+            response = client.invoke_model(
+                modelId=Q_MODEL_ID,
+                body=json.dumps(request_body)
+            )
+            
+            # Parse the response
+            response_body = json.loads(response['body'].read().decode())
+            result = response_body.get('completion', '')
+            logger.info("Successfully received response from Amazon Q API")
             
             # Find JSON content in the response
             json_start = result.find('{')
@@ -288,22 +306,25 @@ Only output valid JSON that matches this structure exactly, with no additional t
                 logger.warning("Could not find valid JSON in the response")
                 return process_email_fallback(email_data, result)
                 
-        except Exception as e:
+        except botocore.exceptions.ClientError as e:
             retry_count += 1
-            logger.warning(f"Error processing content with Gemini (attempt {retry_count}): {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', '')
+            logger.warning(f"AWS error processing content with Amazon Q (attempt {retry_count}): {error_code} - {str(e)}")
             
-            if "429 Too Many Requests" in str(e):
+            if error_code == 'ThrottlingException' or error_code == 'TooManyRequestsException':
                 if retry_count < max_retries:
                     logger.info(f"Rate limit hit. Waiting {retry_delay} seconds before retry...")
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 else:
-                    return generate_error_response("Gemini API rate limit exceeded after multiple retries", email_data)
+                    return generate_error_response("Amazon Q API rate limit exceeded after multiple retries", email_data)
             else:
-                return generate_error_response(f"Error processing content with Gemini: {str(e)}", email_data)
+                return generate_error_response(f"Error processing content with Amazon Q: {str(e)}", email_data)
+        except Exception as e:
+            return generate_error_response(f"Unexpected error with Amazon Q: {str(e)}", email_data)
     
     # If we exit the retry loop without returning, it means all retries failed
-    return generate_error_response("All retries failed when communicating with Gemini API", email_data)
+    return generate_error_response("All retries failed when communicating with Amazon Q API", email_data)
 
 def process_email_fallback(email_data, ai_response):
     """Fallback method for extracting data when JSON parsing fails"""
@@ -403,9 +424,9 @@ def email_parser(email_content):
         Dictionary with parsed change management information
     """
     # Check connection first
-    connection_status = check_gemini_connection()
+    connection_status = check_amazon_q_connection()
     if not connection_status['connected']:
-        return generate_error_response(f"Cannot connect to Gemini API: {connection_status['error']}", email_content)
+        return generate_error_response(f"Cannot connect to Amazon Q API: {connection_status['error']}", email_content)
     
     # Process the email content
     return process_email_content(email_content)
