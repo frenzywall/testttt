@@ -166,6 +166,15 @@ document.querySelector('table').addEventListener('click', function(e) {
             const row = e.target.closest('tr');
             const cells = row.getElementsByTagName('td');
             
+            // First check if timezone conversion is active and turn it off
+            const convertToggleBtn = document.getElementById('convertToggleBtn');
+            if (convertToggleBtn && convertToggleBtn.checked) {
+                // Turn off timezone conversion before editing
+                convertToggleBtn.checked = false;
+                conversionEnabled = false;
+                toggleTimezoneConversion();
+            }
+            
             // Store original values and make cells editable
             for (let i = 0; i < cells.length - 1; i++) {
                 if (i === cells.length - 2) { // Skip the impact-cell
