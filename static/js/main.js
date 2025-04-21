@@ -84,6 +84,7 @@ document.getElementById('addRow').addEventListener('click', function() {
         const tbody = document.querySelector('tbody');
         const newRow = document.createElement('tr');
         newRow.setAttribute('data-priority', 'low');
+        newRow.setAttribute('data-new', 'true');                           // mark as new row
         
         const emptyState = tbody.querySelector('.empty-state');
         if (emptyState) {
@@ -120,11 +121,17 @@ document.getElementById('addRow').addEventListener('click', function() {
         `;
         tbody.appendChild(newRow);
         
+        // Smooth scroll to the new row
+        newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
         applyRowHighlight(newRow);
 
         initImpactSelector(newRow);
         
         applyActiveFilter();
+
+        // Show notification for row creation
+        createNotification('success', 'Row added successfully!');
     }, "Please enter the passkey to add a new row");
 });
 
@@ -247,8 +254,23 @@ document.querySelector('table').addEventListener('click', function(e) {
                 comments: cells[4].textContent,
                 impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
             };
+
+            // More reliable way to determine if this is a newly created row or an edited existing row
+            const isNewRow = !row.hasAttribute('data-edited');
             
-            // Removed fetch to '/save-changes' so that no data is synced implicitly.
+            // Mark the row as edited
+            row.setAttribute('data-edited', 'true');
+
+            // Show appropriate notification and handle scrolling
+            const isNew = row.hasAttribute('data-new');                   // check new‑row flag
+            row.removeAttribute('data-new');                               // clear flag
+            
+            if (isNew) {
+                createNotification('success', 'Row creation successful!');
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                createNotification('success', 'Data updated successfully!');
+            }
         }
 
         if (e.target.closest('.delete-btn')) {
@@ -291,6 +313,11 @@ document.querySelector('table').addEventListener('click', function(e) {
                             }
                             
                             rowToDelete = null;
+
+                            // Show notification for row deletion
+                            setTimeout(() => {
+                                createNotification('success', 'Row deleted successfully!');
+                            }, 300);
                         }, 300);
                     }
                 } else {
@@ -589,6 +616,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // ...existing code...
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing code...
+
+    // Reset timezone conversion toggle when timezone selectors change
+    const fromTzSelect = document.getElementById('fromTimezone');
+    const toTzSelect   = document.getElementById('toTimezone');
+    const convertToggleBtn = document.getElementById('convertToggleBtn');
+    if (fromTzSelect && toTzSelect && convertToggleBtn) {
+        [fromTzSelect, toTzSelect].forEach(select => {
+            select.addEventListener('change', () => {
+                if (convertToggleBtn.checked) {
+                    convertToggleBtn.checked = false;
+                    conversionEnabled = false;
+                    toggleTimezoneConversion();
+                }
+            });
+        });
+    }
+
     // ...existing code...
 });
 
