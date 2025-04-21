@@ -323,7 +323,8 @@ const ChangeTracker = {
                 
                 if (!isEmpty && !isUnsaved) {
                     this.markUnsaved();
-                } else {
+                } else if (isEmpty) {
+                    this.decrementCount();   // decrement when an empty row is removed
                 }
                 
                 // Clear the reference after handling
@@ -392,6 +393,18 @@ const ChangeTracker = {
                 throw error;
             }
         };
+    },
+
+    // decrement counter helper
+    decrementCount: function() {
+        if (this.changeCount > 0) {
+            this.changeCount--;
+            this.statusText.textContent = this.changeCount.toString();
+            this.statusText.setAttribute('title', `${this.changeCount} change(s) ready to sync`);
+            if (this.changeCount === 0) {
+                this.updateStatus('no-changes');
+            }
+        }
     }
 };
 
