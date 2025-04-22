@@ -1552,8 +1552,8 @@ const services = [];
 
 // If there are no rows, don't proceed
 if (tableRows.length === 0) {
-alert('No data to sync.');
-return;
+    createNotification('info', 'No data to sync.');
+    return false;
 }
 
 // Gather data from all rows
@@ -1747,7 +1747,7 @@ const services = [];
 
 // If there are no rows, don't proceed
 if (tableRows.length === 0) {
-alert('No data to sync.');
+createNotification('info', 'No data to sync.');
 return;
 }
 
@@ -2003,7 +2003,7 @@ function syncAllDataToRedis(saveToHistory = false) {
     
     // If there are no rows, don't proceed
     if (tableRows.length === 0) {
-        alert('No data to sync.');
+        createNotification('info', 'No data to sync.');
         return;
     }
     
