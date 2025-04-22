@@ -338,24 +338,20 @@ const ChangeTracker = {
     
     // Hook into the existing syncAllDataToRedis function
     hookSyncFunction: function() {
-        // Wait for the document to be fully loaded
         if (typeof syncAllDataToRedis !== 'function') {
             setTimeout(() => this.hookSyncFunction(), 500);
             return;
         }
 
-        // Store the original function
         const originalSyncFunction = window.syncAllDataToRedis;
-        
-        // Replace with our wrapped version
         window.syncAllDataToRedis = (saveToHistory) => {
-            // Update status to syncing
-            this.markSyncing();
+            const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
             
-            // Call the original function and capture its result
-            try {
-                // Look for the sync success element being added to the DOM
-                const observer = new MutationObserver((mutations) => {
+            // Only mark as syncing and set up observer if there is data
+            let observer;
+            if (tableRows.length > 0) {
+                this.markSyncing();
+                observer = new MutationObserver((mutations) => {
                     for (const mutation of mutations) {
                         if (mutation.addedNodes.length) {
                             for (const node of mutation.addedNodes) {
@@ -363,33 +359,39 @@ const ChangeTracker = {
                                     (node.classList.contains('sync-success') || 
                                      node.innerHTML.includes('Data synced successfully'))) {
                                     this.markSynced();
-                                    observer.disconnect();
+                                    if (observer) observer.disconnect(); // Disconnect observer on success
                                 }
                             }
                         }
                     }
                 });
-                
-                // Start observing the document body
                 observer.observe(document.body, { childList: true, subtree: true });
-                
-                // Execute the original sync function
+            }
+
+            // Always call the original function
+            try {
                 const result = originalSyncFunction(saveToHistory);
                 
-                // If the sync function returns a promise, handle that
-                if (result && typeof result.then === 'function') {
+                // Handle promise results only if we started syncing
+                if (tableRows.length > 0 && result && typeof result.then === 'function') {
                     return result.then(data => {
-                        this.markSynced();
+                        this.markSynced(); // Ensure synced state is marked on promise resolution
                         return data;
                     }).catch(error => {
                         this.markUnsaved(); // Revert to unsaved on error
+                        if (observer) observer.disconnect(); // Disconnect observer on error
                         throw error;
                     });
                 }
                 
+                // If not a promise or no data, just return the result
                 return result;
             } catch (error) {
-                this.markUnsaved(); // Revert to unsaved on error
+                // Revert to unsaved on error only if we were syncing
+                if (tableRows.length > 0) {
+                    this.markUnsaved(); 
+                }
+                if (observer) observer.disconnect(); // Disconnect observer on error
                 throw error;
             }
         };
