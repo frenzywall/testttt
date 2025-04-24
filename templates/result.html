@@ -106,7 +106,12 @@
 
         <div class="header">
             <div class="header-edit-group">
-                <h1 class="header-title" contenteditable="false" id="headerTitle">{{ header_title }}</h1>
+                <h1 class="header-title"
+                    contenteditable="false"
+                    id="headerTitle"
+                    style="cursor:pointer; text-decoration:underline dotted; text-decoration-color:var(--primary-color);"
+                    title="Click to view previous versions"
+                >{{ header_title }}</h1>
                 <button class="edit-header-btn" id="editHeaderBtn" title="Edit Title">
                     <i class="fas fa-edit"></i>
                 </button>
