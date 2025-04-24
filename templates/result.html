@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Change Management Notice</title>
     <!-- Add Favicon -->
-    <link rel="icon" href="https://www.ericsson.com/4981bb/assets/global/qbank/2021/04/21/e-con-vertical-1500x1500px-88604d41d8cd98f00b204e9800998ecf8427e.png" type="image/png">
+    <link rel="icon" href="/static/misc/ericsson-logo.png" type="image/png">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
     <header class="nav-header">
         <nav class="nav-container">
             <a href="/" class="nav-logo">
-                <img src="https://www.ericsson.com/4981bb/assets/global/qbank/2021/04/21/e-con-vertical-1500x1500px-88604d41d8cd98f00b204e9800998ecf8427e.png" alt="Ericsson Logo">
+                <img src="/static/misc/ericsson-logo.png" alt="Ericsson Logo">
                 Welcome!
             </a>
             <div class="nav-links">
@@ -285,11 +285,13 @@
       <button class="tool-btn" id="highlightData">
         <i class="fas fa-highlighter"></i> Highlight Data
       </button>
-      <button class="tool-btn" id="increaseFontSize">
+      <button class="tool-btn" id="increaseFontSize" title="Increase Font Size">
         <i class="fas fa-search-plus"></i>
+        <span class="sr-only">Increase Font Size</span>
       </button>
-      <button class="tool-btn" id="decreaseFontSize">
+      <button class="tool-btn" id="decreaseFontSize" title="Decrease Font Size">
         <i class="fas fa-search-minus"></i>
+        <span class="sr-only">Decrease Font Size</span>
       </button>
       <button class="tool-btn primary-btn" id="editDataBtn">
         <i class="fas fa-edit"></i> Edit Data
@@ -336,7 +338,10 @@
     <div class="comparison-footer">
       <div class="search-box">
         <input type="text" id="emailSearch" placeholder="Search in email...">
-        <button id="searchBtn"><i class="fas fa-search"></i></button>
+        <button id="searchBtn" title="Search">
+          <i class="fas fa-search"></i>
+          <span class="sr-only">Search</span>
+        </button>
         <span id="searchResults"></span>
       </div>
       <div class="legend">
@@ -390,7 +395,10 @@
                 
                 <div class="history-search">
                     <input type="text" id="historySearch" placeholder="Search history...">
-                    <button id="historyClearSearch"><i class="fas fa-times"></i></button>
+                    <button id="historyClearSearch" title="Clear Search">
+                      <i class="fas fa-times"></i>
+                      <span class="sr-only">Clear Search</span>
+                    </button>
                 </div>
                 
                 <div class="history-list" id="historyList">
