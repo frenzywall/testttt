@@ -1411,20 +1411,21 @@ performSearch();
 }
 });
 
-// Row highlighting when hovering over parsed data
-parsedDataRows.forEach(row => {
-row.addEventListener('mouseenter', function() {
-const serviceName = this.getAttribute('data-service');
-highlightServiceInEmail(serviceName);
-this.classList.add('highlight-row');
+// Add this event delegation after the definition of isHighlighted:
+document.querySelector('.parsed-data-table').addEventListener('mouseover', function(e) {
+    const row = e.target.closest('tr');
+    if (!row || !row.parentElement || row.parentElement.id !== 'parsedDataBody') return;
+    // Don't interfere with edit mode delete buttons, etc.
+    if (isEditing) return;
+    const serviceName = row.getAttribute('data-service');
+    highlightServiceInEmail(serviceName);
+    row.classList.add('highlight-row');
 });
-
-row.addEventListener('mouseleave', function() {
-if (!isHighlighted) {
-resetEmailHighlights();
-}
-this.classList.remove('highlight-row');
-});
+document.querySelector('.parsed-data-table').addEventListener('mouseout', function(e) {
+    const row = e.target.closest('tr');
+    if (!row || !row.parentElement || row.parentElement.id !== 'parsedDataBody') return;
+    if (!isHighlighted) resetEmailHighlights();
+    row.classList.remove('highlight-row');
 });
 
 function highlightEmailContent() {
@@ -2094,7 +2095,7 @@ function syncAllDataToRedis(saveToHistory = false) {
 }
 
 // Open history modal and load history items
-function openHistoryModal() {
+function openHistoryModal(viewOnly = false) {
     const historyModal = document.getElementById('historyModal');
     const historyList = document.getElementById('historyList');
     
@@ -2165,18 +2166,23 @@ function openHistoryModal() {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const timestamp = this.closest('.history-item').dataset.timestamp;
-                loadHistoryItem(timestamp); // This will use our new custom dialog
+                loadHistoryItem(timestamp, viewOnly); // pass flag here
             });
         });
         
         // Add event listeners to delete buttons
-        document.querySelectorAll('.history-item-btn.delete').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const timestamp = this.closest('.history-item').dataset.timestamp;
-                deleteHistoryItem(timestamp, this.closest('.history-item')); // This will use our new custom dialog
+        if (!viewOnly) {
+            document.querySelectorAll('.history-item-btn.delete').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const timestamp = this.closest('.history-item').dataset.timestamp;
+                    deleteHistoryItem(timestamp, this.closest('.history-item')); // This will use our new custom dialog
+                });
             });
-        });
+        } else {
+            // hide delete buttons in view‐only mode
+            document.querySelectorAll('.history-item-btn.delete').forEach(btn => btn.remove());
+        }
         
         // Make whole item clickable to expand (future enhancement)
         document.querySelectorAll('.history-item').forEach(item => {
@@ -2302,13 +2308,15 @@ function filterHistoryItems(searchTerm) {
 }
 
 // Load a specific history item by timestamp
-function loadHistoryItem(timestamp) {
+function loadHistoryItem(timestamp, viewOnly = false) {
     // Show custom confirmation dialog
     createConfirmDialog({
       type: 'primary',
       icon: 'fa-cloud-download-alt',
       title: 'Load History Item',
-      message: 'Are you sure you want to load this version? Current unsaved changes will be lost.',
+      message: viewOnly
+        ? 'Load this previous version for viewing? (Current changes will be replaced in the table view, but not synced)'
+        : 'Are you sure you want to load this version? Current unsaved changes will be lost.',
       confirmText: 'Load',
       cancelText: 'Cancel'
     }).then(confirmed => {
@@ -2374,13 +2382,13 @@ function loadHistoryItem(timestamp) {
       if (data.header_title) {
         document.getElementById('headerTitle').textContent = data.header_title;
       }
-      
+            
       // Update original email body if available
       const emailBody = document.getElementById('emailBody');
       if (emailBody && data.original_body) {
         emailBody.textContent = data.original_body;
       }
-      
+
       // Clear existing table data
       const tbody = document.querySelector('#changeTable tbody');
       if (tbody) {
@@ -2435,6 +2443,24 @@ function loadHistoryItem(timestamp) {
       
       applyActiveFilter();
       checkEmptyTable();
+
+      // ALSO refresh your parsed‑data table so it matches this history snapshot
+      const parsedBody = document.getElementById('parsedDataBody');
+      if (parsedBody) {
+          parsedBody.innerHTML = '';
+          data.services.forEach(svc => {
+              const tr = document.createElement('tr');
+              tr.setAttribute('data-service', svc.name || '');
+              tr.innerHTML = `
+                  <td>${svc.name || ''}</td>
+                  <td>${data.date || ''}</td>
+                  <td>${svc.start_time || ''}${svc.end_time ? ' - ' + svc.end_time : ''}</td>
+                  <td>${svc.comments || ''}</td>
+              `;
+              parsedBody.appendChild(tr);
+          });
+      }
+
     } catch (error) {
       console.error('Error updating UI with history data:', error);
       createNotification('error', 'Failed to display history data');
@@ -3022,3 +3048,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ...existing code...
 });
+
+// On page load, make header title clickable for view‐only history
+document.addEventListener('DOMContentLoaded', function() {
+    const headerTitle = document.getElementById('headerTitle');
+    if (headerTitle) {
+        headerTitle.style.cursor = 'pointer';
+        headerTitle.addEventListener('click', () => openHistoryModal(true));
+    }
+    
+    // ...existing code...
+});
+
