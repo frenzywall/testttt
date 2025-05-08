@@ -1,33 +1,89 @@
 services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+  
   web:
     build: .
-    ports:
-      - "5000:5000"
     environment:
       - FLASK_APP=app.py
-      - FLASK_DEBUG=1
+      - FLASK_DEBUG=0
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - PASSKEY=passkey
       - SECRET_KEY=secret
       - GEMINI_MODEL=gemini-2.0-flash
       - GEMINI_API_KEY=your_gemini_api_key
+      - WORKERS=2               # was 8 → more processes to handle concurrent requests
+      - WORKER_CONNECTIONS=1000 # was 2000 → higher max connections per worker
+      - WORKER_THREADS=2        # was 4 → more threads per worker
+      - WORKER_TIMEOUT=300      # keep this or lower if you want faster worker recycling
+      - HISTORY_LIMIT=1000
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       - redis
     restart: unless-stopped
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G    # was 1.5G → give more headroom
+        reservations:
+          memory: 1G
+  
   redis:
-    image: redis:7.0.15-bookworm
-    ports:
-      - "6379:6379"
+    image: redis:7.4.3-bookworm
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 256M
+
+networks:
+  default:
+    driver: bridge
 
 volumes:
   redis_data:
+    driver: local
+

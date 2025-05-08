@@ -8,3 +8,4 @@ python-dateutil==2.9.0
 redis==5.2.1
 compressed-rtf==1.0.7
 google-genai==1.10.0
+gevent==25.4.2

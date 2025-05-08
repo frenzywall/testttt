@@ -1972,6 +1972,9 @@ html[data-theme="dark"] {
   --glass-card-border: rgba(255, 255, 255, 0.1);
   --highlight-color-start: rgba(59, 130, 246, 0.2);
   --highlight-color-end: transparent;
+  --scrollbar-track: rgba(30, 41, 59, 0.3);
+  --scrollbar-thumb: rgba(59, 130, 246, 0.4);
+  --scrollbar-thumb-hover: rgba(59, 130, 246, 0.6);
 }
 
 html[data-theme="light"] {
@@ -1986,6 +1989,9 @@ html[data-theme="light"] {
   --glass-card-border: rgba(0, 0, 0, 0.1);
   --highlight-color-start: rgba(37, 99, 235, 0.15);
   --highlight-color-end: transparent;
+  --scrollbar-track: rgba(240, 245, 255, 0.8);
+  --scrollbar-thumb: rgba(37, 99, 235, 0.2);
+  --scrollbar-thumb-hover: rgba(37, 99, 235, 0.4);
 }
 
 body {
@@ -2573,6 +2579,27 @@ overflow-y: auto;
 border-radius: 8px;
 border: 1px solid var(--glass-card-border);
 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+scrollbar-width: thin;
+scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Custom scrollbar for modal content */
+.modal-content::-webkit-scrollbar {
+width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+background: var(--scrollbar-track);
+border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+background: var(--scrollbar-thumb);
+border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+background: var(--scrollbar-thumb-hover);
 }
 
 .modal-toolbar {
@@ -2645,6 +2672,27 @@ color: var(--text-color);
 background: var(--glass-card);
 height: 100%;
 min-height: 450px; /* Increased height now that header is removed */
+scrollbar-width: thin;
+scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Custom scrollbar for email body */
+.email-body::-webkit-scrollbar {
+width: 8px;
+}
+
+.email-body::-webkit-scrollbar-track {
+background: var(--scrollbar-track);
+border-radius: 4px;
+}
+
+.email-body::-webkit-scrollbar-thumb {
+background: var(--scrollbar-thumb);
+border-radius: 4px;
+}
+
+.email-body::-webkit-scrollbar-thumb:hover {
+background: var(--scrollbar-thumb-hover);
 }
 
 .parsed-data-container {
@@ -2652,6 +2700,27 @@ flex: 1;
 overflow: auto;
 padding: 10px;
 background: var(--glass-card);
+scrollbar-width: thin;
+scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Custom scrollbar for parsed data container */
+.parsed-data-container::-webkit-scrollbar {
+width: 8px;
+}
+
+.parsed-data-container::-webkit-scrollbar-track {
+background: var(--scrollbar-track);
+border-radius: 4px;
+}
+
+.parsed-data-container::-webkit-scrollbar-thumb {
+background: var(--scrollbar-thumb);
+border-radius: 4px;
+}
+
+.parsed-data-container::-webkit-scrollbar-thumb:hover {
+background: var(--scrollbar-thumb-hover);
 }
 
 .parsed-data-table {
@@ -2941,7 +3010,8 @@ background-color: rgba(245, 158, 11, 0.4);
     box-sizing: border-box;
   }
   
-  .history-list::-webkit-scrollbar {
+  /* Custom scrollbar styling for history list */
+.history-list::-webkit-scrollbar {
     width: 6px;
   }
   
@@ -2952,12 +3022,12 @@ background-color: rgba(245, 158, 11, 0.4);
   }
   
   .history-list::-webkit-scrollbar-thumb {
-    background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.2);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
   }
   
   .history-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.4);
+    background: var(--scrollbar-thumb-hover);
   }
   
   /* Enhanced history items */
@@ -3588,4 +3658,61 @@ background-color: rgba(245, 158, 11, 0.4);
   overflow: hidden;
   clip: rect(0,0,0,0);
   border: 0;
+}
+/* Global scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Ensure scrollbar styling is consistent in the history view UI */
+.history-modal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.history-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-modal::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.history-modal::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.history-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }

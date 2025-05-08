@@ -1,3 +1,6 @@
+import gevent.monkey
+gevent.monkey.patch_all()   # <— patch SSL, sockets, etc. before any imports
+
 from flask import Flask, render_template, request, jsonify, session, make_response
 from datetime import datetime
 from dateutil import parser
@@ -37,20 +40,12 @@ if not PASSKEY:
 
 PASSKEY_HASH = hashlib.sha256(PASSKEY.encode()).hexdigest()
 
-HISTORY_LIMIT = 1000 
+HISTORY_LIMIT = int(os.getenv('HISTORY_LIMIT', '1000'))
 
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
 tempfile.tempdir = temp_dir
-
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-logger.info(f"Using static directory: {static_dir}")
-logger.info(f"Static directory exists: {os.path.exists(static_dir)}")
-if os.path.exists(static_dir):
-    logger.info(f"Static directory contents: {os.listdir(static_dir)}")
-else:
-    logger.warning("Static directory does not exist")
 
 try:
     redis_client = redis.Redis(
