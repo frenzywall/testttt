@@ -5,7 +5,6 @@ import pytz
 import extract_msg
 import requests
 import os
-import email_parser
 import re
 import tempfile
 import redis
@@ -248,6 +247,139 @@ def extract_date_from_subject(subject):
                 return date_str
     return None
 
+def get_ai_performance_stats():
+    """Get AI performance stats from Redis"""
+    try:
+        stats_data = redis_client.get('ai_performance_stats')
+        if stats_data:
+            stats = json.loads(stats_data)
+            # Convert datetime strings back to datetime objects
+            if stats.get('last_request_time'):
+                stats['last_request_time'] = datetime.fromisoformat(stats['last_request_time'])
+            if stats.get('daily_reset_date'):
+                stats['daily_reset_date'] = datetime.fromisoformat(stats['daily_reset_date']).date()
+            return stats
+        else:
+            # Return default stats if none exist
+            return {
+                'requests_today': 0,
+                'total_requests': 0,
+                'response_times': [],
+                'last_request_time': None,
+                'success_count': 0,
+                'error_count': 0,
+                'daily_reset_date': datetime.now().date()
+            }
+    except Exception as e:
+        logger.error(f"Error getting AI performance stats: {str(e)}")
+        return {
+            'requests_today': 0,
+            'total_requests': 0,
+            'response_times': [],
+            'last_request_time': None,
+            'success_count': 0,
+            'error_count': 0,
+            'daily_reset_date': datetime.now().date()
+        }
+
+def save_ai_performance_stats(stats):
+    """Save AI performance stats to Redis"""
+    try:
+        # Convert datetime objects to strings for JSON serialization
+        stats_copy = stats.copy()
+        if stats_copy.get('last_request_time'):
+            stats_copy['last_request_time'] = stats_copy['last_request_time'].isoformat()
+        if stats_copy.get('daily_reset_date'):
+            stats_copy['daily_reset_date'] = stats_copy['daily_reset_date'].isoformat()
+        
+        redis_client.set('ai_performance_stats', json.dumps(stats_copy))
+        return True
+    except Exception as e:
+        logger.error(f"Error saving AI performance stats: {str(e)}")
+        return False
+
+def track_ai_request(response_time, success=True):
+    """Track AI API request performance"""
+    stats = get_ai_performance_stats()
+    
+    # Reset daily counters if it's a new day
+    current_date = datetime.now().date()
+    if stats['daily_reset_date'] != current_date:
+        stats['requests_today'] = 0
+        stats['daily_reset_date'] = current_date
+        logger.info("Reset daily request counter for new day")
+    
+    # Update counters
+    stats['requests_today'] += 1
+    stats['total_requests'] += 1
+    stats['last_request_time'] = datetime.now()
+    
+    if success:
+        stats['success_count'] += 1
+    else:
+        stats['error_count'] += 1
+    
+    # Track response times (keep only last 100 for average)
+    stats['response_times'].append(response_time)
+    if len(stats['response_times']) > 100:
+        stats['response_times'] = stats['response_times'][-100:]
+    
+    # Save to Redis
+    save_ai_performance_stats(stats)
+    
+    # Debug logging
+    logger.info(f"AI request tracked - Success: {success}, Response time: {response_time:.2f}s, Today's count: {stats['requests_today']}")
+
+def calculate_performance_metrics():
+    """Calculate performance metrics from tracked data"""
+    stats = get_ai_performance_stats()
+    
+    # Debug logging
+    logger.info(f"Calculating metrics - Total requests today: {stats['requests_today']}, Success: {stats['success_count']}, Errors: {stats['error_count']}")
+    
+    # Calculate average response time
+    if stats['response_times']:
+        avg_response_time = sum(stats['response_times']) / len(stats['response_times'])
+        response_time_str = f"{avg_response_time:.2f}s"
+    else:
+        response_time_str = '--'
+    
+    # Calculate success rate
+    total_requests = stats['success_count'] + stats['error_count']
+    if total_requests > 0:
+        success_rate = (stats['success_count'] / total_requests) * 100
+        success_rate_str = f"{success_rate:.1f}%"
+    else:
+        success_rate_str = '--'
+    
+    # Format last request time
+    if stats['last_request_time']:
+        now = datetime.now()
+        time_diff = now - stats['last_request_time']
+        
+        if time_diff.total_seconds() < 60:
+            last_request_str = f"{int(time_diff.total_seconds())}s ago"
+        elif time_diff.total_seconds() < 3600:
+            last_request_str = f"{int(time_diff.total_seconds() / 60)}m ago"
+        elif time_diff.total_seconds() < 86400:
+            last_request_str = f"{int(time_diff.total_seconds() / 3600)}h ago"
+        else:
+            last_request_str = f"{int(time_diff.total_seconds() / 86400)}d ago"
+    else:
+        last_request_str = 'Never'
+    
+    metrics = {
+        'responseTime': response_time_str,
+        'successRate': success_rate_str,
+        'requestCount': stats['requests_today'],
+        'lastRequest': last_request_str
+    }
+    
+    # Debug logging
+    logger.info(f"Calculated metrics: {metrics}")
+    
+    return metrics
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'GET':
@@ -311,9 +443,6 @@ def index():
             'original_body': ''
         }, header_title='Change Weekend')
 
-    # Check if the user wants to use AI processing
-    use_ai = request.form.get('use_ai') == 'true'
-
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.msg', delete=False) as temp_file:
@@ -336,14 +465,18 @@ def index():
                 'body': msg.body
             }
 
-            # Use AI processing if requested, otherwise use regular parsing
-            if use_ai:
-                import ai_processor
-                services_data = ai_processor.process_email_content(email_data)
-                logger.info("Using AI processing for email content")
-            else:
-                services_data = email_parser.process_email_content(email_data)
-                logger.info("Using standard processing for email content")
+            # Use only AI processing with performance tracking
+            import ai_processor
+            start_time = time.time()
+            services_data = ai_processor.process_email_content(email_data)
+            end_time = time.time()
+            response_time = end_time - start_time
+            
+            # Track the request
+            success = 'error' not in services_data or not services_data['error']
+            track_ai_request(response_time, success)
+            
+            logger.info("Using AI processing for email content")
             
             if 'error' in services_data and services_data['error']:
                 return render_template('result.html', data={
@@ -362,7 +495,7 @@ def index():
             except:
                 header_title = "Change Weekend"
             services_data['header_title'] = header_title
-            services_data['processing_method'] = 'AI' if use_ai else 'Standard'
+            services_data['processing_method'] = 'AI'
             
             return render_template('result.html', data=services_data, header_title=header_title)
 
@@ -670,6 +803,77 @@ def health_check():
             'redis': 'disconnected',
             'error': str(e)
         }), 500
+
+@app.route('/ai-status', methods=['GET'])
+def ai_status():
+    """Get AI processing status information"""
+    try:
+        import ai_processor
+        
+        # Check if API key is configured
+        api_key_configured = bool(os.environ.get("GEMINI_API_KEY"))
+        
+        if not api_key_configured:
+            return jsonify({
+                'model': os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash'),
+                'apiKeyStatus': 'disconnected',
+                'connectionStatus': 'error',
+                'error': 'GEMINI_API_KEY environment variable not set',
+                'provider': 'Google Gemini',
+                'performance': {
+                    'responseTime': '--',
+                    'successRate': '--',
+                    'requestCount': '--',
+                    'lastRequest': '--'
+                }
+            })
+        
+        # Check API connection
+        connection_status = ai_processor.check_gemini_connection()
+        
+        # Determine statuses
+        api_key_status = 'connected' if connection_status['connected'] else 'disconnected'
+        connection_status_value = 'connected' if connection_status['connected'] else 'error'
+        
+        # Get model information
+        model_name = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+        
+        # Check if the specific model is available
+        model_available = False
+        if connection_status['connected']:
+            model_available = ai_processor.check_model_availability(model_name)
+        
+        # Calculate performance metrics
+        performance_metrics = calculate_performance_metrics()
+        
+        return jsonify({
+            'model': model_name,
+            'modelAvailable': model_available,
+            'apiKeyStatus': api_key_status,
+            'connectionStatus': connection_status_value,
+            'error': connection_status.get('error'),
+            'provider': 'Google Gemini',
+            'apiKeyConfigured': api_key_configured,
+            'performance': performance_metrics
+        })
+    except Exception as e:
+        logger.error(f"Error getting AI status: {str(e)}")
+        return jsonify({
+            'model': 'Unknown',
+            'apiKeyStatus': 'error',
+            'connectionStatus': 'error',
+            'error': str(e),
+            'provider': 'Google Gemini',
+            'apiKeyConfigured': False,
+            'performance': {
+                'responseTime': '--',
+                'successRate': '--',
+                'requestCount': '--',
+                'lastRequest': '--'
+            }
+        })
+
+
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'

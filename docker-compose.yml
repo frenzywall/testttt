@@ -11,7 +11,7 @@ services:
       - PASSKEY=passkey
       - SECRET_KEY=secret
       - GEMINI_MODEL=gemini-2.0-flash
-      - GEMINI_API_KEY=your_gemini_api_key
+      - GEMINI_API_KEY=YOUR_API_KEY_HERE
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro

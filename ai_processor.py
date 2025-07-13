@@ -76,12 +76,31 @@ def check_gemini_connection():
         return {'connected': False, 'error': 'GEMINI_API_KEY environment variable not set'}
     
     try:
-        # Create a client to test connectivity
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.list_models()
-        return {'connected': True, 'error': None}
+        # Use the REST API to test connection instead of client.list_models()
+        import requests
+        
+        url = "https://generativelanguage.googleapis.com/v1beta/models"
+        headers = {
+            'X-goog-api-key': GEMINI_API_KEY
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            return {'connected': True, 'error': None}
+        elif response.status_code == 401:
+            return {'connected': False, 'error': 'Invalid API key'}
+        elif response.status_code == 403:
+            return {'connected': False, 'error': 'API key does not have required permissions'}
+        else:
+            return {'connected': False, 'error': f'API returned status code: {response.status_code}'}
+            
+    except requests.exceptions.Timeout:
+        return {'connected': False, 'error': 'Connection timeout - API is unreachable'}
+    except requests.exceptions.RequestException as e:
+        return {'connected': False, 'error': f'Network error: {str(e)}'}
     except Exception as e:
-        return {'connected': False, 'error': f'Cannot connect to Gemini API: {str(e)}'}
+        return {'connected': False, 'error': f'Unexpected error: {str(e)}'}
 
 def check_model_availability(model_name):
     """Check if the specified model is available"""
@@ -89,9 +108,16 @@ def check_model_availability(model_name):
         return False
     
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.list_models()
-        return any(model_name in model.name for model in models)
+        import requests
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}"
+        headers = {
+            'X-goog-api-key': GEMINI_API_KEY
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        return response.status_code == 200
+        
     except Exception:
         return False
 

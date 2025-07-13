@@ -10,6 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/ai-status.css">
 
     <!-- Add these meta tags in the <head> section to prevent caching -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -41,7 +42,6 @@
 
     <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" style="display: none;">
         <input type="file" name="file" id="fileInput" accept=".msg">
-        <input type="hidden" name="use_ai" id="useAiInput" value="false">
     </form>
 
     <div id="infoModal" class="info-modal">
@@ -136,6 +136,7 @@
                 <button class="btn danger-btn" id="resetForm">
                     <i class="fas fa-redo"></i> Reset
                 </button>
+                <!-- AI Status Button moved below -->
                 <!-- Replace the existing sync button with this button group -->
                 <div class="dropdown">
                     <button class="btn primary-btn dropdown-toggle" id="syncDropdown">
@@ -196,6 +197,7 @@
             <button class="filter-btn" data-filter="low">
             <span class="filter-indicator filter-low"></span> Low Priority
             </button>
+            <!-- AI Status Button removed from here -->
         </div>
 
         <table id="changeTable">
@@ -371,18 +373,9 @@
                 </div>
             </div>
             </div>
-            <!-- New inline row for Cancel button and AI Processing toggle -->
-            <div class="upload-controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+            <!-- Simplified controls row with only Cancel button -->
+            <div class="upload-controls-row" style="display: flex; justify-content: flex-start; align-items: center; margin-top: 1rem;">
                 <button class="btn secondary-btn" id="cancelUpload">Cancel</button>
-                <div class="processing-toggle" style="display: flex; align-items: center;">
-                    <span id="processingLabel" style="margin-right: 0.5rem;">AI Processing</span>
-                    <div class="toggle-switch-container">
-                        <label class="switch">
-                            <input type="checkbox" id="useAiProcessing" name="use_ai" value="true">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
             </div>
         </div>
         </div>
@@ -411,13 +404,138 @@
             </div>
         </div>
 
+        <!-- Add the AI Status modal near the other modal elements -->
+        <div id="aiStatusModal" class="modal">
+            <div class="modal-content ai-status-modal">
+                <span class="close">&times;</span>
+                <div class="modal-header">
+                    <h2><i class="fas fa-robot"></i> Model Stats</h2>
+                    <div class="validation-info">
+                        <span class="last-validated" id="lastValidated">
+                            <i class="fas fa-clock"></i> 
+                            <span>API Key last validated:</span>
+                            <span class="validation-time" id="validationTime">Never</span>
+                        </span>
+                        <button class="btn-refresh" id="refreshStatus" title="Refresh Status">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Validate Now</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="ai-status-content">
+                    <div class="ai-status-grid">
+                        <!-- Status Cards -->
+                        <div class="status-card model-card">
+                            <div class="status-header">
+                                <div class="status-icon">
+                                    <i class="fas fa-brain"></i>
+                                </div>
+                                <div class="status-title">
+                                    <h3>Model Information</h3>
+                                    <span class="status-subtitle">AI Processing Engine</span>
+                                </div>
+                            </div>
+                            <div class="status-content">
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <i class="fas fa-microchip"></i>
+                                        <span>Current Model</span>
+                                    </div>
+                                    <div class="status-value" id="currentModel">Loading...</div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <i class="fas fa-building"></i>
+                                        <span>Provider</span>
+                                    </div>
+                                    <div class="status-value">Google Gemini</div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <i class="fas fa-server"></i>
+                                        <span>API Endpoint</span>
+                                    </div>
+                                    <div class="status-value endpoint">generativelanguage.googleapis.com</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="status-card connection-card">
+                            <div class="status-header">
+                                <div class="status-icon">
+                                    <i class="fas fa-plug"></i>
+                                </div>
+                                <div class="status-title">
+                                    <h3>Connection Status</h3>
+                                    <span class="status-subtitle">API Connectivity</span>
+                                </div>
+                            </div>
+                            <div class="status-content">
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <i class="fas fa-key"></i>
+                                        <span>API Key</span>
+                                    </div>
+                                    <div class="status-indicator" id="apiKeyStatus">
+                                        <div class="indicator-dot"></div>
+                                        <span>Not Checked</span>
+                                    </div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <i class="fas fa-wifi"></i>
+                                        <span>Connection</span>
+                                    </div>
+                                    <div class="status-indicator" id="connectionStatus">
+                                        <div class="indicator-dot"></div>
+                                        <span>Not Checked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Metrics - Side Panel -->
+                    <div class="performance-section">
+                        <div class="performance-header">
+                            <h3><i class="fas fa-chart-line"></i> Performance Metrics</h3>
+                        </div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value" id="responseTime">--</div>
+                                <div class="metric-label">Avg Response Time</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="successRate">--</div>
+                                <div class="metric-label">Success Rate</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="requestCount">--</div>
+                                <div class="metric-label">Requests Today</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="lastRequest">--</div>
+                                <div class="metric-label">Last Request</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
         
         <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
         <script src="/static/js/main.js"></script>
         <script src="/static/js/change-tracker.js"></script>
+        <script src="/static/js/ai-status.js"></script>
 
 <!-- Add this hidden input to track data timestamp -->
 <input type="hidden" id="dataTimestamp" value="{{ data_timestamp|default(0) }}">
+<!-- Add floating AI Status button at the bottom right -->
+<button class="btn ai-float-btn" id="aiStatusBtn" title="View AI Status">
+    <i class="fas fa-robot"></i>
+</button>
 </body>
 </html>
