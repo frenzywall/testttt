@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/ai-status.css">
+    <link rel="stylesheet" href="/static/css/profile-modal.css">
 
     <!-- Add these meta tags in the <head> section to prevent caching -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -22,7 +23,7 @@
         <nav class="nav-container">
             <a href="/" class="nav-logo">
                 <img src="/static/misc/ericsson-logo.png" alt="Ericsson Logo">
-                Welcome!
+                Welcome{% if current_user %}, {{ current_user }}{% endif %}!
             </a>
             <div class="nav-links">
                 <a href="https://internal.ericsson.com/" class="nav-link">
@@ -36,6 +37,11 @@
                 <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-moon"></i>
                 </button>
+                {% if current_user %}
+                <button id="profileIcon" class="profile-icon" title="Profile" style="margin-left:1.5rem; background:none; border:none; cursor:pointer;">
+                    <i class="fas fa-user-circle" style="font-size:2rem; color:#3b82f6;"></i>
+                </button>
+                {% endif %}
             </div>
         </nav>
     </header>
@@ -407,15 +413,15 @@
         <!-- Add the AI Status modal near the other modal elements -->
         <div id="aiStatusModal" class="modal">
             <div class="modal-content ai-status-modal">
-                <span class="close">&times;</span>
                 <div class="modal-header">
                     <h2><i class="fas fa-robot"></i> Model Stats</h2>
-                                    <div class="validation-info">
-                    <span class="last-validated" id="lastValidated">
-                        <i class="fas fa-clock"></i> 
-                        <span>API Key last validated:</span>
-                        <span class="validation-time" id="validationTime">Never</span>
-                    </span>
+                    <span class="close" id="closeAiStatusModal">&times;</span>
+                    <div class="validation-info">
+                        <span class="last-validated" id="lastValidated">
+                            <i class="fas fa-clock"></i> 
+                            <span>API Key last validated:</span>
+                            <span class="validation-time" id="validationTime">Never</span>
+                        </span>
                     <div class="validation-buttons">
                         <button class="btn-refresh" id="refreshStatus" title="Refresh Status">
                             <i class="fas fa-sync-alt"></i>
@@ -426,7 +432,7 @@
                             <span>Clear Stats</span>
                         </button>
                     </div>
-                </div>
+                    </div>
                 </div>
                 
                 <div class="ai-status-content">
@@ -537,14 +543,15 @@
         <script src="/static/js/main.js"></script>
         <script src="/static/js/change-tracker.js"></script>
         <script src="/static/js/ai-status.js"></script>
+        <script src="/static/js/user.js"></script>
 
 <!-- Add this hidden input to track data timestamp -->
 <input type="hidden" id="dataTimestamp" value="{{ data_timestamp|default(0) }}">
 <!-- Add floating AI Status button with dropdown at the bottom right -->
 <div class="ai-float-container">
     <button class="btn ai-float-btn" id="aiStatusBtn" title="AI Status">
-        <i class="fas fa-robot"></i>
-    </button>
+    <i class="fas fa-robot"></i>
+</button>
     <div class="ai-float-dropdown" id="aiStatusDropdown">
         <button class="dropdown-item" id="viewStatsBtn">
             <i class="fas fa-chart-line"></i>
@@ -556,5 +563,17 @@
         </button>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var icon = document.getElementById('profileIcon');
+        if (icon) {
+            icon.addEventListener('click', function() {
+                fetch('/current-user').then(r=>r.json()).then(u=>{
+                    if(u.logged_in) showProfileModal(u);
+                });
+            });
+        }
+    });
+</script>
 </body>
 </html>

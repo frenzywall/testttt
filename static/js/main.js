@@ -860,6 +860,13 @@ editHeaderBtn.addEventListener('click', function() {
         headerTitle.contentEditable = true;
         headerTitle.classList.add('editable');
         headerTitle.focus();
+        // Move caret to end
+        const range = document.createRange();
+        range.selectNodeContents(headerTitle);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
         editHeaderBtn.style.display = 'none';
         saveHeaderBtn.style.display = 'flex';
     }, "Please enter the passkey to edit title");
@@ -3065,7 +3072,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const headerTitle = document.getElementById('headerTitle');
     if (headerTitle) {
         headerTitle.style.cursor = 'pointer';
-        headerTitle.addEventListener('click', () => openHistoryModal(true));
+        headerTitle.addEventListener('click', function() {
+            if (headerTitle.isContentEditable) return; // Prevent history modal if editing
+            openHistoryModal(true);
+        });
     }
     
     // ...existing code...

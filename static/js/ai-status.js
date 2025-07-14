@@ -1,3 +1,11 @@
+const style = document.createElement('style');
+style.innerHTML = `
+.fade-in {
+    animation: fadeInMsg 0.5s ease;
+}
+`;
+document.head.appendChild(style);
+
 class AIStatusManager {
     constructor() {
         this.lastValidated = null;
@@ -59,7 +67,7 @@ class AIStatusManager {
         // Modal close
         const modal = document.getElementById('aiStatusModal');
         if (modal) {
-            const closeBtn = modal.querySelector('.close');
+            const closeBtn = modal.querySelector('.close') || document.getElementById('closeAiStatusModal');
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => this.hideAIStatusModal());
             }
@@ -239,6 +247,15 @@ class AIStatusManager {
     }
 
     showAIStatusModal() {
+        // Close any open modal first
+        const openModal = document.querySelector('.modal[style*="display: block"]');
+        if (openModal) {
+            if (openModal.id === 'aiStatusModal') {
+                openModal.style.display = 'none';
+            } else {
+                openModal.remove();
+            }
+        }
         const modal = document.getElementById('aiStatusModal');
         if (modal) {
             modal.style.display = 'block';
@@ -299,6 +316,15 @@ class AIStatusManager {
     }
 
     showAskAiModal() {
+        // Close any open modal first
+        const openModal = document.querySelector('.modal[style*="display: block"]');
+        if (openModal) {
+            if (openModal.id === 'aiStatusModal') {
+                openModal.style.display = 'none';
+            } else {
+                openModal.remove();
+            }
+        }
         // Create the AI chat modal
         const modal = document.createElement('div');
         modal.id = 'askAiModal';
@@ -314,7 +340,7 @@ class AIStatusManager {
                 <div class="chat-container">
                     <div class="chat-messages" id="chatMessages">
                         <div class="message ai-message">
-                            <div class="message-content">
+                            <div class="message-content default-ai-message">
                                 <i class="fas fa-robot"></i>
                                 <p>Hello! I can help you understand this page. Ask me anything about the change management data, services, or any other information you see here.</p>
                             </div>
@@ -355,6 +381,19 @@ class AIStatusManager {
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendMessage');
         const suggestionBtns = document.querySelectorAll('.suggestion-btn');
+        const suggestionsContainer = document.querySelector('.chat-suggestions');
+        let suggestionsHidden = false;
+        
+        // Helper to hide suggestions with animation
+        function hideSuggestions() {
+            if (suggestionsContainer && !suggestionsHidden) {
+                suggestionsHidden = true;
+                suggestionsContainer.classList.add('hide-suggestions');
+                setTimeout(() => {
+                    suggestionsContainer.style.display = 'none';
+                }, 350); // Match CSS animation duration
+            }
+        }
         
         // Close modal
         closeBtn.addEventListener('click', () => {
@@ -380,12 +419,14 @@ class AIStatusManager {
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
+                hideSuggestions();
                 this.sendMessage();
             }
         });
         
         // Send button click
         sendBtn.addEventListener('click', () => {
+            hideSuggestions();
             this.sendMessage();
         });
         
@@ -394,6 +435,7 @@ class AIStatusManager {
             btn.addEventListener('click', () => {
                 const question = btn.getAttribute('data-question');
                 chatInput.value = question;
+                hideSuggestions();
                 this.sendMessage();
             });
         });
@@ -462,20 +504,32 @@ class AIStatusManager {
             
             // Add AI response
             const aiMessage = document.createElement('div');
-            aiMessage.className = 'message ai-message';
+            aiMessage.className = 'message ai-message fade-in';
             
             // Convert markdown to HTML
             const markdownResponse = result.response || 'Sorry, I could not process your request.';
             const htmlResponse = marked.parse(markdownResponse);
             
             aiMessage.innerHTML = `
-                <div class="message-content">
+                <div class="message-content ai-bubble">
                     <i class="fas fa-robot"></i>
                     <div class="ai-response-content">${htmlResponse}</div>
                 </div>
             `;
             chatMessages.appendChild(aiMessage);
             
+            // Optionally, add a divider or timestamp between message groups
+            // Example: Uncomment below to add a timestamp
+            // const timestamp = document.createElement('div');
+            // timestamp.className = 'chat-timestamp';
+            // timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // chatMessages.appendChild(timestamp);
+            
+            // Add fade-in effect for new messages
+            setTimeout(() => {
+                aiMessage.classList.remove('fade-in');
+            }, 600);
+
         } catch (error) {
             console.error('Error sending message:', error);
             
@@ -684,8 +738,18 @@ class AIStatusManager {
 }
 
 // Initialize AI Status Manager
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     window.aiStatusManager = new AIStatusManager();
+    const closeAiStatusModalBtn = document.getElementById('closeAiStatusModal');
+    if (closeAiStatusModalBtn) {
+        closeAiStatusModalBtn.addEventListener('click', function() {
+            const modal = document.getElementById('aiStatusModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+    }
 });
 
 // Cleanup on page unload
@@ -694,3 +758,21 @@ window.addEventListener('beforeunload', () => {
         window.aiStatusManager.destroy();
     }
 });
+
+// At the top or after DOMContentLoaded
+fetch('/ai-chat-enabled')
+  .then(res => res.json())
+  .then(cfg => {
+    if (!cfg.enabled) {
+      const aiFloatContainer = document.querySelector('.ai-float-container');
+      if (aiFloatContainer) aiFloatContainer.style.display = 'none';
+    } else {
+      const aiFloatContainer = document.querySelector('.ai-float-container');
+      if (aiFloatContainer) aiFloatContainer.style.display = '';
+    }
+  })
+  .catch(() => {
+    // On error, default to visible
+    const aiFloatContainer = document.querySelector('.ai-float-container');
+    if (aiFloatContainer) aiFloatContainer.style.display = '';
+  });

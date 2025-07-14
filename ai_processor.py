@@ -76,32 +76,31 @@ def check_gemini_connection():
         return {'connected': False, 'error': 'GEMINI_API_KEY environment variable not set'}
     
     try:
-        # Create a client to test connectivity
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        # Use the REST API to test connection instead of client.list_models()
+        import requests
         
-        # Try to make a simple request to test connectivity
-        # We'll use a simple test instead of list_models which may not be available
-        test_content = types.Content(
-            role="user",
-            parts=[types.Part.from_text(text="Hello")]
-        )
+        url = "https://generativelanguage.googleapis.com/v1beta/models"
+        headers = {
+            'X-goog-api-key': GEMINI_API_KEY
+        }
         
-        # Try to generate content with a simple test
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[test_content],
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=10
-            )
-        )
+        response = requests.get(url, headers=headers, timeout=10)
         
-        # If we get here, the connection is successful
-        logger.info("Successfully connected to Gemini API")
-        return {'connected': True, 'error': None}
+        if response.status_code == 200:
+            return {'connected': True, 'error': None}
+        elif response.status_code == 401:
+            return {'connected': False, 'error': 'Invalid API key'}
+        elif response.status_code == 403:
+            return {'connected': False, 'error': 'API key does not have required permissions'}
+        else:
+            return {'connected': False, 'error': f'API returned status code: {response.status_code}'}
+            
+    except requests.exceptions.Timeout:
+        return {'connected': False, 'error': 'Connection timeout - API is unreachable'}
+    except requests.exceptions.RequestException as e:
+        return {'connected': False, 'error': f'Network error: {str(e)}'}
     except Exception as e:
-        logger.error(f"Failed to connect to Gemini API: {str(e)}")
-        return {'connected': False, 'error': f'Cannot connect to Gemini API: {str(e)}'}
+        return {'connected': False, 'error': f'Unexpected error: {str(e)}'}
 
 def check_model_availability(model_name):
     """Check if the specified model is available"""
@@ -109,27 +108,19 @@ def check_model_availability(model_name):
         return False
     
     try:
-        # Test if the specific model is available by making a simple request
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        test_content = types.Content(
-            role="user",
-            parts=[types.Part.from_text(text="Test")]
-        )
+        import requests
         
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[test_content],
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=10
-            )
-        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}"
+        headers = {
+            'X-goog-api-key': GEMINI_API_KEY
+        }
         
-        logger.info(f"Model {model_name} is available")
-        return True
-    except Exception as e:
-        logger.warning(f"Model {model_name} is not available: {str(e)}")
+        response = requests.get(url, headers=headers, timeout=10)
+        return response.status_code == 200
+        
+    except Exception:
         return False
+
 
 def generate_services_info_for_prompt():
     """Generate detailed service information for the prompt"""

@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify, session, make_response, redirect, url_for
+from datetime import datetime, timezone
 from dateutil import parser
 import pytz
 import extract_msg
@@ -17,6 +17,7 @@ import time
 import logging
 from google import genai
 from google.genai import types
+import bcrypt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -381,6 +382,158 @@ def calculate_performance_metrics():
     logger.info(f"Calculated metrics: {metrics}")
     
     return metrics
+
+# User management config
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
+USERS_KEY = 'users'
+
+# Helper: hash password
+def hash_password(password):
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+# Bootstrap admin user if no users exist (moved from @app.before_first_request)
+def bootstrap_admin():
+    users = redis_client.get(USERS_KEY)
+    if not users:
+        admin_user = {
+            'username': ADMIN_USERNAME,
+            'password': hash_password(ADMIN_PASSWORD),
+            'role': 'admin',
+            'last_login': '-'
+        }
+        redis_client.set(USERS_KEY, json.dumps({ADMIN_USERNAME: admin_user}))
+
+# Call bootstrap_admin at startup
+bootstrap_admin()
+
+# Get users dict
+def get_users():
+    users = redis_client.get(USERS_KEY)
+    return json.loads(users) if users else {}
+
+def save_users(users):
+    redis_client.set(USERS_KEY, json.dumps(users))
+
+# Auth endpoints
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    users = get_users()
+    user = users.get(username)
+    if not user or not check_password(password, user['password']):
+        return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
+    session['username'] = username
+    session['role'] = user['role']
+    # Update last_login
+    user['last_login'] = datetime.now(timezone.utc).isoformat()
+    users[username] = user
+    save_users(users)
+    return jsonify({'status': 'success', 'username': username, 'role': user['role']})
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'status': 'success'})
+
+@app.route('/current-user', methods=['GET'])
+def current_user():
+    username = session.get('username')
+    role = session.get('role')
+    if not username:
+        return jsonify({'logged_in': False})
+    return jsonify({'logged_in': True, 'username': username, 'role': role})
+
+# Admin user management
+@app.route('/users', methods=['GET', 'POST', 'DELETE', 'PUT'])
+def manage_users():
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    users = get_users()
+    if request.method == 'GET':
+        # Return users with last_login
+        return jsonify({'users': [
+            {'username': u, 'last_login': users[u].get('last_login', '-')}
+            for u in users if users[u]['role'] != 'admin']})
+    elif request.method == 'POST':
+        data = request.json
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        if not username or not password:
+            return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
+        if username in users:
+            return jsonify({'status': 'error', 'message': 'User already exists'}), 400
+        users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-'}
+        save_users(users)
+        return jsonify({'status': 'success'})
+    elif request.method == 'DELETE':
+        data = request.json
+        username = data.get('username', '').strip()
+        if not username or username not in users:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        if users[username]['role'] == 'admin':
+            return jsonify({'status': 'error', 'message': 'Cannot delete admin'}), 400
+        del users[username]
+        save_users(users)
+        return jsonify({'status': 'success'})
+    elif request.method == 'PUT':
+        data = request.json
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        if not username or not password:
+            return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
+        if username not in users:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        if users[username]['role'] == 'admin':
+            return jsonify({'status': 'error', 'message': 'Cannot update admin password here'}), 400
+        users[username]['password'] = hash_password(password)
+        save_users(users)
+        return jsonify({'status': 'success'})
+
+@app.route('/change-password', methods=['POST'])
+def change_password():
+    username = session.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    users = get_users()
+    user = users.get(username)
+    data = request.json
+    old = data.get('old_password', '')
+    new = data.get('new_password', '')
+    if not check_password(old, user['password']):
+        return jsonify({'status': 'error', 'message': 'Old password incorrect'}), 400
+    user['password'] = hash_password(new)
+    users[username] = user
+    save_users(users)
+    return jsonify({'status': 'success'})
+
+# Inject user info into templates
+@app.context_processor
+def inject_user():
+    return dict(current_user=session.get('username'), current_role=session.get('role'))
+
+@app.before_request
+def require_login():
+    allowed = [
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password'
+    ]
+    if request.path.startswith('/static/') or request.path.startswith('/misc/'):
+        return
+    if request.path in allowed or request.path.startswith('/users') or request.path.startswith('/change-password'):
+        return
+    if not session.get('username'):
+        return redirect(url_for('login_page'))
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    if session.get('username'):
+        return redirect(url_for('index'))
+    return render_template('login.html')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -938,34 +1091,24 @@ def ask_ai():
         
         # Create context prompt
         context_prompt = f"""
-You are a friendly and helpful AI assistant. You can help with change management data, general questions, and casual conversation. Here's the current page context:
+You are a friendly and helpful AI assistant. You can answer questions about change management data, services, or the current page, but you can also chat about anything else in a casual, friendly way.
 
-Page Title: {context.get('pageTitle', 'Change Management')}
-Header: {context.get('headerTitle', 'Change Weekend')}
-Date: {context.get('date', 'Not specified')}
-
-Services Data:
-{json.dumps(context.get('services', []), indent=2)}
-
-Original Email Content:
-{context.get('originalEmail', 'No email content available')}
+Here is the current page context (for reference only):
+- Page Title: {context.get('pageTitle', 'Change Management')}
+- Header: {context.get('headerTitle', 'Change Weekend')}
+- Date: {context.get('date', 'Not specified')}
+- Services Data: {json.dumps(context.get('services', []), indent=2)}
+- Original Email Content: {context.get('originalEmail', 'No email content available')}
 
 User Question: {question}
 
-**How to respond:**
-- If the question is about change management data, services, or the page content, provide detailed and helpful information
-- If it's a general question (math, trivia, etc.), feel free to answer it in a friendly way
-- If it's casual conversation, be warm and engaging
-- Always be helpful and conversational, not overly formal
-
-**Response guidelines:**
-- Be friendly and approachable
-- Use **bold** for important information and service names
-- Use *italic* for emphasis
-- Use bullet points (* item) for lists
-- Use ### for section headers
-- Keep responses well-structured and easy to read
-- If you don't have specific information about something, just say so casually
+**Instructions:**
+- If the question is about change management, services, or the page, use the context above to answer helpfully.
+- If the question is general, casual, or unrelated (e.g., about dogs, weather, math, etc.), just answer the question in a friendly, conversational way and ignore the page context.
+- Never include page/service summaries unless the question is clearly about them.
+- If the user's question is too out of scope (e.g., illegal, offensive, or not in appropriate language), politely refrain from answering and let the user know you can't help with that.
+- Use markdown formatting for your response (bold, italics, bullet points, etc. as appropriate).
+- Be concise, warm, and engaging.
 """
         
         # Use the existing AI processor to get response
@@ -1008,6 +1151,10 @@ User Question: {question}
             'message': f'Error processing your question: {str(e)}'
         }), 500
 
+@app.route('/ai-chat-enabled', methods=['GET'])
+def ai_chat_enabled():
+    enabled = os.environ.get('AI_CHAT_ENABLED', 'true').lower() == 'true'
+    return jsonify({'enabled': enabled})
 
 
 if __name__ == '__main__':
