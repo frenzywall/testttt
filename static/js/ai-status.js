@@ -14,10 +14,46 @@ class AIStatusManager {
     }
 
     bindEvents() {
-        // AI Status button
+        // AI Status button with dropdown
         const aiStatusBtn = document.getElementById('aiStatusBtn');
+        const aiStatusDropdown = document.getElementById('aiStatusDropdown');
+        
         if (aiStatusBtn) {
-            aiStatusBtn.addEventListener('click', () => this.showAIStatusModal());
+            aiStatusBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ensureAuthenticated(() => {
+                    this.toggleDropdown();
+                }, "Please enter the passkey to access AI status");
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (aiStatusDropdown && !aiStatusDropdown.contains(e.target) && !aiStatusBtn.contains(e.target)) {
+                this.hideDropdown();
+            }
+        });
+
+        // View Stats button
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        if (viewStatsBtn) {
+            viewStatsBtn.addEventListener('click', () => {
+                this.hideDropdown();
+                ensureAuthenticated(() => {
+                    this.showAIStatusModal();
+                }, "Please enter the passkey to view AI statistics");
+            });
+        }
+
+        // Ask AI button (placeholder for future implementation)
+        const askAiBtn = document.getElementById('askAiBtn');
+        if (askAiBtn) {
+            askAiBtn.addEventListener('click', () => {
+                this.hideDropdown();
+                ensureAuthenticated(() => {
+                    this.showAskAiPlaceholder();
+                }, "Please enter the passkey to access AI features");
+            });
         }
 
         // Modal close
@@ -41,17 +77,21 @@ class AIStatusManager {
         if (refreshStatusBtn) {
             refreshStatusBtn.addEventListener('click', () => this.refreshStatus());
         }
+
+        // Clear Stats button
+        const clearStatsBtn = document.getElementById('clearStatsBtn');
+        if (clearStatsBtn) {
+            clearStatsBtn.addEventListener('click', () => this.clearStats());
+        }
     }
 
     async loadAIStatus() {
         try {
-            console.log('Loading AI status...'); // Debug log
             this.setCheckingStates();
             
             const response = await fetch('/ai-status');
             if (response.ok) {
                 const data = await response.json();
-                console.log('AI Status response:', data); // Debug log
                 this.updateStatusDisplay(data);
                 this.lastValidated = new Date();
                 this.hasInitialValidation = true;
@@ -159,13 +199,11 @@ class AIStatusManager {
 
         // Update performance metrics with actual data from backend
         if (data.performance) {
-            console.log('Updating performance metrics:', data.performance); // Debug log
             this.updateElement('responseTime', data.performance.responseTime || '--');
             this.updateElement('successRate', data.performance.successRate || '--');
             this.updateElement('requestCount', data.performance.requestCount || '--');
             this.updateElement('lastRequest', data.performance.lastRequest || '--');
         } else {
-            console.log('No performance data received'); // Debug log
             // Fallback to default values
             this.updateElement('responseTime', '--');
             this.updateElement('successRate', '--');
@@ -178,9 +216,8 @@ class AIStatusManager {
         const element = document.getElementById(elementId);
         if (element) {
             element.textContent = value;
-            console.log(`Updated ${elementId} with value: ${value}`); // Debug log
         } else {
-            console.warn(`Element with ID ${elementId} not found`); // Debug log
+            console.warn(`Element with ID ${elementId} not found`);
         }
     }
 
@@ -207,13 +244,8 @@ class AIStatusManager {
             modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
             
-            // Load initial status
+            // Load initial status only when modal is opened
             this.loadAIStatus();
-            
-            // Set up auto-refresh every 30 seconds
-            this.refreshInterval = setInterval(() => {
-                this.loadAIStatus();
-            }, 30000);
         }
     }
 
@@ -246,6 +278,353 @@ class AIStatusManager {
                 refreshBtn.disabled = false;
             }
         }, 1000);
+    }
+
+    toggleDropdown() {
+        const dropdown = document.getElementById('aiStatusDropdown');
+        if (dropdown) {
+            dropdown.classList.toggle('show');
+        }
+    }
+
+    hideDropdown() {
+        const dropdown = document.getElementById('aiStatusDropdown');
+        if (dropdown) {
+            dropdown.classList.remove('show');
+        }
+    }
+
+    showAskAiPlaceholder() {
+        this.showAskAiModal();
+    }
+
+    showAskAiModal() {
+        // Create the AI chat modal
+        const modal = document.createElement('div');
+        modal.id = 'askAiModal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        
+        modal.innerHTML = `
+            <div class="modal-content ai-chat-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-robot"></i> Ask AI Assistant</h2>
+                    <span class="close" id="closeAskAiModal">&times;</span>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message ai-message">
+                            <div class="message-content">
+                                <i class="fas fa-robot"></i>
+                                <p>Hello! I can help you understand this page. Ask me anything about the change management data, services, or any other information you see here.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <div class="chat-input-wrapper">
+                            <input type="text" id="chatInput" placeholder="Ask me about this page..." maxlength="500">
+                            <button id="sendMessage" class="send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="chat-suggestions">
+                            <button class="suggestion-btn" data-question="What services are affected?">What services are affected?</button>
+                            <button class="suggestion-btn" data-question="What is the maintenance schedule?">What is the maintenance schedule?</button>
+                            <button class="suggestion-btn" data-question="Which services have high priority?">Which services have high priority?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add event listeners
+        this.setupAskAiEventListeners();
+        
+        // Focus on input
+        setTimeout(() => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) chatInput.focus();
+        }, 100);
+    }
+
+    setupAskAiEventListeners() {
+        const modal = document.getElementById('askAiModal');
+        const closeBtn = document.getElementById('closeAskAiModal');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendMessage');
+        const suggestionBtns = document.querySelectorAll('.suggestion-btn');
+        
+        // Close modal
+        closeBtn.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // Close on escape
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape' && modal.style.display === 'block') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+        
+        // Send message on Enter
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
+            }
+        });
+        
+        // Send button click
+        sendBtn.addEventListener('click', () => {
+            this.sendMessage();
+        });
+        
+        // Suggestion buttons
+        suggestionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const question = btn.getAttribute('data-question');
+                chatInput.value = question;
+                this.sendMessage();
+            });
+        });
+    }
+
+    async sendMessage() {
+        const chatInput = document.getElementById('chatInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const message = chatInput.value.trim();
+        
+        if (!message) return;
+        
+        // Add user message
+        const userMessage = document.createElement('div');
+        userMessage.className = 'message user-message';
+        userMessage.innerHTML = `
+            <div class="message-content">
+                <i class="fas fa-user"></i>
+                <p>${this.escapeHtml(message)}</p>
+            </div>
+        `;
+        chatMessages.appendChild(userMessage);
+        
+        // Clear input
+        chatInput.value = '';
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Show typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'message ai-message typing';
+        typingIndicator.innerHTML = `
+            <div class="message-content">
+                <i class="fas fa-robot"></i>
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(typingIndicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        try {
+            // Get page context
+            const pageContext = this.getPageContext();
+            
+            // Send to AI
+            const response = await fetch('/ask-ai', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: message,
+                    context: pageContext
+                })
+            });
+            
+            const result = await response.json();
+            
+            // Remove typing indicator
+            typingIndicator.remove();
+            
+            // Add AI response
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'message ai-message';
+            
+            // Convert markdown to HTML
+            const markdownResponse = result.response || 'Sorry, I could not process your request.';
+            const htmlResponse = marked.parse(markdownResponse);
+            
+            aiMessage.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-robot"></i>
+                    <div class="ai-response-content">${htmlResponse}</div>
+                </div>
+            `;
+            chatMessages.appendChild(aiMessage);
+            
+        } catch (error) {
+            console.error('Error sending message:', error);
+            
+            // Remove typing indicator
+            typingIndicator.remove();
+            
+            // Add error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'message ai-message error';
+            errorMessage.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-robot"></i>
+                    <p>Sorry, I encountered an error while processing your request. Please try again.</p>
+                </div>
+            `;
+            chatMessages.appendChild(errorMessage);
+        }
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    getPageContext() {
+        const context = {
+            pageTitle: document.title,
+            headerTitle: document.getElementById('headerTitle')?.textContent || '',
+            services: [],
+            date: '',
+            originalEmail: ''
+        };
+        
+        // Get services data
+        const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+        tableRows.forEach(row => {
+            const cells = row.cells;
+            if (cells.length >= 6) {
+                context.services.push({
+                    name: cells[0].textContent,
+                    date: cells[1].textContent,
+                    startTime: cells[2].textContent,
+                    endTime: cells[3].textContent,
+                    endDate: cells[4].textContent,
+                    comments: cells[5].textContent,
+                    priority: row.getAttribute('data-priority') || 'low'
+                });
+            }
+        });
+        
+        // Get date
+        if (context.services.length > 0) {
+            context.date = context.services[0].date;
+        }
+        
+        // Get original email content
+        const emailBody = document.getElementById('emailBody');
+        if (emailBody) {
+            context.originalEmail = emailBody.textContent;
+        }
+        
+        return context;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    async clearStats() {
+        const clearBtn = document.getElementById('clearStatsBtn');
+        if (!clearBtn) return;
+
+        // Show custom confirmation dialog
+        const confirmed = await this.showCustomConfirmDialog({
+            type: 'danger',
+            icon: 'fa-trash',
+            title: 'Clear AI Statistics',
+            message: 'Are you sure you want to clear all AI performance statistics? This action cannot be undone.',
+            confirmText: 'Clear Stats',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            // Add clearing state
+            clearBtn.classList.add('clearing');
+            clearBtn.disabled = true;
+
+            // Call the backend to clear stats
+            const response = await fetch('/clear-ai-stats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                // Show success notification
+                this.showNotification('success', 'AI statistics cleared successfully!');
+                
+                // Refresh the stats display
+                await this.loadAIStatus();
+            } else {
+                // Show error notification
+                this.showNotification('error', result.message || 'Failed to clear statistics');
+            }
+        } catch (error) {
+            console.error('Error clearing stats:', error);
+            this.showNotification('error', 'Error clearing statistics. Please try again.');
+        } finally {
+            // Remove clearing state
+            clearBtn.classList.remove('clearing');
+            clearBtn.disabled = false;
+        }
+    }
+
+    showCustomConfirmDialog(options) {
+        return createConfirmDialog(options);
+    }
+
+    showNotification(type, message) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        let icon = 'fa-info-circle';
+        if (type === 'error') icon = 'fa-exclamation-circle';
+        if (type === 'success') icon = 'fa-check-circle';
+        
+        notification.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+        notification.style.cssText = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
+        
+        if (type === 'error') {
+            notification.style.background = 'var(--danger-color)';
+        } else if (type === 'success') {
+            notification.style.background = 'var(--success-color)';
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 
     startValidationTimer() {

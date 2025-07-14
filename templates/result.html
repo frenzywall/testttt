@@ -410,17 +410,23 @@
                 <span class="close">&times;</span>
                 <div class="modal-header">
                     <h2><i class="fas fa-robot"></i> Model Stats</h2>
-                    <div class="validation-info">
-                        <span class="last-validated" id="lastValidated">
-                            <i class="fas fa-clock"></i> 
-                            <span>API Key last validated:</span>
-                            <span class="validation-time" id="validationTime">Never</span>
-                        </span>
+                                    <div class="validation-info">
+                    <span class="last-validated" id="lastValidated">
+                        <i class="fas fa-clock"></i> 
+                        <span>API Key last validated:</span>
+                        <span class="validation-time" id="validationTime">Never</span>
+                    </span>
+                    <div class="validation-buttons">
                         <button class="btn-refresh" id="refreshStatus" title="Refresh Status">
                             <i class="fas fa-sync-alt"></i>
                             <span>Validate Now</span>
                         </button>
+                        <button class="btn-clear-stats" id="clearStatsBtn" title="Clear all AI statistics">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Clear Stats</span>
+                        </button>
                     </div>
+                </div>
                 </div>
                 
                 <div class="ai-status-content">
@@ -527,15 +533,28 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
         
         <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
         <script src="/static/js/main.js"></script>
         <script src="/static/js/change-tracker.js"></script>
         <script src="/static/js/ai-status.js"></script>
 
 <!-- Add this hidden input to track data timestamp -->
 <input type="hidden" id="dataTimestamp" value="{{ data_timestamp|default(0) }}">
-<!-- Add floating AI Status button at the bottom right -->
-<button class="btn ai-float-btn" id="aiStatusBtn" title="View AI Status">
-    <i class="fas fa-robot"></i>
-</button>
+<!-- Add floating AI Status button with dropdown at the bottom right -->
+<div class="ai-float-container">
+    <button class="btn ai-float-btn" id="aiStatusBtn" title="AI Status">
+        <i class="fas fa-robot"></i>
+    </button>
+    <div class="ai-float-dropdown" id="aiStatusDropdown">
+        <button class="dropdown-item" id="viewStatsBtn">
+            <i class="fas fa-chart-line"></i>
+            <span>View Stats</span>
+        </button>
+        <button class="dropdown-item" id="askAiBtn">
+            <i class="fas fa-question-circle"></i>
+            <span>Ask AI about this page</span>
+        </button>
+    </div>
+</div>
 </body>
 </html>

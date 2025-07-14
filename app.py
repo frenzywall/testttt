@@ -15,6 +15,8 @@ import secrets
 from functools import wraps
 import time
 import logging
+from google import genai
+from google.genai import types
 
 logging.basicConfig(
     level=logging.INFO,
@@ -872,6 +874,139 @@ def ai_status():
                 'lastRequest': '--'
             }
         })
+
+@app.route('/clear-ai-stats', methods=['POST'])
+def clear_ai_stats():
+    """Clear all AI performance statistics"""
+    try:
+        # Reset to default stats
+        default_stats = {
+            'requests_today': 0,
+            'total_requests': 0,
+            'response_times': [],
+            'last_request_time': None,
+            'success_count': 0,
+            'error_count': 0,
+            'daily_reset_date': datetime.now().date()
+        }
+        
+        # Save to Redis
+        save_ai_performance_stats(default_stats)
+        
+        logger.info("AI performance statistics cleared successfully")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'AI statistics cleared successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error clearing AI stats: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error clearing AI statistics: {str(e)}'
+        }), 500
+
+@app.route('/ask-ai', methods=['POST'])
+def ask_ai():
+    """Handle AI questions about the page content"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid request data'
+            }), 400
+            
+        question = data.get('question', '').strip()
+        context = data.get('context', {})
+        
+        if not question:
+            return jsonify({
+                'status': 'error',
+                'message': 'Question is required'
+            }), 400
+        
+        # Check if Gemini API is available
+        if not os.environ.get("GEMINI_API_KEY"):
+            return jsonify({
+                'status': 'error',
+                'message': 'AI service is not configured'
+            }), 503
+        
+        # Import AI processor
+        import ai_processor
+        
+        # Create context prompt
+        context_prompt = f"""
+You are a friendly and helpful AI assistant. You can help with change management data, general questions, and casual conversation. Here's the current page context:
+
+Page Title: {context.get('pageTitle', 'Change Management')}
+Header: {context.get('headerTitle', 'Change Weekend')}
+Date: {context.get('date', 'Not specified')}
+
+Services Data:
+{json.dumps(context.get('services', []), indent=2)}
+
+Original Email Content:
+{context.get('originalEmail', 'No email content available')}
+
+User Question: {question}
+
+**How to respond:**
+- If the question is about change management data, services, or the page content, provide detailed and helpful information
+- If it's a general question (math, trivia, etc.), feel free to answer it in a friendly way
+- If it's casual conversation, be warm and engaging
+- Always be helpful and conversational, not overly formal
+
+**Response guidelines:**
+- Be friendly and approachable
+- Use **bold** for important information and service names
+- Use *italic* for emphasis
+- Use bullet points (* item) for lists
+- Use ### for section headers
+- Keep responses well-structured and easy to read
+- If you don't have specific information about something, just say so casually
+"""
+        
+        # Use the existing AI processor to get response
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=context_prompt)]
+            ),
+        ]
+        
+        generate_config = types.GenerateContentConfig(
+            temperature=0.3,
+            top_p=0.95,
+            top_k=64,
+            max_output_tokens=1024,
+        )
+        
+        response = client.models.generate_content(
+            model=os.environ.get('GEMINI_MODEL', 'gemini-1.5-pro'),
+            contents=contents,
+            config=generate_config
+        )
+        
+        ai_response = response.text.strip()
+        
+        # Track the AI request for performance metrics
+        track_ai_request(0.5, True)  # Approximate response time
+        
+        return jsonify({
+            'status': 'success',
+            'response': ai_response
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing AI question: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error processing your question: {str(e)}'
+        }), 500
 
 
 
