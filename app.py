@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, jsonify, session, make_response, redirect, url_for
-from datetime import datetime, timezone
+from flask import Flask, render_template, request, jsonify, session, make_response, redirect, url_for, Response, stream_with_context
+from datetime import datetime, timezone, timedelta
 from dateutil import parser
 import pytz
 import extract_msg
@@ -18,6 +18,7 @@ import logging
 from google import genai
 from google.genai import types
 import bcrypt
+import threading
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +32,29 @@ app.secret_key = os.environ.get('SECRET_KEY')
 if not app.secret_key:
     app.secret_key = secrets.token_hex(16)
     logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
+
+# Configure session timeout (configurable via environment variable)
+session_timeout_seconds = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
+session_timeout_hours = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
+logger.info(f"Session timeout configured for {session_timeout_seconds} seconds (testing mode)")
+
+def is_session_expired():
+    """Check if the current session has expired based on login time"""
+    # Admin users never have session expiry
+    if session.get('role') == 'admin':
+        return False
+    
+    if not session.get('login_time'):
+        return True
+    
+    try:
+        login_time = datetime.fromisoformat(session['login_time'].replace('Z', '+00:00'))
+        current_time = datetime.now(timezone.utc)
+        elapsed_seconds = (current_time - login_time).total_seconds()
+        return elapsed_seconds > session_timeout_seconds
+    except Exception as e:
+        logger.error(f"Error checking session expiration: {str(e)}")
+        return True
 
 PASSKEY = os.environ.get('PASSKEY')
 if not PASSKEY:
@@ -418,6 +442,10 @@ def get_users():
 def save_users(users):
     redis_client.set(USERS_KEY, json.dumps(users))
 
+def get_admin_usernames():
+    users = get_users()
+    return [u for u, uobj in users.items() if uobj.get('role') == 'admin']
+
 # Auth endpoints
 @app.route('/login', methods=['POST'])
 def login():
@@ -428,12 +456,33 @@ def login():
     user = users.get(username)
     if not user or not check_password(password, user['password']):
         return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
+    
+    # Make session permanent and set session data
+    session.permanent = True
     session['username'] = username
     session['role'] = user['role']
+    session['login_time'] = datetime.now(timezone.utc).isoformat()
+    
+    # For admin users, set a very long session lifetime to prevent Flask from expiring it
+    if user['role'] == 'admin':
+        app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)  # 1 year for admin
+        logger.info(f"Admin user {username} logged in - session set to 1 year")
+    else:
+        # For regular users, use the configured timeout from environment
+        if session_timeout_hours > 0:
+            app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=session_timeout_hours)
+            logger.info(f"Regular user {username} logged in - session set to {session_timeout_hours} hours")
+        else:
+            app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=session_timeout_seconds)
+            logger.info(f"Regular user {username} logged in - session set to {session_timeout_seconds} seconds")
+    
     # Update last_login
     user['last_login'] = datetime.now(timezone.utc).isoformat()
     users[username] = user
     save_users(users)
+    # Publish SSE login event to all admins
+    for admin_username in get_admin_usernames():
+        publish_sse_event(admin_username, 'login', {'username': username, 'last_login': user['last_login']})
     return jsonify({'status': 'success', 'username': username, 'role': user['role']})
 
 @app.route('/logout', methods=['POST'])
@@ -447,7 +496,12 @@ def current_user():
     role = session.get('role')
     if not username:
         return jsonify({'logged_in': False})
-    return jsonify({'logged_in': True, 'username': username, 'role': role})
+    
+    return jsonify({
+        'logged_in': True, 
+        'username': username, 
+        'role': role
+    })
 
 # Admin user management
 @app.route('/users', methods=['GET', 'POST', 'DELETE', 'PUT'])
@@ -512,6 +566,75 @@ def change_password():
     save_users(users)
     return jsonify({'status': 'success'})
 
+# --- SSE Pub/Sub Setup ---
+SSE_CHANNEL_PREFIX = 'sse_channel_'
+
+# Helper: Publish SSE event to a user
+def publish_sse_event(username, event_type, data=None):
+    channel = f'{SSE_CHANNEL_PREFIX}{username}'
+    payload = {'event': event_type, 'data': data or {}}
+    logger.info(f"Publishing SSE event '{event_type}' to {channel}: {payload}")
+    redis_client.publish(channel, json.dumps(payload))
+
+# SSE endpoint for logged-in user
+@app.route('/events')
+def sse_events():
+    username = session.get('username')
+    if not username:
+        return Response('Unauthorized', status=401)
+    
+    channel = f'{SSE_CHANNEL_PREFIX}{username}'
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe(channel)
+
+    def event_stream():
+        try:
+            while True:
+                message = pubsub.get_message(timeout=1.0)
+                if message and message['type'] == 'message':
+                    payload = json.loads(message['data'])
+                    event = payload.get('event')
+                    data = payload.get('data', {})
+                    yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
+                time.sleep(0.5)
+        finally:
+            pubsub.close()
+    
+    headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+    return Response(stream_with_context(event_stream()), headers=headers)
+
+# --- Update admin logout to use SSE ---
+@app.route('/admin-logout-user', methods=['POST'])
+def admin_logout_user():
+    """Admin endpoint to log out a specific user"""
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    data = request.json
+    target_username = data.get('username', '').strip()
+    if not target_username:
+        return jsonify({'status': 'error', 'message': 'Username required'}), 400
+    
+    try:
+        # Check if user exists
+        users = get_users()
+        if target_username not in users:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        
+        # Store logout request in Redis for server-side session invalidation
+        logout_key = f'logout_request_{target_username}'
+        redis_client.set(logout_key, 'admin_logout')
+        
+        # Send SSE logout event
+        publish_sse_event(target_username, 'logout', {'reason': 'Logged out by admin'})
+        logger.info(f"Admin {session.get('username')} logged out user {target_username}")
+        return jsonify({'status': 'success', 'message': f'Logout event sent for user {target_username}'})
+            
+    except Exception as e:
+        logger.error(f"Error sending SSE logout event: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to send logout event'}), 500
+
+
+
 # Inject user info into templates
 @app.context_processor
 def inject_user():
@@ -520,7 +643,7 @@ def inject_user():
 @app.before_request
 def require_login():
     allowed = [
-        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password'
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events'
     ]
     if request.path.startswith('/static/') or request.path.startswith('/misc/'):
         return
@@ -528,6 +651,27 @@ def require_login():
         return
     if not session.get('username'):
         return redirect(url_for('login_page'))
+    
+    # Check for session expiration first
+    if is_session_expired():
+        session.clear()
+        return redirect(url_for('login_page'))
+    
+    # Check for admin logout request
+    username = session.get('username')
+    if username:
+        logout_key = f'logout_request_{username}'
+        try:
+            logout_data = redis_client.get(logout_key)
+            if logout_data:
+                # Clear the logout request and redirect to login
+                redis_client.delete(logout_key)
+                session.clear()
+                resp = redirect(url_for('login_page'))
+                resp.set_cookie('session', '', expires=0)
+                return resp
+        except Exception as e:
+            logger.error(f"Error checking logout request: {str(e)}")
 
 @app.route('/login', methods=['GET'])
 def login_page():

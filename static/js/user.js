@@ -1,6 +1,8 @@
 // User/profile modal logic
 // To be used with a modal in result.html
 
+
+
 function showProfileModal(user) {
     // Create modal if not exists
     let modal = document.getElementById('profileModal');
@@ -220,6 +222,8 @@ function showProfileModal(user) {
                             }
                         } catch (e) {}
                     }
+                    // Add refresh icon for animation
+                    const lastLoginHtml = `<span class="user-last-login">Last login: <b>${lastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i></span>`;
                     const card = document.createElement('div');
                     card.className = 'user-card';
                     // Avatar/initials
@@ -230,7 +234,7 @@ function showProfileModal(user) {
                     // Username and last login
                     const info = document.createElement('div');
                     info.className = 'user-info';
-                    info.innerHTML = `<span class="user-name">${u}</span><span class="user-last-login">Last login: <b>${lastLogin}</b></span>`;
+                    info.innerHTML = `<span class="user-name">${u}</span>${lastLoginHtml}`;
                     card.appendChild(info);
                     // Actions
                     const actions = document.createElement('div');
@@ -240,6 +244,13 @@ function showProfileModal(user) {
                     edit.innerHTML = '<i class="fas fa-edit"></i>';
                     edit.className = 'btn user-edit-btn';
                     edit.title = 'Edit Password';
+                    // Logout button
+                    const logout = document.createElement('button');
+                    logout.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+                    logout.className = 'btn user-logout-btn';
+                    logout.title = 'Logout User';
+                    logout.style.background = 'linear-gradient(135deg,#f59e0b,#fbbf24)';
+                    
                     // Delete button
                     const del = document.createElement('button');
                     del.innerHTML = '<i class="fas fa-trash"></i>';
@@ -294,7 +305,34 @@ function showProfileModal(user) {
                         };
                     };
                     actions.appendChild(edit);
+                    actions.appendChild(logout);
                     actions.appendChild(del);
+                    
+                    // Logout button functionality
+                    logout.onclick = function(){
+                        createConfirmDialog({
+                            type: 'warning',
+                            icon: 'fa-sign-out-alt',
+                            title: 'Logout User',
+                            message: `Are you sure you want to log out user <b>${u}</b>? They will be redirected to the login page.`,
+                            confirmText: 'Logout',
+                            cancelText: 'Cancel'
+                        }).then(confirmed => {
+                            if (!confirmed) return;
+                            fetch('/admin-logout-user',{
+                                method:'POST',
+                                headers:{'Content-Type':'application/json'},
+                                body:JSON.stringify({username:u})
+                            }).then(r=>r.json()).then(data=>{
+                                if(data.status==='success') {
+                                    createNotification('success', `Logout request sent for user ${u}`);
+                                } else {
+                                    createNotification('error', data.message || 'Failed to send logout request');
+                                }
+                            });
+                        });
+                    };
+                    
                     del.onclick = function(){
                         createConfirmDialog({
                             type: 'danger',

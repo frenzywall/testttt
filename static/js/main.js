@@ -1,6 +1,8 @@
 // Import Luxon library for DateTime operations
 const { DateTime } = luxon || window.luxon;
 
+
+
 const modal = document.getElementById('emailModal');
 const viewOriginalBtn = document.getElementById('viewOriginal');
 const closeBtn = document.querySelector('#emailModal .close');
@@ -470,25 +472,37 @@ function convertTimezone(timeStr, dateStr, fromTz, toTz) {
         if (!timeStr || timeStr === "-" || timeStr.trim() === "") {
             return "-";
         }
-        
-        // Handle time ranges (e.g., "08:00-10:00")
+
+        // Handle time ranges (e.g., "08:00-10:00" or "08:00 - 10:00")
         if (timeStr.includes('-')) {
             const [start, end] = timeStr.split('-');
             const convertedStart = convertTimezone(start.trim(), dateStr, fromTz, toTz);
             const convertedEnd = end.trim() ? convertTimezone(end.trim(), dateStr, fromTz, toTz) : "-";
-            return `${convertedStart}-${convertedEnd}`;
+            return `${convertedStart} - ${convertedEnd}`;
+        }
+
+        // If only a time is provided, prepend the date
+        let dateTimeStr = timeStr;
+        if (/^\d{1,2}:\d{2}$/.test(timeStr.trim())) {
+            // If dateStr is missing or invalid, use today
+            let datePart = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
+                ? dateStr.trim()
+                : new Date().toISOString().slice(0, 10);
+            dateTimeStr = `${datePart} ${timeStr.trim()}`;
+        } else {
+            dateTimeStr = `${dateStr} ${timeStr}`;
         }
 
         // Parse the DateTime object using the 24-hour format
-        const dt = DateTime.fromFormat(`${dateStr} ${timeStr}`, 'yyyy-MM-dd HH:mm', {
+        const dt = DateTime.fromFormat(dateTimeStr, 'yyyy-MM-dd HH:mm', {
             zone: fromTz
         });
-        
+
         if (!dt.isValid) {
             console.error('Invalid date/time:', timeStr, dateStr, dt.invalidReason, dt.invalidExplanation);
             return 'Invalid time';
         }
-        
+
         // Convert to target timezone and format as 12-hour time with AM/PM
         const convertedTime = dt.setZone(toTz);
         return convertedTime.toFormat('hh:mm a');
@@ -3057,30 +3071,116 @@ document.addEventListener('DOMContentLoaded', function() {
         enableRestrictedFeatures();
     }
     
-    // Set up periodic check for auth expiration
-    setInterval(() => {
-        if (!isAuthenticated() && !document.querySelector('.auth-required-overlay')) {
-            disableRestrictedFeatures();
+    // --- SSE for logout and login updates ---
+    if (window.EventSource) {
+        try {
+            const sse = new EventSource('/events');
+            sse.addEventListener('logout', function(e) {
+                createNotification('warning', 'You have been logged out by an administrator');
+                setTimeout(() => {
+                    window.location.reload(); // Force reload to trigger backend session check
+                }, 1000); // 1 second delay for user to see the notification
+            });
+            // Add login event handler here
+            sse.addEventListener('login', function(e) {
+                let data;
+                try {
+                    data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                } catch (err) {
+                    data = e.data;
+                }
+                // --- removed debug logs ---
+                if (data && data.username && data.last_login) {
+                    // Find the user card/info for this username
+                    document.querySelectorAll('.user-card').forEach(function(card) {
+                        const nameEl = card.querySelector('.user-name');
+                        if (nameEl && nameEl.textContent.trim() === data.username) {
+                            const lastLoginEl = card.querySelector('.user-last-login b');
+                            if (lastLoginEl) {
+                                // Animate the refresh icon if present, or add one
+                                let icon = lastLoginEl.parentElement.querySelector('.last-login-refresh');
+                                if (!icon) {
+                                    icon = document.createElement('i');
+                                    icon.className = 'fas fa-sync-alt last-login-refresh';
+                                    icon.style.marginLeft = '6px';
+                                    lastLoginEl.parentElement.appendChild(icon);
+                                }
+                                // Robust animation
+                                icon.style.display = 'inline-block';
+                                icon.style.visibility = 'visible';
+                                icon.style.transition = 'none';
+                                icon.style.transform = 'none';
+                                void icon.offsetWidth; // Force reflow
+                                icon.style.transition = 'transform 1.5s cubic-bezier(0.4,2,0.6,1)';
+                                icon.style.transform = 'rotate(360deg)';
+                                setTimeout(() => {
+                                    icon.style.transform = '';
+                                }, 1500);
+                                // Update the time
+                                const d = new Date(data.last_login);
+                                lastLoginEl.textContent = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            }
+                        }
+                    });
+                    // Remove the manual refresh icon from the user management modal
+                    document.querySelectorAll('.user-management-refresh').forEach(function(el) {
+                        el.parentNode && el.parentNode.removeChild(el);
+                    });
+                    // Show top smooth, alive line effect
+                    let bar = document.getElementById('user-login-activity-bar');
+                    if (!bar) {
+                        bar = document.createElement('div');
+                        bar.id = 'user-login-activity-bar';
+                        bar.style.position = 'fixed';
+                        bar.style.top = '0';
+                        bar.style.left = '50%';
+                        bar.style.transform = 'translateX(-50%)';
+                        bar.style.width = '0%';
+                        bar.style.height = '4px';
+                        bar.style.background = 'linear-gradient(90deg, #f8e1ff, #b6e0fe, #cafff3, #fff6b7, #f8e1ff 100%)';
+                        bar.style.backgroundSize = '200% 200%';
+                        bar.style.borderRadius = '0 0 16px 16px';
+                        bar.style.zIndex = '9999';
+                        bar.style.pointerEvents = 'none';
+                        document.body.appendChild(bar);
+                        // Add keyframes for smooth, alive effect
+                        const styleSheet = document.createElement('style');
+                        styleSheet.innerHTML = `@keyframes alive-bar-expand-contract {
+                            0% { width: 0%; background-position: 0% 50%; opacity: 0.7; }
+                            10% { width: 60%; background-position: 30% 50%; opacity: 0.85; }
+                            50% { width: 100%; background-position: 100% 50%; opacity: 1; }
+                            70% { width: 80%; background-position: 70% 50%; opacity: 0.85; }
+                            90% { width: 40%; background-position: 30% 50%; opacity: 0.7; }
+                            100% { width: 0%; background-position: 0% 50%; opacity: 0.5; }
+                        }`;
+                        document.head.appendChild(styleSheet);
+                    }
+                    bar.style.animation = 'none';
+                    void bar.offsetWidth;
+                    bar.style.animation = 'alive-bar-expand-contract 2.8s cubic-bezier(0.77,0,0.18,1)';
+                }
+            });
+        } catch (e) {
+            // SSE not supported or failed
         }
-    }, 30000); // Check every 30 seconds
-    
-    // ...existing code...
-});
-
-// On page load, make header title clickable for view‐only history
-document.addEventListener('DOMContentLoaded', function() {
-    const headerTitle = document.getElementById('headerTitle');
-    if (headerTitle) {
-        headerTitle.style.cursor = 'pointer';
-        headerTitle.addEventListener('click', function() {
-            if (headerTitle.isContentEditable) return; // Prevent history modal if editing
-            openHistoryModal(true);
-        });
     }
-    
     // ...existing code...
 });
+// ... remove the global sse.addEventListener('login', ...) ...
 
-// --- Ensure overlays are applied immediately ---
-disableRestrictedFeatures();
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        fetch('/current-user', { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.logged_in) {
+                    window.location.href = '/login';
+                }
+            })
+            .catch(() => {
+                // On error, force redirect to login as a fallback
+                window.location.href = '/login';
+            });
+    }
+});
 

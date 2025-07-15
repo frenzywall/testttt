@@ -250,6 +250,28 @@
     align-items: center;
     gap: 0.5rem;
 }
+.user-logout-btn {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.08);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-logout-btn:hover {
+    filter: brightness(1.1);
+    background: linear-gradient(135deg, #d97706, #fbbf24);
+    box-shadow: 0 4px 12px rgba(245,158,11,0.15);
+}
+
 .user-delete-btn {
     background: linear-gradient(135deg, #ef4444, #f87171);
     color: #fff;

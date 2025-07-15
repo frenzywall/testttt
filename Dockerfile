@@ -1,4 +1,4 @@
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libc6-dev python3-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip wheel "setuptools==77.0.3" && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.13-slim-bookworm
+FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1 \
@@ -31,4 +31,4 @@ COPY --chown=appuser:appuser *.py .
 
 USER appuser
 EXPOSE 5000
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-k", "gevent", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
