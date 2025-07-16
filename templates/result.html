@@ -38,8 +38,10 @@
                     <i class="fas fa-moon"></i>
                 </button>
                 {% if current_user %}
-                <button id="profileIcon" class="profile-icon" title="Profile" style="margin-left:1.5rem; background:none; border:none; cursor:pointer;">
-                    <i class="fas fa-user-circle" style="font-size:2rem; color:#3b82f6;"></i>
+                <button id="profileIcon" class="profile-icon" title="Profile" style="margin-left:1.5rem; background:none; border:none; cursor:pointer; position:relative;">
+                    <span class="profile-glow">
+                        <i class="fas fa-user-circle" style="font-size:2rem; color:#3b82f6;"></i>
+                    </span>
                 </button>
                 {% endif %}
             </div>
@@ -190,7 +192,7 @@
             </div>
         </div>
 
-        <div class="filter-controls">
+        <div class="filter-controls" style="display: flex; align-items: center; gap: 1rem;">
             <button class="filter-btn" data-filter="all">
             <i class="fas fa-filter"></i> All
             </button>
@@ -204,6 +206,9 @@
             <span class="filter-indicator filter-low"></span> Low Priority
             </button>
             <!-- AI Status Button removed from here -->
+            <div class="last-edited-by" style="margin-left: 2rem; font-size: 1rem; color: #666; display: flex; align-items: center;">
+                <i class="fas fa-user-edit" style="margin-right: 0.4rem;"></i> Last edited by: <b style="margin-left: 0.3rem;">{{ last_edited_by if last_edited_by else 'None' }}</b>
+            </div>
         </div>
 
         <table id="changeTable">

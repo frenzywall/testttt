@@ -3605,4 +3605,29 @@ background-color: rgba(245, 158, 11, 0.4);
     100% { box-shadow: 0 0 16px 4px #ef4444cc, 0 0 32px 8px #f87171aa; }
 }
 
+/* Glowing ring effect for profile icon (subtle, no pulse) */
+.profile-glow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.profile-glow::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.6rem;
+    height: 2.6rem;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    box-shadow: 0 0 8px 2px #3b82f6, 0 0 12px 4px #3b82f655;
+    z-index: 0;
+}
+.profile-glow i {
+    position: relative;
+    z-index: 1;
+}
+/* Remove the pulse animation */
+
 

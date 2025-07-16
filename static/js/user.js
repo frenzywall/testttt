@@ -14,7 +14,7 @@ function showProfileModal(user) {
             <div class="modal-content profile-modal-content split-modal larger-modal">
                 <div class="profile-left">
                     <div class="modal-header">
-                        <h2><i class="fas fa-user-circle"></i> Profile</h2>
+                        <h2><span class="profile-glow"><i class="fas fa-user-circle"></i></span> Profile</h2>
                         <span class="close" id="closeProfileModal">&times;</span>
                     </div>
                     <div class="profile-status">

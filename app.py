@@ -831,7 +831,8 @@ def index():
                 'result.html', 
                 data=stored_data, 
                 header_title=stored_data.get('header_title', 'Change Weekend'),
-                data_timestamp=stored_data.get('last_modified', 0)
+                data_timestamp=stored_data.get('last_modified', 0),
+                last_edited_by=stored_data.get('last_edited_by', None)
             ))
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response.headers['Pragma'] = 'no-cache'
@@ -848,13 +849,15 @@ def index():
             'error': None,
             'is_landing_page': True,
             'header_title': 'Change Weekend',
-            'last_modified': datetime.now().timestamp()
+            'last_modified': datetime.now().timestamp(),
+            'last_edited_by': None
         }
         response = make_response(render_template(
             'result.html', 
             data=empty_data, 
             header_title='Change Weekend',
-            data_timestamp=empty_data['last_modified']
+            data_timestamp=empty_data['last_modified'],
+            last_edited_by=None
         ))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -975,7 +978,10 @@ def sync_all_data():
         stored_data['end_date'] = stored_data['date']
     if 'header_title' not in stored_data:
         stored_data['header_title'] = 'Change Weekend'
-    
+
+    # Store the username of the last editor (prefer request, fallback to session)
+    username = data.get('username') or session.get('username', 'Unknown')
+    stored_data['last_edited_by'] = username
     stored_data['last_modified'] = datetime.now().timestamp()
     save_stored_data(stored_data)
     response = jsonify({
@@ -1007,7 +1013,10 @@ def sync_to_history():
         stored_data['end_date'] = stored_data['date']
     if 'header_title' not in stored_data:
         stored_data['header_title'] = 'Change Weekend'
-    
+
+    # Store the username of the last editor (prefer request, fallback to session)
+    username = data.get('username') or session.get('username', 'Unknown')
+    stored_data['last_edited_by'] = username
     stored_data['last_modified'] = datetime.now().timestamp()
     save_stored_data(stored_data)
     
@@ -1393,6 +1402,7 @@ User Question: {question}
 - If the user's question is too out of scope (e.g., illegal, offensive, or not in appropriate language), politely refrain from answering and let the user know you can't help with that.
 - Use markdown formatting for your response (bold, italics, bullet points, etc. as appropriate).
 - Be concise, warm, and engaging.
+- If a user asks to send them the data that was used to generate the response, politely refuse and let the user know you can't do that.
 """
         
         # Use the existing AI processor to get response
