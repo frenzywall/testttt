@@ -19,6 +19,8 @@ from google import genai
 from google.genai import types
 import bcrypt
 import threading
+from flask import g
+from flask_session import Session
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +39,102 @@ if not app.secret_key:
 session_timeout_seconds = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
 session_timeout_hours = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
 logger.info(f"Session timeout configured for {session_timeout_seconds} seconds (testing mode)")
+
+# --- Redis client for app data (decode_responses=True, db=0) ---
+try:
+    redis_client = redis.Redis(
+        host=os.getenv('REDIS_HOST', 'redis'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        db=0,
+        decode_responses=True,
+        socket_timeout=5,  
+        socket_connect_timeout=5,
+        health_check_interval=30
+    )
+    redis_client.ping()
+    logger.info("Successfully connected to Redis (app data)")
+except redis.RedisError as e:
+    logger.error(f"Redis connection error (app data): {str(e)}")
+    class MockRedis:
+        def __init__(self):
+            self.data = {}
+        def get(self, key):
+            return self.data.get(key)
+        def set(self, key, value):
+            self.data[key] = value
+            return True
+        def delete(self, key):
+            if key in self.data:
+                del self.data[key]
+                return 1
+            return 0
+        def hget(self, key, field):
+            return self.data.get(key, {}).get(field) if key in self.data else None
+        def hset(self, key, field, value):
+            if key not in self.data:
+                self.data[key] = {}
+            self.data[key][field] = value
+            return True
+        def hdel(self, key, field):
+            if key in self.data and field in self.data[key]:
+                del self.data[key][field]
+                return 1
+            return 0
+        def ping(self):
+            return True
+    redis_client = MockRedis()
+    logger.warning("Using in-memory mock Redis. Data will not persist between restarts.")
+
+# --- Redis client for Flask-Session (decode_responses=False, db=1) ---
+from flask_session import Session
+try:
+    session_redis = redis.Redis(
+        host=os.getenv('REDIS_HOST', 'redis'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        db=1,  # Use a different DB for sessions
+        decode_responses=False,
+        socket_timeout=5,  
+        socket_connect_timeout=5,
+        health_check_interval=30
+    )
+    session_redis.ping()
+    logger.info("Successfully connected to Redis (session data)")
+except redis.RedisError as e:
+    logger.error(f"Redis connection error (session data): {str(e)}")
+    session_redis = None
+
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_REDIS'] = session_redis
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'flask_session:'
+# Set a very long session lifetime for Flask-Session (admin users)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)  # 1 year default
+Session(app)
+
+# --- Session Timeout and Forced Logout Enhancements ---
+SESSION_TIMEOUT_SECONDS = session_timeout_seconds  # Use configured value
+LOGOUT_VERSION_HASH_KEY = 'logout_versions'  # Redis hash to store all user logout_versions
+
+# Helper: get logout version from Redis hash
+def get_logout_version(username):
+    try:
+        return redis_client.hget(LOGOUT_VERSION_HASH_KEY, username)
+    except Exception as e:
+        logger.error(f"Error getting logout version for {username}: {str(e)}")
+        return None
+
+def set_logout_version(username, version):
+    try:
+        redis_client.hset(LOGOUT_VERSION_HASH_KEY, username, version)
+    except Exception as e:
+        logger.error(f"Error setting logout version for {username}: {str(e)}")
+
+def clear_logout_version(username):
+    try:
+        redis_client.hdel(LOGOUT_VERSION_HASH_KEY, username)
+    except Exception as e:
+        logger.error(f"Error clearing logout version for {username}: {str(e)}")
 
 def is_session_expired():
     """Check if the current session has expired based on login time"""
@@ -77,40 +175,6 @@ if os.path.exists(static_dir):
     logger.info(f"Static directory contents: {os.listdir(static_dir)}")
 else:
     logger.warning("Static directory does not exist")
-
-try:
-    redis_client = redis.Redis(
-        host=os.getenv('REDIS_HOST', 'redis'),
-        port=int(os.getenv('REDIS_PORT', 6379)),
-        db=0,
-        decode_responses=True,
-        socket_timeout=5,  
-        socket_connect_timeout=5,
-        health_check_interval=30
-    )
-    redis_client.ping()
-    logger.info("Successfully connected to Redis")
-except redis.RedisError as e:
-    logger.error(f"Redis connection error: {str(e)}")
-    class MockRedis:
-        def __init__(self):
-            self.data = {}
-        
-        def get(self, key):
-            return self.data.get(key)
-        
-        def set(self, key, value):
-            self.data[key] = value
-            return True
-        
-        def delete(self, key):
-            if key in self.data:
-                del self.data[key]
-                return 1
-            return 0
-    
-    redis_client = MockRedis()
-    logger.warning("Using in-memory mock Redis. Data will not persist between restarts.")
 
 RATE_LIMIT = int(os.getenv('RATE_LIMIT', 5))  
 RATE_WINDOW = int(os.getenv('RATE_WINDOW', 60))  
@@ -462,19 +526,18 @@ def login():
     session['username'] = username
     session['role'] = user['role']
     session['login_time'] = datetime.now(timezone.utc).isoformat()
+    session['last_activity'] = datetime.now(timezone.utc).isoformat()
+    # Set logout_version for forced logout tracking
+    logout_version = get_logout_version(username) or secrets.token_hex(8)
+    session['logout_version'] = logout_version
+    set_logout_version(username, logout_version)
     
-    # For admin users, set a very long session lifetime to prevent Flask from expiring it
+    # Note: PERMANENT_SESSION_LIFETIME is set to 1 year globally
+    # Custom session timeout logic is handled in require_login() for non-admin users
     if user['role'] == 'admin':
-        app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)  # 1 year for admin
         logger.info(f"Admin user {username} logged in - session set to 1 year")
     else:
-        # For regular users, use the configured timeout from environment
-        if session_timeout_hours > 0:
-            app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=session_timeout_hours)
-            logger.info(f"Regular user {username} logged in - session set to {session_timeout_hours} hours")
-        else:
-            app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=session_timeout_seconds)
-            logger.info(f"Regular user {username} logged in - session set to {session_timeout_seconds} seconds")
+        logger.info(f"Regular user {username} logged in - session timeout: {session_timeout_seconds} seconds")
     
     # Update last_login
     user['last_login'] = datetime.now(timezone.utc).isoformat()
@@ -487,6 +550,9 @@ def login():
 
 @app.route('/logout', methods=['POST'])
 def logout():
+    username = session.get('username')
+    if username:
+        clear_logout_version(username)
     session.clear()
     return jsonify({'status': 'success'})
 
@@ -510,10 +576,17 @@ def manage_users():
         return jsonify({'status': 'error', 'message': 'Admin only'}), 403
     users = get_users()
     if request.method == 'GET':
-        # Return users with last_login
-        return jsonify({'users': [
+        # Return users with last_login, sorted by last_login descending (latest first)
+        user_list = [
             {'username': u, 'last_login': users[u].get('last_login', '-')}
-            for u in users if users[u]['role'] != 'admin']})
+            for u in users if users[u]['role'] != 'admin']
+        def parse_last_login(val):
+            try:
+                return datetime.fromisoformat(val) if val and val != '-' else datetime.min
+            except Exception:
+                return datetime.min
+        user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
+        return jsonify({'users': user_list})
     elif request.method == 'POST':
         data = request.json
         username = data.get('username', '').strip()
@@ -620,9 +693,9 @@ def admin_logout_user():
         if target_username not in users:
             return jsonify({'status': 'error', 'message': 'User not found'}), 404
         
-        # Store logout request in Redis for server-side session invalidation
-        logout_key = f'logout_request_{target_username}'
-        redis_client.set(logout_key, 'admin_logout')
+        # Store new logout_version in Redis for server-side session invalidation
+        new_version = secrets.token_hex(8)
+        set_logout_version(target_username, new_version)
         
         # Send SSE logout event
         publish_sse_event(target_username, 'logout', {'reason': 'Logged out by admin'})
@@ -652,26 +725,36 @@ def require_login():
     if not session.get('username'):
         return redirect(url_for('login_page'))
     
-    # Check for session expiration first
-    if is_session_expired():
-        session.clear()
-        return redirect(url_for('login_page'))
+    # --- Session Timeout Check (skip for admin users) ---
+    if session.get('role') != 'admin':  # Only check timeout for non-admin users
+        now = datetime.now(timezone.utc)
+        last_activity_str = session.get('last_activity')
+        if last_activity_str:
+            try:
+                last_activity = datetime.fromisoformat(last_activity_str.replace('Z', '+00:00'))
+                if (now - last_activity).total_seconds() > SESSION_TIMEOUT_SECONDS:
+                    session.clear()
+                    return redirect(url_for('login_page'))
+            except Exception as e:
+                logger.error(f"Error parsing last_activity: {str(e)}")
+                session.clear()
+                return redirect(url_for('login_page'))
+        else:
+            session.clear()
+            return redirect(url_for('login_page'))
     
-    # Check for admin logout request
+    # --- Forced Logout Check ---
     username = session.get('username')
     if username:
-        logout_key = f'logout_request_{username}'
-        try:
-            logout_data = redis_client.get(logout_key)
-            if logout_data:
-                # Clear the logout request and redirect to login
-                redis_client.delete(logout_key)
-                session.clear()
-                resp = redirect(url_for('login_page'))
-                resp.set_cookie('session', '', expires=0)
-                return resp
-        except Exception as e:
-            logger.error(f"Error checking logout request: {str(e)}")
+        session_version = session.get('logout_version')
+        redis_version = get_logout_version(username)
+        if redis_version and session_version != redis_version:
+            session.clear()
+            resp = redirect(url_for('login_page'))
+            resp.set_cookie('session', '', expires=0)
+            return resp
+    # --- Update last_activity ---
+    session['last_activity'] = datetime.now(timezone.utc).isoformat()
 
 @app.route('/login', methods=['GET'])
 def login_page():
