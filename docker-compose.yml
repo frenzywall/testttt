@@ -21,7 +21,7 @@ services:
       - ADMIN_PASSWORD=changeme           # Default admin password. Any string. CHANGE for production!
 
       # --- User session settings ---
-      - SESSION_TIMEOUT_SECONDS=10       # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
+      - SESSION_TIMEOUT_SECONDS=600       # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
       - PERMANENT_SESSION_LIFETIME_DAYS=365  # Admin session lifetime in days. Default: 365 (1 year). Set lower for more security.
 
       # --- Redis configuration ---
@@ -42,7 +42,7 @@ services:
       - TEMP_DIR=/app/temp                # Directory for temporary files. Default: /app/temp. Must be writable by the app.
 
       # --- AI Integration (optional, but recommended to set if using Gemini AI features) ---
-      - GEMINI_API_KEY=AIzaSyDwnokPDps3c8iEikkDU_s5H_YFznYIXw0  # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
+      - GEMINI_API_KEY=your-gemini-api-key  # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
       - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
 
       # --- Passkey for restricted actions (recommended for extra security) ---
