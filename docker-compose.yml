@@ -11,7 +11,7 @@ services:
       - PASSKEY=passkey
       - SECRET_KEY=secret
       - GEMINI_MODEL=gemini-2.5-flash
-      - GEMINI_API_KEY=AIzaSyA_MSj_8Lu_oFarZqiLwTsLpadQzMGlkFU
+      - GEMINI_API_KEY=your-gemini-api-key
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - AI_CHAT_ENABLED=true
@@ -32,17 +32,17 @@ services:
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
 
-  redisinsight:
-    image: redislabs/redisinsight:latest
-    container_name: redisinsight
-    ports:
-      - "5540:5540"
-    depends_on:
-      - redis
-    environment:
-      - REDISINSIGHT_REDIS_HOST=redis
-      - REDISINSIGHT_REDIS_PORT=6379
-    restart: unless-stopped
+  # redisinsight:
+  #   image: redislabs/redisinsight:latest
+  #   container_name: redisinsight
+  #   ports:
+  #     - "5540:5540"
+  #   depends_on:
+  #     - redis
+  #   environment:
+  #     - REDISINSIGHT_REDIS_HOST=redis
+  #     - REDISINSIGHT_REDIS_PORT=6379
+  #   restart: unless-stopped
 
 volumes:
   redis_data:
