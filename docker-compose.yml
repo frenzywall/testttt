@@ -17,8 +17,8 @@ services:
       - SECRET_KEY=changeme               # Secret key for session security. Set to a long, random string in production. If omitted, a random key is generated (not persistent).
 
       # --- Admin credentials (change for production) ---
-      - ADMIN_USERNAME=adminlol             # Default admin username. Any string.
-      - ADMIN_PASSWORD=changeme           # Default admin password. Any string. CHANGE for production!
+      - ADMIN_USERNAME=admin           # Default admin username. Any string.
+      - ADMIN_PASSWORD=admin           # Default admin password. Any string. CHANGE for production!
 
       # --- User session settings ---
       - SESSION_TIMEOUT_SECONDS=600       # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
@@ -62,7 +62,7 @@ services:
       - change_management 
 
   redis:
-    image: redis:7.0.15-bookworm
+    image: redis:8.0.3-bookworm
     ports:
       - "6379:6379"
     volumes:

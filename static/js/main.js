@@ -1653,10 +1653,7 @@ function syncAllDataToRedis(saveToHistory = false) {
                     // Update the timestamp
                     document.getElementById('dataTimestamp').value = result.timestamp;
                     // Update the last-edited-by field in real time
-                    const lastEditedByDiv = document.querySelector('.last-edited-by b');
-                    if (lastEditedByDiv) {
-                        lastEditedByDiv.textContent = username;
-                    }
+
                     
                     const successEl = document.createElement('div');
                     successEl.className = 'sync-success';
@@ -1872,10 +1869,7 @@ function syncAllDataToRedis(saveToHistory = false) {
                     // Update the timestamp
                     document.getElementById('dataTimestamp').value = result.timestamp;
                     // Update the last-edited-by field in real time
-                    const lastEditedByDiv = document.querySelector('.last-edited-by b');
-                    if (lastEditedByDiv) {
-                        lastEditedByDiv.textContent = username;
-                    }
+
                     
                     const successEl = document.createElement('div');
                     successEl.className = 'sync-success';
@@ -2132,11 +2126,7 @@ function syncAllDataToRedis(saveToHistory = false) {
             // Update the timestamp
             document.getElementById('dataTimestamp').value = result.timestamp;
             // Update the last-edited-by field in real time
-            const lastEditedByDiv = document.querySelector('.last-edited-by b');
-            if (lastEditedByDiv) {
-                lastEditedByDiv.textContent = username;
-            }
-            
+
             const successEl = document.createElement('div');
             successEl.className = 'sync-success';
             successEl.innerHTML = '<i class="fas fa-check-circle"></i> ' +
@@ -3293,7 +3283,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const headerTitle = document.getElementById('headerTitle');
     if (headerTitle) {
         headerTitle.style.cursor = 'pointer';
-        headerTitle.addEventListener('click', () => openHistoryModal(true));
+        headerTitle.addEventListener('click', function() {
+            if (headerTitle.isContentEditable) {
+                headerTitle.focus();
+                return;
+            }
+            openHistoryModal(true);
+        });
     }
     // ...existing code...
 });
