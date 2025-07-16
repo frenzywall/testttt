@@ -42,7 +42,7 @@ services:
       - TEMP_DIR=/app/temp                # Directory for temporary files. Default: /app/temp. Must be writable by the app.
 
       # --- AI Integration (optional, but recommended to set if using Gemini AI features) ---
-      - GEMINI_API_KEY=AIzaSyD4TPPx8_2JVk-YqBz3CeysyPVr6Eta6z4  # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
+      - GEMINI_API_KEY=your-gemini-api-key # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
       - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
 
       # --- Passkey for restricted actions (recommended for extra security) ---
