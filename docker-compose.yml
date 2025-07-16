@@ -4,20 +4,57 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - FLASK_APP=app.py
-      - FLASK_DEBUG=1
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - PASSKEY=passkey
-      - SECRET_KEY=secret
-      - GEMINI_MODEL=gemini-2.5-flash
-      - GEMINI_API_KEY=your-gemini-api-key
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-      - AI_CHAT_ENABLED=true
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin
-      - SESSION_TIMEOUT_SECONDS=10
+      # --- All supported environment variables are listed below. ---
+      # You can comment out any variable to use the app's default value.
+      # For secrets (SECRET_KEY, ADMIN_PASSWORD, PASSKEY, GEMINI_API_KEY),
+      # commenting out means the app will generate a random value or disable the feature (NOT recommended for production).
+      # For production, always set strong, unique values for all secrets and disable debug mode.
+
+      # --- Core Flask settings ---
+      - FLASK_APP=app.py                  # Main Flask app file. Usually 'app.py' or 'wsgi.py'.
+      - FLASK_DEBUG=0                     # 1=debug mode (shows errors, auto-reloads; use for development), 0=production (recommended for prod).
+      - PORT=5000                         # Port Flask runs on inside the container. Default: 5000. Change if you want to run on a different port.
+      - SECRET_KEY=changeme               # Secret key for session security. Set to a long, random string in production. If omitted, a random key is generated (not persistent).
+
+      # --- Admin credentials (change for production) ---
+      - ADMIN_USERNAME=admin              # Default admin username. Any string.
+      - ADMIN_PASSWORD=changeme           # Default admin password. Any string. CHANGE for production!
+
+      # --- User session settings ---
+      - SESSION_TIMEOUT_SECONDS=10       # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
+      - PERMANENT_SESSION_LIFETIME_DAYS=365  # Admin session lifetime in days. Default: 365 (1 year). Set lower for more security.
+
+      # --- Redis configuration ---
+      - REDIS_HOST=redis                  # Redis server hostname. 'redis' if using the default service name in docker-compose.
+      - REDIS_PORT=6379                   # Redis server port. Default: 6379.
+      - REDIS_DB=0                        # Redis DB index for app data. Default: 0. Change if you want to separate data.
+      - REDIS_SESSION_DB=1                # Redis DB index for session data. Default: 1. Change if you want to separate sessions.
+      - REDIS_SOCKET_TIMEOUT=5            # Redis socket timeout in seconds. Default: 5. Increase if you have slow network/storage.
+      - REDIS_SOCKET_CONNECT_TIMEOUT=5    # Redis connect timeout in seconds. Default: 5.
+      - REDIS_HEALTH_CHECK_INTERVAL=30    # Redis health check interval in seconds. Default: 30.
+
+      # --- Rate limiting ---
+      - RATE_LIMIT=5                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.
+      - RATE_WINDOW=60                    # Window size in seconds for rate limiting. Default: 60 (1 minute).
+
+      # --- History and temp ---
+      - HISTORY_LIMIT=1000                # Max number of history entries to keep. Default: 1000. Lower to save memory.
+      - TEMP_DIR=/app/temp                # Directory for temporary files. Default: /app/temp. Must be writable by the app.
+
+      # --- AI Integration (optional, but recommended to set if using Gemini AI features) ---
+      - GEMINI_API_KEY=AIzaSyDwnokPDps3c8iEikkDU_s5H_YFznYIXw0  # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
+      - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
+
+      # --- Passkey for restricted actions (recommended for extra security) ---
+      - PASSKEY=changeme                  # Passkey for extra security on admin actions. Any string. Set for production.
+
+      # --- Timezone (optional, for container time sync) ---
+      - /etc/timezone:/etc/timezone:ro    # Mounts host timezone into container. Optional, for correct time display/logs.
+      - /etc/localtime:/etc/localtime:ro  # Mounts host localtime into container. Optional.
+
+      # --- AI chat toggle (optional, for UI) ---
+      - AI_CHAT_ENABLED=true              # true/false. Enables or disables AI chat features in the UI. Default: true.
+
     depends_on:
       - redis
     restart: unless-stopped
@@ -31,18 +68,6 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-
-  # redisinsight:
-  #   image: redislabs/redisinsight:latest
-  #   container_name: redisinsight
-  #   ports:
-  #     - "5540:5540"
-  #   depends_on:
-  #     - redis
-  #   environment:
-  #     - REDISINSIGHT_REDIS_HOST=redis
-  #     - REDISINSIGHT_REDIS_PORT=6379
-  #   restart: unless-stopped
 
 volumes:
   redis_data:

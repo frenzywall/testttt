@@ -3119,12 +3119,18 @@ background-color: rgba(245, 158, 11, 0.4);
   }
   
   .history-item-btn.delete {
-    background: rgba(var(--danger-color-rgb, 248, 113, 113), 0.08);
-    color: var(--danger-color);
+    background: #ff4d4f !important;
+    color: #fff !important;
+    border: none;
+    box-shadow: 0 2px 8px rgba(255,77,79,0.08);
+    font-weight: bold;
+    transition: background 0.2s, box-shadow 0.2s;
   }
   
-  .history-item-btn.delete:hover {
-    background: rgba(var(--danger-color-rgb, 248, 113, 113), 0.15);
+  .history-item-btn.delete:hover, .history-item-btn.delete:focus {
+    background: #ff1a1a !important;
+    color: #fff !important;
+    box-shadow: 0 4px 16px rgba(255,77,79,0.18);
   }
   
   /* Empty state improvements */
@@ -3588,6 +3594,15 @@ background-color: rgba(245, 158, 11, 0.4);
   overflow: hidden;
   clip: rect(0,0,0,0);
   border: 0;
+}
+
+#logout-glow-line {
+    animation: logoutGlowPulse 1.2s cubic-bezier(.4,2,.6,1) 1;
+}
+@keyframes logoutGlowPulse {
+    0% { box-shadow: 0 0 0 0 #ef4444cc, 0 0 0 0 #f87171aa; }
+    40% { box-shadow: 0 0 16px 4px #ef4444cc, 0 0 32px 8px #f87171aa; }
+    100% { box-shadow: 0 0 16px 4px #ef4444cc, 0 0 32px 8px #f87171aa; }
 }
 
 

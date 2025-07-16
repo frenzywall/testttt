@@ -22,6 +22,30 @@ import threading
 from flask import g
 from flask_session import Session
 
+# --- Supported Environment Variables ---
+# SECRET_KEY: Flask secret key
+# FLASK_DEBUG: Enable Flask debug mode (0/1)
+# PORT: Flask app port
+# SESSION_TIMEOUT_SECONDS: Session timeout for users (seconds)
+# SESSION_TIMEOUT_HOURS: Session timeout for users (hours)
+# PERMANENT_SESSION_LIFETIME_DAYS: Session lifetime for admin users (days)
+# REDIS_HOST: Redis host
+# REDIS_PORT: Redis port
+# REDIS_DB: Redis DB for app data (default 0)
+# REDIS_SESSION_DB: Redis DB for session data (default 1)
+# REDIS_SOCKET_TIMEOUT: Redis socket timeout (seconds)
+# REDIS_SOCKET_CONNECT_TIMEOUT: Redis socket connect timeout (seconds)
+# REDIS_HEALTH_CHECK_INTERVAL: Redis health check interval (seconds)
+# ADMIN_USERNAME: Default admin username
+# ADMIN_PASSWORD: Default admin password
+# PASSKEY: Passkey for restricted actions
+# RATE_LIMIT: Rate limit (requests per window)
+# RATE_WINDOW: Rate limit window (seconds)
+# HISTORY_LIMIT: Max history entries
+# TEMP_DIR: Temp file directory
+# GEMINI_API_KEY: Google Gemini API key
+# GEMINI_MODEL: Google Gemini model name
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -35,21 +59,39 @@ if not app.secret_key:
     app.secret_key = secrets.token_hex(16)
     logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
 
-# Configure session timeout (configurable via environment variable)
-session_timeout_seconds = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
-session_timeout_hours = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
-logger.info(f"Session timeout configured for {session_timeout_seconds} seconds (testing mode)")
+# --- Load config from environment variables ---
+SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
+SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
+PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
+REDIS_SOCKET_TIMEOUT = int(os.environ.get('REDIS_SOCKET_TIMEOUT', 5))
+REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get('REDIS_SOCKET_CONNECT_TIMEOUT', 5))
+REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get('REDIS_HEALTH_CHECK_INTERVAL', 30))
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
+PASSKEY = os.environ.get('PASSKEY')
+RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
+RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
+HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
+TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+
+logger.info(f"Session timeout configured for {SESSION_TIMEOUT_SECONDS} seconds (testing mode)")
 
 # --- Redis client for app data (decode_responses=True, db=0) ---
 try:
     redis_client = redis.Redis(
-        host=os.getenv('REDIS_HOST', 'redis'),
-        port=int(os.getenv('REDIS_PORT', 6379)),
-        db=0,
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_DB,
         decode_responses=True,
-        socket_timeout=5,  
-        socket_connect_timeout=5,
-        health_check_interval=30
+        socket_timeout=REDIS_SOCKET_TIMEOUT,  
+        socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
     )
     redis_client.ping()
     logger.info("Successfully connected to Redis (app data)")
@@ -89,13 +131,13 @@ except redis.RedisError as e:
 from flask_session import Session
 try:
     session_redis = redis.Redis(
-        host=os.getenv('REDIS_HOST', 'redis'),
-        port=int(os.getenv('REDIS_PORT', 6379)),
-        db=1,  # Use a different DB for sessions
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_SESSION_DB,  # Use a different DB for sessions
         decode_responses=False,
-        socket_timeout=5,  
-        socket_connect_timeout=5,
-        health_check_interval=30
+        socket_timeout=REDIS_SOCKET_TIMEOUT,  
+        socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
     )
     session_redis.ping()
     logger.info("Successfully connected to Redis (session data)")
@@ -109,11 +151,10 @@ app.config['SESSION_PERMANENT'] = True
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'flask_session:'
 # Set a very long session lifetime for Flask-Session (admin users)
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)  # 1 year default
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=PERMANENT_SESSION_LIFETIME_DAYS)  # 1 year default
 Session(app)
 
 # --- Session Timeout and Forced Logout Enhancements ---
-SESSION_TIMEOUT_SECONDS = session_timeout_seconds  # Use configured value
 LOGOUT_VERSION_HASH_KEY = 'logout_versions'  # Redis hash to store all user logout_versions
 
 # Helper: get logout version from Redis hash
@@ -149,7 +190,7 @@ def is_session_expired():
         login_time = datetime.fromisoformat(session['login_time'].replace('Z', '+00:00'))
         current_time = datetime.now(timezone.utc)
         elapsed_seconds = (current_time - login_time).total_seconds()
-        return elapsed_seconds > session_timeout_seconds
+        return elapsed_seconds > SESSION_TIMEOUT_SECONDS
     except Exception as e:
         logger.error(f"Error checking session expiration: {str(e)}")
         return True
@@ -169,12 +210,6 @@ if not os.path.exists(temp_dir):
 tempfile.tempdir = temp_dir
 
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-logger.info(f"Using static directory: {static_dir}")
-logger.info(f"Static directory exists: {os.path.exists(static_dir)}")
-if os.path.exists(static_dir):
-    logger.info(f"Static directory contents: {os.listdir(static_dir)}")
-else:
-    logger.warning("Static directory does not exist")
 
 RATE_LIMIT = int(os.getenv('RATE_LIMIT', 5))  
 RATE_WINDOW = int(os.getenv('RATE_WINDOW', 60))  
@@ -471,6 +506,19 @@ def calculate_performance_metrics():
     
     return metrics
 
+# --- Helper: Parse last_login as timezone-aware datetime ---
+def parse_last_login(val):
+    try:
+        if val and val != '-':
+            dt = datetime.fromisoformat(val)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        else:
+            return datetime.min.replace(tzinfo=timezone.utc)
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
 # User management config
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
@@ -500,8 +548,12 @@ bootstrap_admin()
 
 # Get users dict
 def get_users():
-    users = redis_client.get(USERS_KEY)
-    return json.loads(users) if users else {}
+    try:
+        users = redis_client.get(USERS_KEY)
+        return json.loads(users) if users else {}
+    except Exception as e:
+        logger.error(f"Error loading users: {e}")
+        return None
 
 def save_users(users):
     redis_client.set(USERS_KEY, json.dumps(users))
@@ -537,7 +589,7 @@ def login():
     if user['role'] == 'admin':
         logger.info(f"Admin user {username} logged in - session set to 1 year")
     else:
-        logger.info(f"Regular user {username} logged in - session timeout: {session_timeout_seconds} seconds")
+        logger.info(f"Regular user {username} logged in - session timeout: {SESSION_TIMEOUT_SECONDS} seconds")
     
     # Update last_login
     user['last_login'] = datetime.now(timezone.utc).isoformat()
@@ -574,53 +626,54 @@ def current_user():
 def manage_users():
     if session.get('role') != 'admin':
         return jsonify({'status': 'error', 'message': 'Admin only'}), 403
-    users = get_users()
-    if request.method == 'GET':
-        # Return users with last_login, sorted by last_login descending (latest first)
-        user_list = [
-            {'username': u, 'last_login': users[u].get('last_login', '-')}
-            for u in users if users[u]['role'] != 'admin']
-        def parse_last_login(val):
-            try:
-                return datetime.fromisoformat(val) if val and val != '-' else datetime.min
-            except Exception:
-                return datetime.min
-        user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
-        return jsonify({'users': user_list})
-    elif request.method == 'POST':
-        data = request.json
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        if not username or not password:
-            return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
-        if username in users:
-            return jsonify({'status': 'error', 'message': 'User already exists'}), 400
-        users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-'}
-        save_users(users)
-        return jsonify({'status': 'success'})
-    elif request.method == 'DELETE':
-        data = request.json
-        username = data.get('username', '').strip()
-        if not username or username not in users:
-            return jsonify({'status': 'error', 'message': 'User not found'}), 404
-        if users[username]['role'] == 'admin':
-            return jsonify({'status': 'error', 'message': 'Cannot delete admin'}), 400
-        del users[username]
-        save_users(users)
-        return jsonify({'status': 'success'})
-    elif request.method == 'PUT':
-        data = request.json
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        if not username or not password:
-            return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
-        if username not in users:
-            return jsonify({'status': 'error', 'message': 'User not found'}), 404
-        if users[username]['role'] == 'admin':
-            return jsonify({'status': 'error', 'message': 'Cannot update admin password here'}), 400
-        users[username]['password'] = hash_password(password)
-        save_users(users)
-        return jsonify({'status': 'success'})
+    try:
+        users = get_users()
+        if users is None:
+            return jsonify({'status': 'error', 'message': 'Failed to load users'}), 500
+        if request.method == 'GET':
+            # Return users with last_login, sorted by last_login descending (latest first)
+            user_list = [
+                {'username': u, 'last_login': users[u].get('last_login', '-')}
+                for u in users if users[u]['role'] != 'admin']
+            user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
+            return jsonify({'users': user_list})
+        elif request.method == 'POST':
+            data = request.json
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            if not username or not password:
+                return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
+            if username in users:
+                return jsonify({'status': 'error', 'message': 'User already exists'}), 400
+            users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-'}
+            save_users(users)
+            return jsonify({'status': 'success'})
+        elif request.method == 'DELETE':
+            data = request.json
+            username = data.get('username', '').strip()
+            if not username or username not in users:
+                return jsonify({'status': 'error', 'message': 'User not found'}), 404
+            if users[username]['role'] == 'admin':
+                return jsonify({'status': 'error', 'message': 'Cannot delete admin'}), 400
+            del users[username]
+            save_users(users)
+            return jsonify({'status': 'success'})
+        elif request.method == 'PUT':
+            data = request.json
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            if not username or not password:
+                return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
+            if username not in users:
+                return jsonify({'status': 'error', 'message': 'User not found'}), 404
+            if users[username]['role'] == 'admin':
+                return jsonify({'status': 'error', 'message': 'Cannot update admin password here'}), 400
+            users[username]['password'] = hash_password(password)
+            save_users(users)
+            return jsonify({'status': 'success'})
+    except Exception as e:
+        logger.error(f"/users route error: {e}")
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
 @app.route('/change-password', methods=['POST'])
 def change_password():
@@ -697,8 +750,12 @@ def admin_logout_user():
         new_version = secrets.token_hex(8)
         set_logout_version(target_username, new_version)
         
-        # Send SSE logout event
+        # Send SSE logout event to the user
         publish_sse_event(target_username, 'logout', {'reason': 'Logged out by admin'})
+        # Send SSE user-logout event to all admins except the user being logged out
+        for admin_username in get_admin_usernames():
+            if admin_username != target_username:
+                publish_sse_event(admin_username, 'user-logout', {'username': target_username, 'by': session.get('username')})
         logger.info(f"Admin {session.get('username')} logged out user {target_username}")
         return jsonify({'status': 'success', 'message': f'Logout event sent for user {target_username}'})
             
@@ -1193,11 +1250,11 @@ def ai_status():
         import ai_processor
         
         # Check if API key is configured
-        api_key_configured = bool(os.environ.get("GEMINI_API_KEY"))
+        api_key_configured = bool(GEMINI_API_KEY)
         
         if not api_key_configured:
             return jsonify({
-                'model': os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash'),
+                'model': GEMINI_MODEL,
                 'apiKeyStatus': 'disconnected',
                 'connectionStatus': 'error',
                 'error': 'GEMINI_API_KEY environment variable not set',
@@ -1218,7 +1275,7 @@ def ai_status():
         connection_status_value = 'connected' if connection_status['connected'] else 'error'
         
         # Get model information
-        model_name = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+        model_name = GEMINI_MODEL
         
         # Check if the specific model is available
         model_available = False
@@ -1307,7 +1364,7 @@ def ask_ai():
             }), 400
         
         # Check if Gemini API is available
-        if not os.environ.get("GEMINI_API_KEY"):
+        if not GEMINI_API_KEY:
             return jsonify({
                 'status': 'error',
                 'message': 'AI service is not configured'
@@ -1339,7 +1396,7 @@ User Question: {question}
 """
         
         # Use the existing AI processor to get response
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        client = genai.Client(api_key=GEMINI_API_KEY)
         
         contents = [
             types.Content(
@@ -1356,7 +1413,7 @@ User Question: {question}
         )
         
         response = client.models.generate_content(
-            model=os.environ.get('GEMINI_MODEL', 'gemini-1.5-pro'),
+            model=GEMINI_MODEL,
             contents=contents,
             config=generate_config
         )

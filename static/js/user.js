@@ -177,187 +177,206 @@ function showProfileModal(user) {
     if(user.role==='admin'){
         let userSortOrder = 'desc'; // 'desc' for newest first, 'asc' for oldest first
         function refreshUsers(){
-            fetch('/users').then(r=>r.json()).then(data=>{
-                const list = document.getElementById('userList');
-                list.innerHTML = '';
-                const users = (data.users||[]);
-                const searchVal = (document.getElementById('userSearch')?.value||'').toLowerCase();
-                let filteredUsers = users.filter(uobj => uobj.username.toLowerCase().includes(searchVal));
-                if(userSortOrder==='desc') {
-                    filteredUsers = filteredUsers.slice().sort((a,b)=>{
-                        if(a.last_login==='-' && b.last_login==='-') return 0;
-                        if(a.last_login==='-') return 1;
-                        if(b.last_login==='-') return -1;
-                        return b.last_login.localeCompare(a.last_login);
-                    });
-                } else if(userSortOrder==='asc') {
-                    filteredUsers = filteredUsers.slice().sort((a,b)=>{
-                        if(a.last_login==='-' && b.last_login==='-') return 0;
-                        if(a.last_login==='-') return 1;
-                        if(b.last_login==='-') return -1;
-                        return a.last_login.localeCompare(b.last_login);
-                    });
-                }
-                // User count and divider
-                const countDiv = document.createElement('div');
-                countDiv.className = 'user-count';
-                countDiv.innerHTML = `<span><b>${filteredUsers.length}</b> User${filteredUsers.length!==1?'s':''}</span>`;
-                list.appendChild(countDiv);
-                if(filteredUsers.length>0){
-                    const divider = document.createElement('div');
-                    divider.className = 'user-divider';
-                    list.appendChild(divider);
-                }
-                // User list scrollable
-                const scrollWrap = document.createElement('div');
-                scrollWrap.className = 'user-list-scroll';
-                filteredUsers.forEach(uobj=>{
-                    const u = uobj.username;
-                    let lastLogin = uobj.last_login || '-';
-                    if (lastLogin && lastLogin !== '-') {
-                        try {
-                            const d = new Date(lastLogin);
-                            if (!isNaN(d)) {
-                                lastLogin = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                            }
-                        } catch (e) {}
+            fetch('/users')
+                .then(r => r.json())
+                .then(data => {
+                    const list = document.getElementById('userList');
+                    list.innerHTML = '';
+                    const users = (data.users||[]);
+                    const searchVal = (document.getElementById('userSearch')?.value||'').toLowerCase();
+                    let filteredUsers = users.filter(uobj => uobj.username.toLowerCase().includes(searchVal));
+                    if(userSortOrder==='desc') {
+                        filteredUsers = filteredUsers.slice().sort((a,b)=>{
+                            if(a.last_login==='-' && b.last_login==='-') return 0;
+                            if(a.last_login==='-') return 1;
+                            if(b.last_login==='-') return -1;
+                            return b.last_login.localeCompare(a.last_login);
+                        });
+                    } else if(userSortOrder==='asc') {
+                        filteredUsers = filteredUsers.slice().sort((a,b)=>{
+                            if(a.last_login==='-' && b.last_login==='-') return 0;
+                            if(a.last_login==='-') return 1;
+                            if(b.last_login==='-') return -1;
+                            return a.last_login.localeCompare(b.last_login);
+                        });
                     }
-                    // Add refresh icon for animation
-                    const lastLoginHtml = `<span class="user-last-login">Last login: <b>${lastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i></span>`;
-                    const card = document.createElement('div');
-                    card.className = 'user-card';
-                    // Avatar/initials
-                    const avatar = document.createElement('div');
-                    avatar.className = 'user-avatar';
-                    avatar.textContent = u[0].toUpperCase();
-                    card.appendChild(avatar);
-                    // Username and last login
-                    const info = document.createElement('div');
-                    info.className = 'user-info';
-                    info.innerHTML = `<span class="user-name">${u}</span>${lastLoginHtml}`;
-                    card.appendChild(info);
-                    // Actions
-                    const actions = document.createElement('div');
-                    actions.className = 'user-actions';
-                    // Edit button
-                    const edit = document.createElement('button');
-                    edit.innerHTML = '<i class="fas fa-edit"></i>';
-                    edit.className = 'btn user-edit-btn';
-                    edit.title = 'Edit Password';
-                    // Logout button
-                    const logout = document.createElement('button');
-                    logout.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-                    logout.className = 'btn user-logout-btn';
-                    logout.title = 'Logout User';
-                    logout.style.background = 'linear-gradient(135deg,#f59e0b,#fbbf24)';
-                    
-                    // Delete button
-                    const del = document.createElement('button');
-                    del.innerHTML = '<i class="fas fa-trash"></i>';
-                    del.className = 'btn user-delete-btn';
-                    del.title = 'Delete User';
-                    // Inline password edit logic
-                    let editing = false;
-                    edit.onclick = function() {
-                        if (editing) return;
-                        editing = true;
-                        // Remove any other open editors
-                        document.querySelectorAll('.user-edit-inline').forEach(e=>e.remove());
-                        // Inline form
-                        const inline = document.createElement('div');
-                        inline.className = 'user-edit-inline';
-                        inline.style.display = 'flex';
-                        inline.style.alignItems = 'center';
-                        inline.style.gap = '0.5rem';
-                        inline.style.marginTop = '0.5rem';
-                        inline.innerHTML = `
-                          <input type="password" class="user-edit-input" placeholder="New Password" style="padding:0.4rem 0.8rem;border-radius:7px;border:1px solid #3b82f6;background:rgba(255,255,255,0.08);color:#eaf1fb;font-size:0.98rem;outline:none;">
-                          <button class="btn user-edit-save" style="background:linear-gradient(135deg,#22c55e,#4ade80);color:#fff;padding:0.4rem 0.8rem;border-radius:7px;font-size:1rem;">Save</button>
-                          <button class="btn user-edit-cancel" style="background:linear-gradient(135deg,#64748b,#94a3b8);color:#fff;padding:0.4rem 0.8rem;border-radius:7px;font-size:1rem;">Cancel</button>
-                          <span class="user-edit-msg" style="margin-left:0.5rem;font-size:0.98rem;"></span>
-                        `;
-                        info.appendChild(inline);
-                        // Save/cancel logic
-                        inline.querySelector('.user-edit-cancel').onclick = function() {
-                            inline.remove();
-                            editing = false;
-                        };
-                        inline.querySelector('.user-edit-save').onclick = function() {
-                            const npw = inline.querySelector('.user-edit-input').value;
-                            if (!npw) {
-                                inline.querySelector('.user-edit-msg').textContent = 'Enter password';
-                                return;
-                            }
-                            fetch('/users',{
-                                method:'PUT',
-                                headers:{'Content-Type':'application/json'},
-                                body:JSON.stringify({username:u,password:npw})
-                            }).then(r=>r.json()).then(data=>{
-                                inline.querySelector('.user-edit-msg').textContent = data.status==='success'?'Updated!':(data.message||'Error');
-                                if(data.status==='success') {
-                                    createNotification('success', 'Password updated successfully!');
-                                    setTimeout(()=>{
-                                        inline.remove();
-                                        editing = false;
-                                    }, 1000);
+                    // User count and divider
+                    const countDiv = document.createElement('div');
+                    countDiv.className = 'user-count';
+                    countDiv.innerHTML = `<span><b>${filteredUsers.length}</b> User${filteredUsers.length!==1?'s':''}</span>`;
+                    list.appendChild(countDiv);
+                    if(filteredUsers.length>0){
+                        const divider = document.createElement('div');
+                        divider.className = 'user-divider';
+                        list.appendChild(divider);
+                    }
+                    // User list scrollable
+                    if(filteredUsers.length === 0) {
+                        const emptyMsg = document.createElement('div');
+                        emptyMsg.className = 'user-list-empty';
+                        emptyMsg.style.cssText = 'padding:2.5rem 0;text-align:center;color:#64748b;font-size:1.13rem;opacity:0.85;';
+                        emptyMsg.innerHTML = '<i class="fas fa-user-slash" style="font-size:1.5rem;margin-bottom:0.5rem;display:block;"></i>No users found';
+                        list.appendChild(emptyMsg);
+                        return;
+                    }
+                    const scrollWrap = document.createElement('div');
+                    scrollWrap.className = 'user-list-scroll';
+                    filteredUsers.forEach(uobj=>{
+                        const u = uobj.username;
+                        let lastLogin = uobj.last_login || '-';
+                        if (lastLogin && lastLogin !== '-') {
+                            try {
+                                const d = new Date(lastLogin);
+                                if (!isNaN(d)) {
+                                    lastLogin = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
                                 }
+                            } catch (e) {}
+                        }
+                        // Add refresh icon for animation
+                        const lastLoginHtml = `<span class="user-last-login">Last login: <b>${lastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i></span>`;
+                        const card = document.createElement('div');
+                        card.className = 'user-card';
+                        // Avatar/initials
+                        const avatar = document.createElement('div');
+                        avatar.className = 'user-avatar';
+                        avatar.textContent = u[0].toUpperCase();
+                        card.appendChild(avatar);
+                        // Username and last login
+                        const info = document.createElement('div');
+                        info.className = 'user-info';
+                        info.innerHTML = `<span class="user-name">${u}</span>${lastLoginHtml}`;
+                        card.appendChild(info);
+                        // Actions
+                        const actions = document.createElement('div');
+                        actions.className = 'user-actions';
+                        // Edit button
+                        const edit = document.createElement('button');
+                        edit.innerHTML = '<i class="fas fa-edit"></i>';
+                        edit.className = 'btn user-edit-btn';
+                        edit.title = 'Edit Password';
+                        // Logout button
+                        const logout = document.createElement('button');
+                        logout.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+                        logout.className = 'btn user-logout-btn';
+                        logout.title = 'Logout User';
+                        logout.style.background = 'linear-gradient(135deg,#f59e0b,#fbbf24)';
+                        
+                        // Delete button
+                        const del = document.createElement('button');
+                        del.innerHTML = '<i class="fas fa-trash"></i>';
+                        del.className = 'btn user-delete-btn';
+                        del.title = 'Delete User';
+                        // Inline password edit logic
+                        let editing = false;
+                        edit.onclick = function() {
+                            if (editing) return;
+                            editing = true;
+                            // Remove any other open editors
+                            document.querySelectorAll('.user-edit-inline').forEach(e=>e.remove());
+                            // Inline form
+                            const inline = document.createElement('div');
+                            inline.className = 'user-edit-inline';
+                            inline.style.display = 'flex';
+                            inline.style.alignItems = 'center';
+                            inline.style.gap = '0.5rem';
+                            inline.style.marginTop = '0.5rem';
+                            inline.innerHTML = `
+                              <input type="password" class="user-edit-input" placeholder="New Password" style="padding:0.4rem 0.8rem;border-radius:7px;border:1px solid #3b82f6;background:rgba(255,255,255,0.08);color:#eaf1fb;font-size:0.98rem;outline:none;">
+                              <button class="btn save-btn" style="padding:0.4rem 1.5rem;font-size:1.08rem;">Save</button>
+                              <button class="btn cancel-btn" style="padding:0.4rem 1.5rem;font-size:1.08rem;">Cancel</button>
+                              <span class="user-edit-msg" style="margin-left:0.5rem;font-size:0.98rem;"></span>
+                            `;
+                            info.appendChild(inline);
+                            // Save/cancel logic
+                            inline.querySelector('.cancel-btn').onclick = function() {
+                                inline.remove();
+                                editing = false;
+                            };
+                            inline.querySelector('.save-btn').onclick = function() {
+                                const npw = inline.querySelector('.user-edit-input').value;
+                                if (!npw) {
+                                    inline.querySelector('.user-edit-msg').textContent = 'Enter password';
+                                    return;
+                                }
+                                fetch('/users',{
+                                    method:'PUT',
+                                    headers:{'Content-Type':'application/json'},
+                                    body:JSON.stringify({username:u,password:npw})
+                                }).then(r=>r.json()).then(data=>{
+                                    inline.querySelector('.user-edit-msg').textContent = data.status==='success'?'Updated!':(data.message||'Error');
+                                    if(data.status==='success') {
+                                        createNotification('success', 'Password updated successfully!');
+                                        setTimeout(()=>{
+                                            inline.remove();
+                                            editing = false;
+                                        }, 1000);
+                                    }
+                                });
+                            };
+                        };
+                        actions.appendChild(edit);
+                        actions.appendChild(logout);
+                        actions.appendChild(del);
+                        
+                        // Logout button functionality
+                        logout.onclick = function(){
+                            createConfirmDialog({
+                                type: 'warning',
+                                icon: 'fa-sign-out-alt',
+                                title: 'Logout User',
+                                message: `Are you sure you want to log out user <b>${u}</b>? They will be redirected to the login page.`,
+                                confirmText: 'Logout',
+                                cancelText: 'Cancel'
+                            }).then(confirmed => {
+                                if (!confirmed) return;
+                                fetch('/admin-logout-user',{
+                                    method:'POST',
+                                    headers:{'Content-Type':'application/json'},
+                                    body:JSON.stringify({username:u})
+                                }).then(r=>r.json()).then(data=>{
+                                    if(data.status==='success') {
+                                        createNotification('success', `Logout request sent for user ${u}`);
+                                    } else {
+                                        createNotification('error', data.message || 'Failed to send logout request');
+                                    }
+                                });
                             });
                         };
-                    };
-                    actions.appendChild(edit);
-                    actions.appendChild(logout);
-                    actions.appendChild(del);
-                    
-                    // Logout button functionality
-                    logout.onclick = function(){
-                        createConfirmDialog({
-                            type: 'warning',
-                            icon: 'fa-sign-out-alt',
-                            title: 'Logout User',
-                            message: `Are you sure you want to log out user <b>${u}</b>? They will be redirected to the login page.`,
-                            confirmText: 'Logout',
-                            cancelText: 'Cancel'
-                        }).then(confirmed => {
-                            if (!confirmed) return;
-                            fetch('/admin-logout-user',{
-                                method:'POST',
-                                headers:{'Content-Type':'application/json'},
-                                body:JSON.stringify({username:u})
-                            }).then(r=>r.json()).then(data=>{
-                                if(data.status==='success') {
-                                    createNotification('success', `Logout request sent for user ${u}`);
-                                } else {
-                                    createNotification('error', data.message || 'Failed to send logout request');
-                                }
+                        
+                        del.onclick = function(){
+                            createConfirmDialog({
+                                type: 'danger',
+                                icon: 'fa-trash',
+                                title: 'Delete User',
+                                message: `Are you sure you want to delete user <b>${u}</b>? This action cannot be undone.`,
+                                confirmText: 'Delete',
+                                cancelText: 'Cancel'
+                            }).then(confirmed => {
+                                if (!confirmed) return;
+                                fetch('/users',{
+                                    method:'DELETE',
+                                    headers:{'Content-Type':'application/json'},
+                                    body:JSON.stringify({username:u})
+                                }).then(()=>{
+                                    refreshUsers();
+                                    createNotification('success', 'User deleted successfully!');
+                                });
                             });
-                        });
-                    };
-                    
-                    del.onclick = function(){
-                        createConfirmDialog({
-                            type: 'danger',
-                            icon: 'fa-trash',
-                            title: 'Delete User',
-                            message: `Are you sure you want to delete user <b>${u}</b>? This action cannot be undone.`,
-                            confirmText: 'Delete',
-                            cancelText: 'Cancel'
-                        }).then(confirmed => {
-                            if (!confirmed) return;
-                            fetch('/users',{
-                                method:'DELETE',
-                                headers:{'Content-Type':'application/json'},
-                                body:JSON.stringify({username:u})
-                            }).then(()=>{
-                                refreshUsers();
-                                createNotification('success', 'User deleted successfully!');
-                            });
-                        });
-                    };
-                    card.appendChild(actions);
-                    scrollWrap.appendChild(card);
+                        };
+                        card.appendChild(actions);
+                        scrollWrap.appendChild(card);
+                    });
+                    list.appendChild(scrollWrap);
+                })
+                .catch(err => {
+                    const list = document.getElementById('userList');
+                    list.innerHTML = '';
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'user-list-empty';
+                    errorMsg.style.cssText = 'padding:2.5rem 0;text-align:center;color:#ef4444;font-size:1.13rem;opacity:0.95;';
+                    errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size:1.5rem;margin-bottom:0.5rem;display:block;"></i>Failed to load users';
+                    list.appendChild(errorMsg);
                 });
-                list.appendChild(scrollWrap);
-            });
         }
         refreshUsers();
         const userSearch = document.getElementById('userSearch');
@@ -401,7 +420,23 @@ function showProfileModal(user) {
                 headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({username:nu,password:npw})
             }).then(r=>r.json()).then(data=>{
-                document.getElementById('profileMsg').textContent = data.status==='success'?'User added!':(data.message||'Error');
+                const msgDiv = document.getElementById('profileMsg');
+                if (data.status === 'success') {
+                    msgDiv.innerHTML = '<span class="feedback-message"><span class="icon">✔️</span> User added!</span>';
+                } else {
+                    msgDiv.innerHTML = '<span class="feedback-message error"><span class="icon">❗</span> ' + (data.message || 'Error') + '</span>';
+                }
+                // Clear form fields
+                document.getElementById('newUser').value = '';
+                document.getElementById('newUserPw').value = '';
+                // Fade out the message after 2.5s
+                const feedback = msgDiv.querySelector('.feedback-message');
+                if (feedback) {
+                    setTimeout(() => {
+                        feedback.classList.add('fade-out');
+                        setTimeout(() => { msgDiv.innerHTML = ''; }, 600);
+                    }, 2500);
+                }
                 refreshUsers();
             });
         };

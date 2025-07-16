@@ -265,7 +265,8 @@ document.querySelector('table').addEventListener('click', function(e) {
                 date: cells[1].textContent,
                 startTime: cells[2].textContent,
                 endTime: cells[3].textContent,
-                comments: cells[4].textContent,
+                endDate: cells[4].textContent,
+                comments: cells[5].textContent,
                 impactPriority: row.querySelector('.impact-selector').getAttribute('data-value')
             };
 
@@ -3071,17 +3072,23 @@ document.addEventListener('DOMContentLoaded', function() {
         enableRestrictedFeatures();
     }
     
-    // --- SSE for logout and login updates ---
+    // ... SSE for logout and login updates ---
     if (window.EventSource) {
         try {
             const sse = new EventSource('/events');
             sse.addEventListener('logout', function(e) {
+                showTopBarAnimation({
+                    color: '#ef4444',
+                    glow: true,
+                    id: 'logout-activity-bar',
+                    duration: 2.2,
+                    gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
+                });
                 createNotification('warning', 'You have been logged out by an administrator');
                 setTimeout(() => {
                     window.location.reload(); // Force reload to trigger backend session check
                 }, 1000); // 1 second delay for user to see the notification
             });
-            // Add login event handler here
             sse.addEventListener('login', function(e) {
                 let data;
                 try {
@@ -3183,4 +3190,80 @@ document.addEventListener('visibilitychange', function() {
             });
     }
 });
+
+function showTopBarAnimation({color, glow, id, duration, gradient}) {
+    // Remove any existing bar with this id
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const bar = document.createElement('div');
+    bar.id = id;
+    bar.style.position = 'fixed';
+    bar.style.top = '0';
+    bar.style.left = '50%';
+    bar.style.transform = 'translateX(-50%)';
+    bar.style.width = '0%';
+    bar.style.height = '6px';
+    bar.style.zIndex = '99999';
+    bar.style.pointerEvents = 'none';
+    bar.style.borderRadius = '0 0 16px 16px';
+    bar.style.background = gradient || color;
+    if (glow) {
+        bar.style.boxShadow = '0 0 16px 4px ' + color + 'cc, 0 0 32px 8px ' + color + 'aa';
+    }
+    document.body.appendChild(bar);
+    // Add keyframes for smooth, alive effect
+    const styleSheet = document.createElement('style');
+    styleSheet.innerHTML = `@keyframes top-bar-expand-contract-${id} {
+        0% { width: 0%; opacity: 0.7; }
+        10% { width: 60%; opacity: 0.85; }
+        50% { width: 100%; opacity: 1; }
+        70% { width: 80%; opacity: 0.85; }
+        90% { width: 40%; opacity: 0.7; }
+        100% { width: 0%; opacity: 0.5; }
+    }`;
+    document.head.appendChild(styleSheet);
+    bar.style.animation = `top-bar-expand-contract-${id} ${duration || 2.2}s cubic-bezier(.4,2,.6,1)`;
+    setTimeout(() => { bar.remove(); styleSheet.remove(); }, (duration || 2.2) * 1000);
+}
+
+// ... existing code ...
+if (window.sseSource) window.sseSource.close();
+window.sseSource = new EventSource('/events');
+window.sseSource.addEventListener('logout', function(e) {
+    // User is being logged out (session expired or admin kickout)
+    showTopBarAnimation({
+        color: '#ef4444',
+        glow: true,
+        id: 'logout-bar',
+        duration: 4.6,
+        gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
+    });
+    setTimeout(function() { window.location.href = '/login'; }, 1200);
+});
+window.sseSource.addEventListener('user-logout', function(e) {
+    // Admin sees when any user is logged out
+    const data = JSON.parse(e.data || '{}');
+    showTopBarAnimation({
+        color: '#ef4444',
+        glow: true,
+        id: 'logout-bar',
+        duration: 4.6,
+        gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
+    });
+    // Optionally, show a notification to the admin
+    if (window.createNotification) {
+        createNotification(`User <b>${data.username}</b> was logged out by <b>${data.by}</b>.`, 'info', 3500);
+    }
+});
+// ... existing code ...
+
+document.addEventListener('DOMContentLoaded', function() {
+    const headerTitle = document.getElementById('headerTitle');
+    if (headerTitle) {
+        headerTitle.style.cursor = 'pointer';
+        headerTitle.addEventListener('click', () => openHistoryModal(true));
+    }
+    // ...existing code...
+});
+// ... existing code ...
 
