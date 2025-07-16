@@ -1,6 +1,6 @@
 services:
   web:
-    build: .
+    image: ghcr.io/frenzywall/testttt:ai
     ports:
       - "5000:5000"
     environment:
