@@ -58,6 +58,8 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    networks:
+      - change_management 
 
   redis:
     image: redis:7.0.15-bookworm
@@ -68,6 +70,23 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
+    networks:
+      - change_management  # ADD THIS LINE
+
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: redisinsight
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - change_management  # ADD THIS LINE
 
 volumes:
   redis_data:
+
+networks:
+  change_management:
+    driver: bridge
