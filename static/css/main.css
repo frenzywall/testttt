@@ -276,19 +276,21 @@ pre {
 .tz-toggle {
     margin: 20px 0;
     padding: 20px;
-    background: linear-gradient(145deg, #ffffff, #f5f7ff);
-    border-radius: 12px;
+    background: rgba(180, 185, 200, 0.25); /* glassy grey */
+    border-radius: 16px;
     display: flex;
     align-items: center;
     gap: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    border: 1px solid rgba(37, 99, 235, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.10);
+    border: 1px solid rgba(200, 200, 220, 0.18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
 }
 
 .tz-toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
 }
 
 .tz-toggle-label {
@@ -324,10 +326,11 @@ pre {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #e2e8f0;
+    background: rgba(180, 185, 200, 0.35); /* glassy grey */
     transition: .4s;
     border-radius: 30px;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(31, 38, 135, 0.10) inset;
+    border: 1px solid rgba(200, 200, 220, 0.18);
 }
 
 .slider:before {
@@ -337,14 +340,14 @@ pre {
     width: 24px;
     left: 3px;
     bottom: 3px;
-    background: white;
+    background: rgba(255,255,255,0.7);
     transition: .3s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(31, 38, 135, 0.10);
 }
 
 input:checked + .slider {
-    background-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.25); /* subtle blue glassy when active */
 }
 
 input:checked + .slider:before {
