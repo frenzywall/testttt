@@ -2706,7 +2706,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ...existing code...
 
 // Add this function to create notifications
-function createNotification(type, message, persistent = false) {
+function createNotification(type, message, persistent = false, clickable = false, clickHandler = null) {
   // Remove existing notifications of the same type
   const existingNotifications = document.querySelectorAll(`.notification.${type}:not(.persistent)`);
   existingNotifications.forEach(note => note.remove());
@@ -2717,14 +2717,24 @@ function createNotification(type, message, persistent = false) {
   if (persistent) {
     notification.classList.add('persistent');
   }
+  if (clickable) {
+    notification.classList.add('clickable');
+    notification.style.cursor = 'pointer';
+  }
   
   // Add appropriate icon based on type
   let icon = 'fa-info-circle';
   if (type === 'error') icon = 'fa-exclamation-circle';
   if (type === 'success') icon = 'fa-check-circle';
+  if (type === 'warning') icon = 'fa-exclamation-triangle';
   
   notification.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
   document.body.appendChild(notification);
+  
+  // Add click handler if provided
+  if (clickable && clickHandler) {
+    notification.addEventListener('click', clickHandler);
+  }
   
   // Animate in
   setTimeout(() => notification.classList.add('show'), 10);
@@ -3187,6 +3197,55 @@ document.addEventListener('DOMContentLoaded', function() {
                     bar.style.animation = 'none';
                     void bar.offsetWidth;
                     bar.style.animation = 'alive-bar-expand-contract 2.8s cubic-bezier(0.77,0,0.18,1)';
+                }
+            });
+            
+            // Add SSE event listener for history loaded notification
+            sse.addEventListener('history-loaded', function(e) {
+                let data;
+                try {
+                    data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                } catch (err) {
+                    data = e.data;
+                }
+                
+                if (data && data.timestamp && data.title) {
+                    // Wait 3 seconds before showing the history notification
+                    setTimeout(() => {
+                        // Wait for any existing notifications to complete their animations
+                        setTimeout(() => {
+                            // Create notification with separate refresh and dismiss buttons
+                            const notification = createNotification(
+                                'warning', 
+                                `You are viewing a history item: <strong>${data.title}</strong>`, 
+                                true // persistent
+                            );
+                            
+                            // Add refresh button to the notification
+                            const refreshBtn = document.createElement('button');
+                            refreshBtn.className = 'notification-refresh-btn';
+                            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                            refreshBtn.title = 'Click here to refresh and view current latest data';
+                            refreshBtn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                window.location.reload();
+                            });
+                            
+                            // Add dismiss button to the notification
+                            const dismissBtn = document.createElement('button');
+                            dismissBtn.className = 'notification-dismiss-btn';
+                            dismissBtn.innerHTML = '<i class="fas fa-times"></i>';
+                            dismissBtn.title = 'Dismiss this notification';
+                            dismissBtn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                notification.classList.remove('show');
+                                setTimeout(() => notification.remove(), 300);
+                            });
+                            
+                            notification.appendChild(refreshBtn);
+                            notification.appendChild(dismissBtn);
+                        }, 500); // Wait 500ms for any existing notifications to complete
+                    }, 3000); // Wait 3 seconds before showing the history notification
                 }
             });
         } catch (e) {

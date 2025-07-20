@@ -1075,6 +1075,15 @@ def load_from_history(timestamp):
     # Set a temporary session key to store the data (without saving to Redis)
     session['temp_history_data'] = selected_entry['data']
     
+    # Publish SSE event to the current user
+    username = session.get('username')
+    if username:
+        publish_sse_event(username, 'history-loaded', {
+            'timestamp': timestamp,
+            'title': selected_entry['data'].get('header_title', 'Change Weekend')
+        })
+        logger.info(f"History loaded event sent to user {username} for timestamp {timestamp}")
+    
     # Return success without modifying the main Redis data
     response = jsonify({'status': 'success', 'data': selected_entry['data']})
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

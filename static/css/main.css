@@ -2867,7 +2867,7 @@ background-color: rgba(245, 158, 11, 0.4);
     top: 80px; /* Adjust as needed to position below the header */
     padding: 1.25rem;
     overflow: hidden;
-    width: 350px; /* Fixed width */
+    width: 420px; /* Increased width to show full titles */
     z-index: 1000;
   }
   
@@ -2940,27 +2940,28 @@ background-color: rgba(245, 158, 11, 0.4);
     padding: 0.25rem 0.2rem;
     margin: 0.1rem 0 0.5rem;
     scrollbar-width: thin;
+    scrollbar-color: #6b7280 var(--glass-bg);
     background: rgba(255, 255, 255, 0.02);
     box-sizing: border-box;
   }
   
   .history-list::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+    height: 8px;
   }
   
   .history-list::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 3px;
-    margin: 3px;
+    background: var(--glass-bg);
+    border-radius: 4px;
   }
   
   .history-list::-webkit-scrollbar-thumb {
-    background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.2);
-    border-radius: 3px;
+    background: #6b7280;
+    border-radius: 4px;
   }
   
   .history-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.4);
+    background: #9ca3af;
   }
   
   /* Enhanced history items */
@@ -3018,7 +3019,7 @@ background-color: rgba(245, 158, 11, 0.4);
     font-weight: 600;
     font-size: 0.9rem;
     color: var(--text-color);
-    max-width: 75%;
+    max-width: 85%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3484,6 +3485,111 @@ background-color: rgba(245, 158, 11, 0.4);
 
 .notification.info i {
   color: var(--primary-color);
+}
+
+.notification.warning {
+  border-left: 4px solid #6b7280;
+}
+
+.notification.warning i {
+  color: #9ca3af;
+}
+
+/* Notification refresh button styles */
+.notification-refresh-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-left: 12px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-refresh-btn:hover {
+  background: rgba(156, 163, 175, 0.1);
+  color: #d1d5db;
+  transform: scale(1.1);
+}
+
+.notification-refresh-btn:active {
+  transform: scale(0.95);
+}
+
+.notification-refresh-btn i {
+  font-size: 1rem;
+}
+
+/* Dark theme support for notification refresh button */
+[data-theme="dark"] .notification-refresh-btn {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .notification-refresh-btn:hover {
+  background: rgba(156, 163, 175, 0.15);
+  color: #d1d5db;
+}
+
+/* Notification dismiss button styles */
+.notification-dismiss-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+.notification-dismiss-btn:hover {
+  background: rgba(107, 114, 128, 0.1);
+  color: #9ca3af;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.notification-dismiss-btn:active {
+  transform: scale(0.95);
+}
+
+.notification-dismiss-btn i {
+  font-size: 0.9rem;
+}
+
+/* Dark theme support for notification dismiss button */
+[data-theme="dark"] .notification-dismiss-btn {
+  color: #6b7280;
+}
+
+[data-theme="dark"] .notification-dismiss-btn:hover {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+}
+
+/* Clickable notification styles */
+.notification.clickable {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.notification.clickable:hover {
+  transform: translateX(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  background: var(--glass-card-hover, rgba(255, 255, 255, 0.95));
+}
+
+.notification.clickable:active {
+  transform: translateX(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
 /* Add shake animation for error feedback */
