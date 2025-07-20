@@ -60,6 +60,10 @@ services:
     restart: unless-stopped
     networks:
       - change_management 
+    volumes:
+      - /etc/timezone:/etc/timezone:ro    # Mounts host timezone into container. Optional, for correct time display/logs.
+      - /etc/localtime:/etc/localtime:ro
+
 
   redis:
     image: redis:8.0.3-bookworm
@@ -72,17 +76,18 @@ services:
     restart: unless-stopped
     networks:
       - change_management  # ADD THIS LINE
-
-  redisinsight:
-    image: redislabs/redisinsight:latest
-    container_name: redisinsight
-    ports:
-      - "5540:5540"
-    depends_on:
-      - redis
-    restart: unless-stopped
-    networks:
-      - change_management  # ADD THIS LINE
+  
+  # redisinsight is not needed for now, you can uncomment the below section if you want to use it
+  # redisinsight:
+  #   image: redislabs/redisinsight:latest
+  #   container_name: redisinsight
+  #   ports:
+  #     - "5540:5540"
+  #   depends_on:
+  #     - redis
+  #   restart: unless-stopped
+  #   networks:
+  #     - change_management  
 
 volumes:
   redis_data:
