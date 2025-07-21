@@ -99,7 +99,12 @@ function showProfileModal(user) {
         const section = document.getElementById('changePwSection');
         if (section.style.display === '' || section.style.display === 'block') {
             section.style.display = 'none';
-            document.querySelector('.add-user-card').style.display = '';
+            // Only show add-user-card if admin
+            if(user.role === 'admin') {
+                document.querySelector('.add-user-card').style.display = '';
+            } else {
+                document.querySelector('.add-user-card').style.display = 'none';
+            }
         } else {
             // Modern card layout for change password
             section.innerHTML = `
@@ -125,11 +130,21 @@ function showProfileModal(user) {
               </div>
             `;
             section.style.display = '';
-            document.querySelector('.add-user-card').style.display = 'none';
+            // Only hide add-user-card if admin, otherwise always hidden for non-admin
+            if(user.role === 'admin') {
+                document.querySelector('.add-user-card').style.display = 'none';
+            } else {
+                document.querySelector('.add-user-card').style.display = 'none';
+            }
             // Attach close and submit handlers
             document.getElementById('closePwBtn').onclick = function() {
                 section.style.display = 'none';
-                document.querySelector('.add-user-card').style.display = '';
+                // Only show add-user-card if admin
+                if(user.role === 'admin') {
+                    document.querySelector('.add-user-card').style.display = '';
+                } else {
+                    document.querySelector('.add-user-card').style.display = 'none';
+                }
             };
             document.getElementById('submitPwBtn').onclick = function() {
                 const oldPw = document.getElementById('oldPw').value;
@@ -145,7 +160,12 @@ function showProfileModal(user) {
                         document.getElementById('newPw').value = '';
                         setTimeout(()=>{
                             section.style.display = 'none';
-                            document.querySelector('.add-user-card').style.display = '';
+                            // Only show add-user-card if admin
+                            if(user.role === 'admin') {
+                                document.querySelector('.add-user-card').style.display = '';
+                            } else {
+                                document.querySelector('.add-user-card').style.display = 'none';
+                            }
                         }, 1200);
                     }
                 });
