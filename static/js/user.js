@@ -29,21 +29,25 @@ function showProfileModal(user) {
                         <button id="submitPwBtn" class="btn success-btn">Update Password</button>
                     </div>
                     <div class="add-user-card">
-                      <h4><i class="fas fa-user-plus"></i> Add New User</h4>
-                      <div class="add-user-fields">
-                        <div class="input-icon-group">
-                          <i class="fas fa-user"></i>
-                          <input type="text" id="newUser" placeholder="New Username" autocomplete="off">
+                      <div class="add-user-card-inner">
+                        <div class="add-user-header" style="display:flex;align-items:center;justify-content:space-between;">
+                          <h4 style="margin:0;"><i class="fas fa-user-plus"></i> Add New User</h4>
                         </div>
-                        <div class="input-icon-group">
-                          <i class="fas fa-lock"></i>
-                          <input type="text" id="newUserPw" placeholder="New User Password" autocomplete="off">
+                        <div class="add-user-fields">
+                          <div class="input-icon-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="newUser" placeholder="New Username" autocomplete="off">
+                          </div>
+                          <div class="input-icon-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="text" id="newUserPw" placeholder="New User Password" autocomplete="off">
+                          </div>
+                          <button id="addUserBtn" class="btn primary-btn add-user-btn">
+                            <i class="fas fa-plus"></i> Add User
+                          </button>
+                          <div id="addUserMsg" class="profile-msg" style="display:none;"></div>
                         </div>
-                        <button id="addUserBtn" class="btn primary-btn add-user-btn">
-                          <i class="fas fa-plus"></i> Add User
-                        </button>
                       </div>
-                      <div id="profileMsg" class="profile-msg"></div>
                     </div>
                 </div>
                 <div class="profile-right">
@@ -146,26 +150,46 @@ function showProfileModal(user) {
             document.getElementById('submitPwBtn').onclick = function() {
                 const oldPw = document.getElementById('oldPw').value;
                 const newPw = document.getElementById('newPw').value;
+                const msgDiv = document.getElementById('changePwMsg');
+                // Clear previous message
+                msgDiv.textContent = '';
+                msgDiv.className = 'profile-msg';
+                // Validation: both fields required
+                if (!oldPw || !newPw) {
+                    msgDiv.textContent = 'Please fill in all fields.';
+                    msgDiv.classList.add('info-msg', 'white-text'); // add special class
+                    return;
+                } else {
+                    msgDiv.classList.remove('white-text');
+                }
                 fetch('/change-password', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({old_password:oldPw,new_password:newPw})
                 }).then(r=>r.json()).then(data=>{
-                    document.getElementById('changePwMsg').textContent = data.status==='success'?'Password updated!':(data.message||'Error');
+                    msgDiv.textContent = data.status==='success'?'Password updated!':(data.message||'Error');
+                    msgDiv.className = 'profile-msg';
                     if(data.status==='success') {
+                        msgDiv.classList.add('success-msg');
                         document.getElementById('oldPw').value = '';
                         document.getElementById('newPw').value = '';
                         setTimeout(()=>{
                             section.style.display = 'none';
-                            // Only show add-user-card if admin
                             if(user.role === 'admin') {
-                            document.querySelector('.add-user-card').style.display = '';
+                                document.querySelector('.add-user-card').style.display = '';
                             } else {
                                 document.querySelector('.add-user-card').style.display = 'none';
                             }
                         }, 1200);
+                    } else {
+                        msgDiv.classList.add('error-msg');
                     }
                 });
+                // Clear message on input
+                document.getElementById('oldPw').oninput = document.getElementById('newPw').oninput = function() {
+                    msgDiv.textContent = '';
+                    msgDiv.className = 'profile-msg';
+                };
             };
         }
     };
@@ -432,30 +456,47 @@ function showProfileModal(user) {
         document.getElementById('addUserBtn').onclick = function(){
             const nu = document.getElementById('newUser').value.trim();
             const npw = document.getElementById('newUserPw').value;
+            const msgDiv = document.getElementById('addUserMsg');
+            msgDiv.style.display = '';
+            msgDiv.textContent = '';
+            msgDiv.className = 'profile-msg';
+            // Validation: both fields required
+            if (!nu || !npw) {
+                msgDiv.textContent = 'Please fill in all fields.';
+                msgDiv.classList.add('info-msg', 'white-text');
+                return;
+            } else {
+                msgDiv.classList.remove('white-text');
+            }
             fetch('/users',{
                 method:'POST',
                 headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({username:nu,password:npw})
             }).then(r=>r.json()).then(data=>{
-                const msgDiv = document.getElementById('profileMsg');
                 if (data.status === 'success') {
-                    msgDiv.innerHTML = '<span class="feedback-message"><span class="icon">✔️</span> User added!</span>';
+                    msgDiv.textContent = 'User added!';
+                    msgDiv.className = 'profile-msg success-msg';
                 } else {
-                    msgDiv.innerHTML = '<span class="feedback-message error"><span class="icon">❗</span> ' + (data.message || 'Error') + '</span>';
+                    msgDiv.textContent = data.message || 'Error';
+                    msgDiv.className = 'profile-msg error-msg';
                 }
                 // Clear form fields
                 document.getElementById('newUser').value = '';
                 document.getElementById('newUserPw').value = '';
                 // Fade out the message after 2.5s
-                const feedback = msgDiv.querySelector('.feedback-message');
-                if (feedback) {
-                    setTimeout(() => {
-                        feedback.classList.add('fade-out');
-                        setTimeout(() => { msgDiv.innerHTML = ''; }, 600);
-                    }, 2500);
-                }
+                setTimeout(() => {
+                    msgDiv.style.display = 'none';
+                    msgDiv.textContent = '';
+                    msgDiv.className = 'profile-msg';
+                }, 2500);
                 refreshUsers();
             });
+            // Clear message on input
+            document.getElementById('newUser').oninput = document.getElementById('newUserPw').oninput = function() {
+                msgDiv.textContent = '';
+                msgDiv.className = 'profile-msg';
+                msgDiv.style.display = 'none';
+            };
         };
     }
 }
