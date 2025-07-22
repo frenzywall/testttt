@@ -1,8 +1,5 @@
 // User/profile modal logic
 // To be used with a modal in result.html
-
-
-
 function showProfileModal(user) {
     // Create modal if not exists
     let modal = document.getElementById('profileModal');
@@ -101,7 +98,7 @@ function showProfileModal(user) {
             section.style.display = 'none';
             // Only show add-user-card if admin
             if(user.role === 'admin') {
-                document.querySelector('.add-user-card').style.display = '';
+            document.querySelector('.add-user-card').style.display = '';
             } else {
                 document.querySelector('.add-user-card').style.display = 'none';
             }
@@ -134,14 +131,14 @@ function showProfileModal(user) {
             if(user.role === 'admin') {
                 document.querySelector('.add-user-card').style.display = 'none';
             } else {
-                document.querySelector('.add-user-card').style.display = 'none';
+            document.querySelector('.add-user-card').style.display = 'none';
             }
             // Attach close and submit handlers
             document.getElementById('closePwBtn').onclick = function() {
                 section.style.display = 'none';
                 // Only show add-user-card if admin
                 if(user.role === 'admin') {
-                    document.querySelector('.add-user-card').style.display = '';
+                document.querySelector('.add-user-card').style.display = '';
                 } else {
                     document.querySelector('.add-user-card').style.display = 'none';
                 }
@@ -162,7 +159,7 @@ function showProfileModal(user) {
                             section.style.display = 'none';
                             // Only show add-user-card if admin
                             if(user.role === 'admin') {
-                                document.querySelector('.add-user-card').style.display = '';
+                            document.querySelector('.add-user-card').style.display = '';
                             } else {
                                 document.querySelector('.add-user-card').style.display = 'none';
                             }

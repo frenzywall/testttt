@@ -2186,19 +2186,24 @@ function openHistoryModal(viewOnly = false) {
             
             // NEW: Convert saved UTC date to local timezone using the system's tz.
             let formattedDate = 'Unknown date';
+            let formattedTime = '';
             if (item.date) {
                 const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                formattedDate = DateTime.fromFormat(item.date, "yyyy-MM-dd HH:mm:ss", {zone: 'utc'})
-                                        .setZone(localTz)
-                                        .toFormat("yyyy-MM-dd, hh:mm a") + " (" + localTz + ")";            }
+                const dt = DateTime.fromFormat(item.date, "yyyy-MM-dd HH:mm:ss", {zone: 'utc'}).setZone(localTz);
+                formattedDate = dt.toFormat("yyyy-MM-dd");
+                formattedTime = dt.toFormat("hh:mm a") + " (" + localTz + ")";
+            }
             
             historyItem.innerHTML = `
-                <div class="history-item-header">
-                    <div class="history-item-title">
+                <div class="history-item-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1.2rem;">
+                    <div class="history-item-title" style="flex:1;min-width:0;">
                         <span class="history-item-badge"></span>
-                        ${item.title || 'Change Weekend'}
+                        <span style="font-size:1.15em;font-weight:bold;">${item.title || 'Change Weekend'}</span>
                     </div>
-                    <div class="history-item-date">${formattedDate}</div>
+                    <div class="history-item-date-time" style="display:flex;flex-direction:column;align-items:flex-end;min-width:120px;">
+                        <span class="history-item-date" style="font-size:0.77em;color:#b0b8c9;">${formattedDate}</span>
+                        <span class="history-item-time" style="font-size:0.77em;color:#b0b8c9;">${formattedTime}</span>
+                    </div>
                 </div>
                 <div class="history-item-summary">
                     ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
