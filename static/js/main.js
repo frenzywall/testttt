@@ -753,32 +753,7 @@ document.getElementById('decreaseFontSize').addEventListener('click', function()
     document.getElementById('emailBody').style.fontSize = `${fontSize}px`;
 });
 
-const infoModal = document.getElementById('infoModal');
-const howItWorksBtn = document.getElementById('howItWorksBtn');
-
-howItWorksBtn.onclick = function() {
-    infoModal.style.display = "block";
-}
-
-window.onclick = function(event) {
-    if (event.target == infoModal) {
-    infoModal.style.display = "none";
-    }
-    if (event.target == modal) {
-    modal.style.display = "none";
-    }
-}
-
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-    if (infoModal.style.display === "block") {
-        infoModal.style.display = "none";
-    }
-    if (modal.style.display === "block") {
-        modal.style.display = "none";
-    }
-    }
-});
+// Removed How It Works modal and button handlers
 
 document.getElementById('downloadHtml').addEventListener('click', function() {
     const styleSheets = Array.from(document.styleSheets);

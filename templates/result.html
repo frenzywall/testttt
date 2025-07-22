@@ -41,10 +41,6 @@
                     <i class='bx bx-home-alt'></i>
                     Home
                 </a>
-                <a href="#" class="nav-link" id="howItWorksBtn">
-                    <i class='bx bx-info-circle'></i>
-                    How it Works
-                </a>
                 <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-moon"></i>
                 </button>
@@ -62,66 +58,6 @@
     <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" style="display: none;">
         <input type="file" name="file" id="fileInput" accept=".msg">
     </form>
-
-    <div id="infoModal" class="info-modal">
-        <div class="info-content">
-            <span class="close">&times;</span>
-            <h2>How It Works</h2>
-            
-            <div class="info-section">
-                <h3><i class="fas fa-rocket"></i> Getting Started</h3>
-                <ol class="info-steps">
-                    <li>Click <strong>"Upload MSG"</strong> to select a maintenance notification email</li>
-                    <li>Review the extracted maintenance information in the table</li>
-                    <li>Use <strong>Edit</strong> buttons to correct any information if needed</li>
-                    <li>Toggle between Sweden time and IST with the time zone switch</li>
-                    <li>Filter by priority to focus on the most critical changes</li>
-                </ol>
-                
-                <div class="extraction-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Important:</strong> AI extraction might not be perfect. Always double-check dates, times, and service names before sharing or making decisions based on this information.
-                </div>
-            </div>
-            
-            <div class="info-section">
-                <h3><i class="fas fa-cogs"></i> Key Features</h3>
-                <ul class="info-features">
-                    <li><strong>Auto-extraction</strong> of maintenance windows</li>
-                    <li><strong>Time zone conversion</strong> Sweden ↔ IST</li>
-                    <li><strong>Priority assignment</strong> for changes</li>
-                    <li><strong>Smart filters</strong> for critical work</li>
-                    <li><strong>Inline editing</strong> of all fields</li>
-                    <li><strong>Dark/Light mode</strong> for comfort</li>
-                </ul>
-            </div>
-            
-            <div class="info-section troubleshooting">
-                <h3><i class="fas fa-exclamation-triangle"></i> Common Issues</h3>
-                
-                <h4>Time Conversion</h4>
-                <ul>
-                    <li>Use 24-hour format (HH:MM) for accurate conversion</li>
-                    <li>For time ranges, format as "09:00-11:00" without spaces</li>
-                    <li>Double-check converted times match expected schedules</li>
-                </ul>
-                
-                <h4>Upload Problems</h4>
-                <ul>
-                    <li>Only .msg files are supported (from Outlook)</li>
-                    <li>Large attachments may cause processing delays</li>
-                    <li>Non-standard email formats may extract incorrectly</li>
-                </ul>
-                
-                <h4>Data Accuracy</h4>
-                <ul>
-                    <li>Always verify extracted information against original email</li>
-                    <li>Check for missing services or incorrect time windows</li>
-                    <li>Manual additions may be needed for complex notifications</li>
-                </ul>
-            </div>
-        </div>
-    </div>
 
         <div class="header">
             <div class="header-edit-group">
