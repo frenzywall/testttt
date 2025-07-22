@@ -93,7 +93,17 @@ function showProfileModal(user) {
     };
     // Logout
     document.getElementById('logoutBtn').onclick = function() {
-        fetch('/logout', {method:'POST'}).then(()=>window.location='/login');
+        createConfirmDialog({
+            type: 'danger',
+            icon: 'fa-sign-out-alt',
+            title: 'Logout',
+            message: 'Are you sure you want to log out?',
+            confirmText: 'Logout',
+            cancelText: 'Cancel'
+        }).then(confirmed => {
+            if (!confirmed) return;
+            fetch('/logout', {method:'POST'}).then(()=>window.location='/login');
+        });
     };
     // Change password
     document.getElementById('changePwBtn').onclick = function() {

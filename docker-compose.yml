@@ -45,7 +45,7 @@ services:
       - GEMINI_API_KEY=your-gemini-api-key # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
       - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
       # --- AI chat toggle (optional, for UI) ---
-      - AI_CHAT_ENABLED=true              # true/false. Enables or disables AI chat features in the UI. Default: true.
+      - AI_CHAT_ENABLED=true             # true/false. Enables or disables AI chat features in the UI. Default: true.
       # --- Passkey for restricted actions (recommended for extra security) ---
       - PASSKEY=changeme                  # Passkey for extra security on admin actions. Any string. Set for production.
 
