@@ -3739,4 +3739,14 @@ background-color: rgba(245, 158, 11, 0.4);
 }
 /* Remove the pulse animation */
 
+.tz-bidirectional {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin: 0 10px;
+    user-select: none;
+}
+
 
