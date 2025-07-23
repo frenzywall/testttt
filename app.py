@@ -80,21 +80,60 @@ TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 
+# Add environment variable for Redis connection pool size
+REDIS_MAX_CONNECTIONS = int(os.environ.get('REDIS_MAX_CONNECTIONS', 20))  # Default pool size
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key:
+    app.secret_key = secrets.token_hex(16)
+    logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
+
+# --- Load config from environment variables ---
+SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
+SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
+PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
+REDIS_SOCKET_TIMEOUT = int(os.environ.get('REDIS_SOCKET_TIMEOUT', 5))
+REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get('REDIS_SOCKET_CONNECT_TIMEOUT', 5))
+REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get('REDIS_HEALTH_CHECK_INTERVAL', 30))
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
+PASSKEY = os.environ.get('PASSKEY')
+RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
+RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
+HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
+TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+
 logger.info(f"Session timeout configured for {SESSION_TIMEOUT_SECONDS} seconds (testing mode)")
 
 # --- Redis client for app data (decode_responses=True, db=0) ---
 try:
-    redis_client = redis.Redis(
+    redis_pool = redis.ConnectionPool(
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_DB,
         decode_responses=True,
-        socket_timeout=REDIS_SOCKET_TIMEOUT,  
+        max_connections=REDIS_MAX_CONNECTIONS,
+        socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
         health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
     )
+    redis_client = redis.Redis(connection_pool=redis_pool)
     redis_client.ping()
-    logger.info("Successfully connected to Redis (app data)")
+    logger.info("Successfully connected to Redis (app data) with connection pooling")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (app data): {str(e)}")
     class MockRedis:
@@ -130,17 +169,19 @@ except redis.RedisError as e:
 # --- Redis client for Flask-Session (decode_responses=False, db=1) ---
 from flask_session import Session
 try:
-    session_redis = redis.Redis(
+    session_redis_pool = redis.ConnectionPool(
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_SESSION_DB,  # Use a different DB for sessions
         decode_responses=False,
-        socket_timeout=REDIS_SOCKET_TIMEOUT,  
+        max_connections=REDIS_MAX_CONNECTIONS,
+        socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
         health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
     )
+    session_redis = redis.Redis(connection_pool=session_redis_pool)
     session_redis.ping()
-    logger.info("Successfully connected to Redis (session data)")
+    logger.info("Successfully connected to Redis (session data) with connection pooling")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (session data): {str(e)}")
     session_redis = None
@@ -213,29 +254,30 @@ static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 RATE_LIMIT = int(os.getenv('RATE_LIMIT', 5))  
 RATE_WINDOW = int(os.getenv('RATE_WINDOW', 60))  
-ip_attempts = {}
+# Remove the in-memory ip_attempts dict
+# ip_attempts = {}
 
 def rate_limit(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         ip = request.remote_addr
-        current_time = time.time()
-        
-        for ip_addr in list(ip_attempts.keys()):
-            if current_time - ip_attempts[ip_addr]['timestamp'] > RATE_WINDOW:
-                del ip_attempts[ip_addr]
-        
-        if ip in ip_attempts:
-            if ip_attempts[ip]['count'] >= RATE_LIMIT:
+        current_time = int(time.time())
+        redis_key = f"rate_limit:{ip}"
+        try:
+            # Use Redis INCR and EXPIRE for atomic rate limiting
+            attempts = redis_client.incr(redis_key)
+            if attempts == 1:
+                redis_client.expire(redis_key, RATE_WINDOW)
+            if attempts > RATE_LIMIT:
                 logger.warning(f"Rate limit exceeded for IP: {ip}")
                 return jsonify({
                     'status': 'error',
                     'message': 'Too many attempts. Please try again later.'
                 }), 429
-            ip_attempts[ip]['count'] += 1
-        else:
-            ip_attempts[ip] = {'count': 1, 'timestamp': current_time}
-        
+        except Exception as e:
+            logger.error(f"Rate limiting error for IP {ip}: {str(e)}")
+            # Fail open if Redis is down
+            pass
         return f(*args, **kwargs)
     return decorated_function
 
@@ -564,6 +606,7 @@ def get_admin_usernames():
 
 # Auth endpoints
 @app.route('/login', methods=['POST'])
+@rate_limit
 def login():
     data = request.json
     username = data.get('username', '').strip()

@@ -32,6 +32,7 @@ services:
       - REDIS_SOCKET_TIMEOUT=5            # Redis socket timeout in seconds. Default: 5. Increase if you have slow network/storage.
       - REDIS_SOCKET_CONNECT_TIMEOUT=5    # Redis connect timeout in seconds. Default: 5.
       - REDIS_HEALTH_CHECK_INTERVAL=30    # Redis health check interval in seconds. Default: 30.
+      - REDIS_MAX_CONNECTIONS=80    
 
       # --- Rate limiting ---
       - RATE_LIMIT=5                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.
