@@ -84,12 +84,6 @@ GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 # Add environment variable for Redis connection pool size
 REDIS_MAX_CONNECTIONS = int(os.environ.get('REDIS_MAX_CONNECTIONS', 20))  # Default pool size
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 app.secret_key = os.environ.get('SECRET_KEY')
@@ -117,35 +111,7 @@ try:
     logger.info("Successfully connected to Redis (app data) with connection pooling")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (app data): {str(e)}")
-    class MockRedis:
-        def __init__(self):
-            self.data = {}
-        def get(self, key):
-            return self.data.get(key)
-        def set(self, key, value):
-            self.data[key] = value
-            return True
-        def delete(self, key):
-            if key in self.data:
-                del self.data[key]
-                return 1
-            return 0
-        def hget(self, key, field):
-            return self.data.get(key, {}).get(field) if key in self.data else None
-        def hset(self, key, field, value):
-            if key not in self.data:
-                self.data[key] = {}
-            self.data[key][field] = value
-            return True
-        def hdel(self, key, field):
-            if key in self.data and field in self.data[key]:
-                del self.data[key][field]
-                return 1
-            return 0
-        def ping(self):
-            return True
-    redis_client = MockRedis()
-    logger.warning("Using in-memory mock Redis. Data will not persist between restarts.")
+    raise  # Remove MockRedis fallback, fail hard if Redis is unavailable
 
 # --- Redis client for Flask-Session (decode_responses=False, db=1) ---
 from flask_session import Session
@@ -504,15 +470,31 @@ def check_password(password, hashed):
 
 # Bootstrap admin user if no users exist (moved from @app.before_first_request)
 def bootstrap_admin():
-    users = redis_client.get(USERS_KEY)
-    if not users:
-        admin_user = {
-            'username': ADMIN_USERNAME,
-            'password': hash_password(ADMIN_PASSWORD),
-            'role': 'admin',
-            'last_login': '-'
-        }
-        redis_client.set(USERS_KEY, json.dumps({ADMIN_USERNAME: admin_user}))
+    # Use Redis transaction to avoid race condition
+    for _ in range(5):  # Retry up to 5 times
+        try:
+            with redis_client.pipeline() as pipe:
+                pipe.watch(USERS_KEY)
+                users = pipe.get(USERS_KEY)
+                if users:
+                    pipe.unwatch()
+                    return  # Admin already exists, nothing to do
+                admin_user = {
+                    'username': ADMIN_USERNAME,
+                    'password': hash_password(ADMIN_PASSWORD),
+                    'role': 'admin',
+                    'last_login': '-'
+                }
+                pipe.multi()
+                pipe.set(USERS_KEY, json.dumps({ADMIN_USERNAME: admin_user}))
+                pipe.execute()
+                return
+        except redis.WatchError:
+            # Key changed, retry
+            continue
+        except Exception as e:
+            logger.error(f"Error bootstrapping admin user: {e}")
+            break
 
 # Call bootstrap_admin at startup
 bootstrap_admin()
@@ -1480,6 +1462,29 @@ User Question: {question}
 def ai_chat_enabled():
     enabled = os.environ.get('AI_CHAT_ENABLED', 'true').lower() == 'true'
     return jsonify({'enabled': enabled})
+
+
+
+# Global error handler for unhandled exceptions
+@app.errorhandler(Exception)
+def handle_global_exception(e):
+    from werkzeug.exceptions import HTTPException
+    # Log the error for debugging
+    logger.error(f"Unhandled exception: {e}")
+    # If the request is for an API (accepts JSON), return JSON
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        code = 500
+        if isinstance(e, HTTPException):
+            code = e.code
+        return jsonify({
+            'status': 'error',
+            'message': 'An unexpected error occurred. Please try again later.'
+        }), code
+    # Otherwise, render a friendly error page
+    code = 500
+    if isinstance(e, HTTPException):
+        code = e.code
+    return render_template('error.html', message="Something went wrong. Please try again later."), code
 
 
 if __name__ == '__main__':
