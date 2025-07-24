@@ -61,6 +61,7 @@ if not app.secret_key:
 
 # --- Load config from environment variables ---
 SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
+REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # Default 5 minutes
 SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
 PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
@@ -96,26 +97,6 @@ if not app.secret_key:
     app.secret_key = secrets.token_hex(16)
     logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
 
-# --- Load config from environment variables ---
-SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
-SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
-PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
-REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
-REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-REDIS_DB = int(os.environ.get('REDIS_DB', 0))
-REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
-REDIS_SOCKET_TIMEOUT = int(os.environ.get('REDIS_SOCKET_TIMEOUT', 5))
-REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get('REDIS_SOCKET_CONNECT_TIMEOUT', 5))
-REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get('REDIS_HEALTH_CHECK_INTERVAL', 30))
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
-PASSKEY = os.environ.get('PASSKEY')
-RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
-RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
-HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
-TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 
 logger.info(f"Session timeout configured for {SESSION_TIMEOUT_SECONDS} seconds (testing mode)")
 
@@ -1004,6 +985,8 @@ def index():
 
 @app.route('/sync-all-data', methods=['POST'])
 def sync_all_data():
+    if not is_reauth_valid():
+        return jsonify({'status': 'error', 'message': 'Re-authentication required'}), 401
     """Save all data at once to Redis"""
     data = request.json
     
@@ -1038,6 +1021,8 @@ def sync_all_data():
 
 @app.route('/sync-to-history', methods=['POST'])
 def sync_to_history():
+    if not is_reauth_valid():
+        return jsonify({'status': 'error', 'message': 'Re-authentication required'}), 401
     """Save all data to Redis and also save to history"""
     data = request.json
     
@@ -1244,6 +1229,8 @@ def save_parsed_data():
 
 @app.route('/reset-data', methods=['POST'])
 def reset_data():
+    if not is_reauth_valid():
+        return jsonify({'status': 'error', 'message': 'Re-authentication required'}), 401
     """Reset all stored data"""
     try:
         empty_data = {
@@ -1265,27 +1252,71 @@ def reset_data():
         logger.error(f"Error resetting data: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)})
 
+# --- Use SESSION_TIMEOUT_SECONDS for both session and re-auth window ---
+# Remove REAUTH_WINDOW_SECONDS and use SESSION_TIMEOUT_SECONDS
+
+@app.route('/set-reauth', methods=['POST'])
+def set_reauth():
+    """Set a server-side re-authentication window after passkey validation"""
+    if not session.get('username'):
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    session['reauth_until'] = (datetime.now(timezone.utc) + timedelta(seconds=REAUTH_TIMEOUT_SECONDS)).isoformat()
+    return jsonify({'status': 'success', 'reauth_until': session['reauth_until']})
+
+# Update /validate-passkey to set reauth_until on success
 @app.route('/validate-passkey', methods=['POST'])
 @rate_limit
 def validate_passkey():
-    """Validate the provided passkey against the stored hash"""
+    """Validate the provided passkey against the stored hash and set reauth window"""
     data = request.json
-    
     if not data or not isinstance(data, dict):
         return jsonify({'status': 'error', 'message': 'Invalid request format'}), 400
-    
     provided_passkey = data.get('passkey', '')
-    
     if not provided_passkey or not isinstance(provided_passkey, str):
         return jsonify({'status': 'error', 'message': 'Passkey is required'}), 400
-    
     provided_hash = hashlib.sha256(provided_passkey.encode()).hexdigest()
     if hmac.compare_digest(provided_hash, PASSKEY_HASH):
         logger.info(f"Successful authentication from {request.remote_addr}")
-        return jsonify({'status': 'success', 'valid': True})
+        # Set reauth_until in session using REAUTH_TIMEOUT_SECONDS
+        session['reauth_until'] = (datetime.now(timezone.utc) + timedelta(seconds=REAUTH_TIMEOUT_SECONDS)).isoformat()
+        return jsonify({'status': 'success', 'valid': True, 'reauth_until': session['reauth_until']})
     else:
         logger.warning(f"Failed authentication attempt from {request.remote_addr}")
         return jsonify({'status': 'error', 'valid': False, 'message': 'Invalid passkey'}), 401
+
+# Helper to check if re-auth window is valid
+
+def is_reauth_valid():
+    reauth_until = session.get('reauth_until')
+    if not reauth_until:
+        return False
+    try:
+        reauth_until_dt = datetime.fromisoformat(reauth_until.replace('Z', '+00:00'))
+        return datetime.now(timezone.utc) < reauth_until_dt
+    except Exception as e:
+        logger.error(f"Error parsing reauth_until: {str(e)}")
+        return False
+
+# Example usage in a protected route (add to any passkey-protected endpoint):
+# if not is_reauth_valid():
+#     return jsonify({'status': 'error', 'message': 'Re-authentication required'}), 401
+
+@app.route('/check-reauth', methods=['GET'])
+def check_reauth():
+    if not session.get('username'):
+        return jsonify({'valid': False}), 401
+    from datetime import datetime, timezone
+    reauth_until = session.get('reauth_until')
+    if not reauth_until:
+        return jsonify({'valid': False})
+    try:
+        reauth_until_dt = datetime.fromisoformat(reauth_until.replace('Z', '+00:00'))
+        if datetime.now(timezone.utc) < reauth_until_dt:
+            return jsonify({'valid': True})
+        else:
+            return jsonify({'valid': False})
+    except Exception:
+        return jsonify({'valid': False})
 
 @app.route('/health', methods=['GET'])
 def health_check():

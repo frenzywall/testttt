@@ -15,13 +15,15 @@ services:
       - FLASK_DEBUG=0                     # 1=debug mode (shows errors, auto-reloads; use for development), 0=production (recommended for prod).
       - PORT=5000                         # Port Flask runs on inside the container. Default: 5000. Change if you want to run on a different port.
       - SECRET_KEY=changeme               # Secret key for session security. Set to a long, random string in production. If omitted, a random key is generated (not persistent).
+                                          # Omitting this will cause session validation to not work as intended.
 
       # --- Admin credentials (change for production) ---
       - ADMIN_USERNAME=admin           # Default admin username. Any string.
       - ADMIN_PASSWORD=admin           # Default admin password. Any string. CHANGE for production!
 
       # --- User session settings ---
-      - SESSION_TIMEOUT_SECONDS=600       # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
+      - SESSION_TIMEOUT_SECONDS=1800         # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
+      - REAUTH_TIMEOUT_SECONDS=1200          # Passkey re-authentication window in seconds (e.g., 300=5min). After this, users must re-enter the passkey for protected actions.
       - PERMANENT_SESSION_LIFETIME_DAYS=365  # Admin session lifetime in days. Default: 365 (1 year). Set lower for more security.
 
       # --- Redis configuration ---
@@ -32,7 +34,7 @@ services:
       - REDIS_SOCKET_TIMEOUT=5            # Redis socket timeout in seconds. Default: 5. Increase if you have slow network/storage.
       - REDIS_SOCKET_CONNECT_TIMEOUT=5    # Redis connect timeout in seconds. Default: 5.
       - REDIS_HEALTH_CHECK_INTERVAL=30    # Redis health check interval in seconds. Default: 30.
-      - REDIS_MAX_CONNECTIONS=80    
+      - REDIS_MAX_CONNECTIONS=100    
 
       # --- Rate limiting ---
       - RATE_LIMIT=5                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.

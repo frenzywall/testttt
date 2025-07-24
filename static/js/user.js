@@ -102,6 +102,9 @@ function showProfileModal(user) {
             cancelText: 'Cancel'
         }).then(confirmed => {
             if (!confirmed) return;
+            // Clear local reauth cache on manual logout
+            localStorage.removeItem('reauthUntil');
+            localStorage.removeItem('reauthUser');
             fetch('/logout', {method:'POST'}).then(()=>window.location='/login');
         });
     };
@@ -158,6 +161,7 @@ function showProfileModal(user) {
                 }
             };
             document.getElementById('submitPwBtn').onclick = function() {
+                const submitBtn = this;
                 const oldPw = document.getElementById('oldPw').value;
                 const newPw = document.getElementById('newPw').value;
                 const msgDiv = document.getElementById('changePwMsg');
@@ -167,11 +171,13 @@ function showProfileModal(user) {
                 // Validation: both fields required
                 if (!oldPw || !newPw) {
                     msgDiv.textContent = 'Please fill in all fields.';
-                    msgDiv.classList.add('info-msg', 'white-text'); // add special class
+                    msgDiv.classList.add('info-msg', 'white-text');
                     return;
                 } else {
                     msgDiv.classList.remove('white-text');
                 }
+                // Prevent double submission
+                submitBtn.disabled = true;
                 fetch('/change-password', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
@@ -194,6 +200,9 @@ function showProfileModal(user) {
                     } else {
                         msgDiv.classList.add('error-msg');
                     }
+                    submitBtn.disabled = false;
+                }).catch(()=>{
+                    submitBtn.disabled = false;
                 });
                 // Clear message on input
                 document.getElementById('oldPw').oninput = document.getElementById('newPw').oninput = function() {

@@ -1642,18 +1642,18 @@ function syncAllDataToRedis(saveToHistory = false) {
                     }, 3000);
                     
                 } else {
-                    alert('Error syncing data: ' + (result.message || 'Unknown error'));
+                    createNotification('error', 'Error syncing data: ' + (result.message || 'Unknown error'));
                 }
             })
             .catch(error => {
                 document.body.removeChild(loadingEl);
                 console.error('Error:', error);
-                alert('Error syncing data. Please try again.');
+                createNotification('error', 'Error syncing data. Please try again.');
             });
         })
         .catch(() => {
             document.body.removeChild(loadingEl);
-            alert('Could not determine username. Please log in again.');
+            createNotification('error', 'Could not determine username. Please log in again.');
         });
 }
 
@@ -1858,67 +1858,66 @@ function syncAllDataToRedis(saveToHistory = false) {
                     }, 3000);
                     
                 } else {
-                    alert('Error syncing data: ' + (result.message || 'Unknown error'));
+                    createNotification('error', 'Error syncing data: ' + (result.message || 'Unknown error'));
                 }
             })
             .catch(error => {
                 document.body.removeChild(loadingEl);
                 console.error('Error:', error);
-                alert('Error syncing data. Please try again.');
+                createNotification('error', 'Error syncing data. Please try again.');
             });
         })
         .catch(() => {
             document.body.removeChild(loadingEl);
-            alert('Could not determine username. Please log in again.');
+            createNotification('error', 'Could not determine username. Please log in again.');
         });
 }
 
 // Add a function to periodically check for updates from other tabs
 function setupUpdateChecker() {
-const checkInterval = 10000; // Check every 10 seconds
+    const checkInterval = 10000; // Check every 10 seconds
+    let failedChecks = 0;
+    const maxFails = 3;
 
-function checkForUpdates() {
-const currentTimestamp = document.getElementById('dataTimestamp').value;
+    function checkForUpdates() {
+        const currentTimestamp = document.getElementById('dataTimestamp').value;
 
-fetch(`/check-updates?since=${currentTimestamp}&_=${Date.now()}`, {
-    method: 'GET',
-    cache: 'no-store'
-})
-.then(response => response.json())
-.then(data => {
-    if (data.updated) {
-        // Remove any existing notifications first
-        const existingNotice = document.querySelector('.update-notice');
-        if (existingNotice) {
-            existingNotice.remove();
-        }
-        
-        // Create notification with a unique ID for the refresh link
-        const updateNotice = document.createElement('div');
-        updateNotice.className = 'update-notice';
-        updateNotice.innerHTML = '<i class="fas fa-info-circle"></i> Data has been updated. <a href="#" id="refreshPageLink">Refresh</a> to see the latest changes.';
-        updateNotice.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000; text-align:center;';
-        document.body.appendChild(updateNotice);
-        
-        // Attach event listener AFTER the element is in the DOM
-        const refreshLink = document.getElementById('refreshPageLink');
-        if (refreshLink) {
-            refreshLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Use more reliable refresh methods
-                window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now();
-            });
-        }
+        fetch(`/check-updates?since=${currentTimestamp}&_=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (wasOffline) {
+                showOfflineNotch(true); // Show back online message
+                wasOffline = false;
+            }
+            failedChecks = 0; // Reset on success
+            // ... existing update logic ...
+            if (data.updated) {
+                // Remove any existing notifications first
+                const existingNotice = document.querySelector('.update-notice');
+                if (existingNotice) {
+                    existingNotice.remove();
+                }
+                // ... existing code ...
+            }
+            // Remove offline notch if present (let the back online message handle removal)
+        })
+        .catch(error => {
+            failedChecks++;
+            if (failedChecks >= maxFails && !wasOffline) {
+                showOfflineNotch(false);
+                wasOffline = true;
+            }
+        });
     }
-})
-.catch(error => console.error('Error checking for updates:', error));
-}
 
-// Run once immediately
-checkForUpdates();
+    // Run once immediately
+    checkForUpdates();
 
-// Start periodic checking
-setInterval(checkForUpdates, checkInterval);
+    // Start periodic checking
+    setInterval(checkForUpdates, checkInterval);
 }
 
 // Initialize update checker on page load
@@ -2114,13 +2113,13 @@ function syncAllDataToRedis(saveToHistory = false) {
             }, 3000);
             
         } else {
-            alert('Error syncing data: ' + (result.message || 'Unknown error'));
+            createNotification('error', 'Error syncing data: ' + (result.message || 'Unknown error'));
         }
     })
     .catch(error => {
         document.body.removeChild(loadingEl);
         console.error('Error:', error);
-        alert('Error syncing data. Please try again.');
+        createNotification('error', 'Error syncing data. Please try again.');
     });
 }
 
@@ -2297,14 +2296,14 @@ function deleteHistoryItem(timestamp, itemElement) {
                         }, 3000);
                     }, 300);
                 } else {
-                    alert('Error deleting history item: ' + (result.message || 'Unknown error'));
+                    createNotification('error', 'Error deleting history item: ' + (result.message || 'Unknown error'));
                 }
             }, 1200); 
         })
         .catch(error => {
             document.body.removeChild(loadingEl);
             console.error('Error:', error);
-            alert('Error deleting history item. Please try again.');
+            createNotification('error', 'Error deleting history item. Please try again.');
         });
     });
 }// Filter history items based on search input
@@ -2848,13 +2847,16 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
       .then(response => response.json())
       .then(data => {
         if (data.valid) {
-          // Close dialog with success
-          dialogOverlay.classList.remove('active');
-          setTimeout(() => {
-            dialogOverlay.remove();
-            createNotification('success', 'Authentication successful!');
-            resolve(true);
-          }, 500);
+          // Set the server-side reauth window
+          fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+            .then(() => {
+              dialogOverlay.classList.remove('active');
+              setTimeout(() => {
+                dialogOverlay.remove();
+                createNotification('success', 'Authentication successful!');
+                resolve(true);
+              }, 500);
+            });
         } else {
           // Show error but keep dialog open
           const errorMessage = document.createElement('div');
@@ -2889,7 +2891,7 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
         dialogOverlay.classList.remove('active');
         setTimeout(() => {
           dialogOverlay.remove();
-          createNotification('error', 'Error validating passkey. Please try again.');
+          createNotification('error', 'Error validating passkey. Please try again later.');
           resolve(false);
         }, 300);
       });
@@ -2977,27 +2979,118 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// ...existing code...
+// // ...existing code...
 
-// Add authentication helper functions and feature toggling
+// // Add authentication helper functions and feature toggling
 function isAuthenticated() {
-    const authUntil = localStorage.getItem('authUntil');
-    return authUntil && Date.now() < parseInt(authUntil);
+    const localReauthUntil = localStorage.getItem('reauthUntil');
+    const now = Date.now();
+    if (localReauthUntil && now < parseInt(localReauthUntil)) {
+        return true;
+    }
+    // Optionally, could ping the server here, but for UI overlays, just return false if local expired
+    return false;
 }
 
 function ensureAuthenticated(callback, customMessage = "Please enter the passkey to perform this action") {
-    if (isAuthenticated()) {
+    const localReauthUntil = localStorage.getItem('reauthUntil');
+    const now = Date.now();
+    if (localReauthUntil && now < parseInt(localReauthUntil)) {
+        enableRestrictedFeatures();
         callback();
-    } else {
-        promptForPasskey(customMessage).then(valid => {
-            if (valid) {
-                const expiry = Date.now() + (10 * 60 * 1000); // 10 minutes expiry
-                localStorage.setItem('authUntil', expiry);
-                enableRestrictedFeatures();
-                callback();
-            }
-        });
+        return;
     }
+    
+    // Otherwise, check with the server as before
+    fetch('/current-user', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(user => {
+            if (user && user.logged_in) {
+                fetch('/check-reauth', { method: 'GET', credentials: 'same-origin' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.valid) {
+                            // Optionally update local reauth window to match server
+                            fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+                                .then(res => res.json())
+                                .then(setData => {
+                                    if (setData.reauth_until) {
+                                        localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
+                                    }
+                                    enableRestrictedFeatures();
+                                    callback();
+                                });
+                        } else {
+                            promptForPasskey(customMessage).then(valid => {
+                                if (valid) {
+                                    fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+                                        .then(res => res.json())
+                                        .then(setData => {
+                                            if (setData.reauth_until) {
+                                                localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
+                                            }
+                                            enableRestrictedFeatures();
+                                            callback();
+                                        });
+                                }
+                                // If passkey validation fails, do nothing - don't call callback
+                            });
+                        }
+                    });
+            } else {
+                promptForPasskey(customMessage).then(valid => {
+                    if (valid) {
+                        fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+                            .then(res => res.json())
+                            .then(setData => {
+                                if (setData.reauth_until) {
+                                    localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
+                                }
+                                enableRestrictedFeatures();
+                                callback();
+                            });
+                    }
+                    // If passkey validation fails, do nothing - don't call callback
+                });
+            }
+        })
+        .catch(() => {
+            // If server is unreachable, we MUST still validate the passkey
+            // We should NEVER grant access without proper validation
+            promptForPasskey(customMessage).then(valid => {
+                if (valid) {
+                    // Only if passkey is actually valid, then we can try to reconnect
+                    // and follow the normal authentication flow
+                    
+                    // Try to re-establish connection and set proper reauth
+                    fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+                        .then(res => res.json())
+                        .then(setData => {
+                            if (setData.reauth_until) {
+                                localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
+                            }
+                            enableRestrictedFeatures();
+                            callback();
+                        })
+                        .catch(() => {
+                            // If we're still offline but passkey was valid,
+                            // we could set a very short temporary window as a fallback
+                            // But this should be avoided if possible
+                            console.warn('Still offline after valid passkey - consider UX implications');
+                            
+                            // Option 1: Don't grant access at all when offline
+                            // (Most secure approach)
+                            
+                            // Option 2: Very short temporary access only if passkey was actually validated
+                            // localStorage.setItem('reauthUntil', Date.now() + 2 * 60 * 1000); // 2 minutes max
+                            // enableRestrictedFeatures();
+                            // callback();
+                        });
+                }
+                // If passkey validation fails, absolutely do nothing
+                // No temporary access, no callback execution
+            });
+        });
 }
 
 function disableRestrictedFeatures() {
@@ -3089,6 +3182,10 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const sse = new EventSource('/events');
             sse.addEventListener('logout', function(e) {
+                // Clear local reauth cache on SSE logout
+                localStorage.removeItem('reauthUntil');
+                localStorage.removeItem('reauthUser');
+                // User is being logged out (session expired or admin kickout)
                 showTopBarAnimation({
                     color: '#ef4444',
                     glow: true,
@@ -3236,21 +3333,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // ... remove the global sse.addEventListener('login', ...) ...
 
-document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-        fetch('/current-user', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.logged_in) {
-                    window.location.href = '/login';
-                }
-            })
-            .catch(() => {
-                // On error, force redirect to login as a fallback
-                window.location.href = '/login';
-            });
-    }
-});
+// document.addEventListener('visibilitychange', function() {
+//     if (document.visibilityState === 'visible') {
+//         fetch('/current-user', { credentials: 'same-origin' })
+//             .then(res => res.json())
+//             .then(data => {
+//                 if (!data.logged_in) {
+//                     window.location.href = '/login';
+//                 }
+//             })
+//             .catch(() => {
+//                 // On error, force redirect to login as a fallback
+//                 window.location.href = '/login';
+//             });
+//     }
+// });
 
 function showTopBarAnimation({color, glow, id, duration, gradient}) {
     // Remove any existing bar with this id
@@ -3291,6 +3388,9 @@ function showTopBarAnimation({color, glow, id, duration, gradient}) {
 if (window.sseSource) window.sseSource.close();
 window.sseSource = new EventSource('/events');
 window.sseSource.addEventListener('logout', function(e) {
+    // Clear local reauth cache on SSE logout
+    localStorage.removeItem('reauthUntil');
+    localStorage.removeItem('reauthUser');
     // User is being logged out (session expired or admin kickout)
     showTopBarAnimation({
         color: '#ef4444',
@@ -3334,3 +3434,105 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // ... existing code ...
 
+// Add a function to show a custom notch notification at the top center
+// Add a function to show a custom notch notification at the top center
+let wasOffline = false; // Track if we were offline
+
+function showOfflineNotch(backOnline = false) {
+    // Remove any existing notch
+    const existing = document.getElementById('offline-notch');
+    if (existing) existing.remove();
+    
+    // Create the notch container
+    const notch = document.createElement('div');
+    notch.id = 'offline-notch';
+    notch.className = 'offline-notch';
+    
+    // Create WiFi icon using SVG
+    const wifiIcon = document.createElement('div');
+    wifiIcon.className = 'offline-notch-wifi';
+    
+    if (backOnline) {
+        // Full WiFi icon when back online - using Unicode symbol
+        wifiIcon.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9C4.5 5.5 7.75 4 12 4C16.25 4 19.5 5.5 23 9" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M5 13C7.5 10.5 9.75 9.5 12 9.5C14.25 9.5 16.5 10.5 19 13" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8.5 16.5C10 15 11 14.5 12 14.5C13 14.5 14 15 15.5 16.5" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="19" r="1.5" fill="rgba(255,255,255,0.9)"/>
+            </svg>
+        `;
+        // Explicitly remove any animation
+        wifiIcon.style.animation = 'none';
+    } else {
+        // Weak WiFi icon when offline
+        wifiIcon.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9C4.5 5.5 7.75 4 12 4C16.25 4 19.5 5.5 23 9" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M5 13C7.5 10.5 9.75 9.5 12 9.5C14.25 9.5 16.5 10.5 19 13" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8.5 16.5C10 15 11 14.5 12 14.5C13 14.5 14 15 15.5 16.5" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="19" r="1.5" fill="rgba(255,255,255,0.6)"/>
+            </svg>
+        `;
+        wifiIcon.classList.add('offline-notch-wifi-pulse');
+    }
+    
+    // Remove inline <style> and use CSS classes for keyframes/animations
+    
+    // Create text content
+    const textSpan = document.createElement('span');
+    textSpan.className = 'offline-notch-text';
+    if (backOnline) {
+        textSpan.textContent = 'Back online!';
+    } else {
+        textSpan.innerHTML = `
+            Lost connection. Retrying<span class="dots">
+                <span class="offline-notch-dot" style="animation-delay:0s;">.</span><span class="offline-notch-dot" style="animation-delay:0.2s;">.</span><span class="offline-notch-dot" style="animation-delay:0.4s;">.</span>
+            </span>
+        `;
+    }
+    
+    // Assemble the notch
+    notch.appendChild(wifiIcon);
+    notch.appendChild(textSpan);
+    document.body.appendChild(notch);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        if (backOnline) {
+            notch.classList.add('offline-notch-slide-in');
+        } else {
+            notch.classList.add('offline-notch-bounce');
+        }
+    });
+    
+    // Only auto-hide if backOnline, otherwise keep visible
+    if (backOnline) {
+        setTimeout(() => {
+            notch.classList.remove('offline-notch-slide-in');
+            notch.classList.add('offline-notch-slide-up');
+            setTimeout(() => {
+                if (notch.parentNode) {
+                    notch.parentNode.removeChild(notch);
+                }
+            }, 500);
+        }, 4000);
+    }
+}
+
+// Function to hide the notch manually
+function hideOfflineNotch() {
+    const notch = document.getElementById('offline-notch');
+    if (notch) {
+        notch.classList.add('offline-notch-slide-up');
+        setTimeout(() => {
+            if (notch.parentNode) {
+                notch.parentNode.removeChild(notch);
+            }
+        }, 500);
+    }
+}
+
+// Example usage:
+// showOfflineNotch() - shows offline notification
+// showOfflineNotch(true) - shows back online notification
