@@ -23,7 +23,7 @@ services:
 
       # --- User session settings ---
       - SESSION_TIMEOUT_SECONDS=1800         # User session timeout in seconds (e.g., 600=10min). After this, users are logged out. Set higher for less frequent logouts.
-      - REAUTH_TIMEOUT_SECONDS=1200          # Passkey re-authentication window in seconds (e.g., 300=5min). After this, users must re-enter the passkey for protected actions.
+      - REAUTH_TIMEOUT_SECONDS=1200         # Passkey re-authentication window in seconds (e.g., 300=5min). After this, users must re-enter the passkey for protected actions.
       - PERMANENT_SESSION_LIFETIME_DAYS=365  # Admin session lifetime in days. Default: 365 (1 year). Set lower for more security.
 
       # --- Redis configuration ---
@@ -45,7 +45,7 @@ services:
       - TEMP_DIR=/app/temp                # Directory for temporary files. Default: /app/temp. Must be writable by the app.
 
       # --- AI Integration (optional, but recommended to set if using Gemini AI features) ---
-      - GEMINI_API_KEY=your-gemini-api-key # Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
+      - GEMINI_API_KEY=your-gemini-api-key       #Google Gemini API key. Set to enable Gemini AI features. Leave blank to disable.
       - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
       # --- AI chat toggle (optional, for UI) ---
       - AI_CHAT_ENABLED=true             # true/false. Enables or disables AI chat features in the UI. Default: true.
@@ -78,7 +78,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
     networks:
-      - change_management  # ADD THIS LINE
+      - change_management  
   
   # redisinsight is not needed for now, you can uncomment the below section if you want to use it
   # redisinsight:

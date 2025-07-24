@@ -1765,113 +1765,6 @@ if (confirm('Are you sure you want to reset the form? This will clear all data.'
 
 // ...existing code...
 
-// Replace the syncAllDataToRedis function with this improved version
-function syncAllDataToRedis(saveToHistory = false) {
-    const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
-    const services = [];
-    
-    // If there are no rows, don't proceed
-    if (tableRows.length === 0) {
-        createNotification('info', 'No data to sync.');
-        return;
-    }
-    
-    // Gather data from all rows
-    tableRows.forEach(row => {
-        const cells = row.cells;
-        if (cells.length < 7) return;
-        
-        const serviceName = cells[0].textContent;
-        const date = cells[1].textContent;
-        const startTime = cells[2].dataset.original || cells[2].textContent;
-        const endTime = cells[3].dataset.original || cells[3].textContent;
-        const endDate = cells[4].textContent;
-        const comments = cells[5].textContent;
-        const priority = row.getAttribute('data-priority') || 'low';
-        
-        services.push({
-            name: serviceName,
-            start_time: startTime,
-            end_time: endTime,
-            end_date: endDate || date,
-            comments: comments,
-            priority: priority
-        });
-    });
-    
-    // Get the current header title
-    const headerTitle = document.getElementById('headerTitle').textContent;
-    
-    // Get the original email body if available
-    const emailBody = document.getElementById('emailBody');
-    const originalBody = emailBody ? emailBody.textContent : '';
-    
-    // Show loading animation
-    const loadingEl = document.createElement('div');
-    loadingEl.className = 'sync-loading';
-    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + 
-                         (saveToHistory ? 'Syncing & saving to history...' : 'Syncing data...');
-    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-    document.body.appendChild(loadingEl);
-
-    // Fetch the current username and then sync
-    fetch('/current-user', { credentials: 'same-origin' })
-        .then(res => res.json())
-        .then(user => {
-            let username = user && user.logged_in ? user.username : 'Unknown';
-            // Create the data object
-            const data = {
-                services: services,
-                date: services.length > 0 ? services[0].end_date : new Date().toISOString().split('T')[0],
-                header_title: headerTitle,
-                original_body: originalBody,
-                username: username
-            };
-            // Send to server
-            const endpoint = saveToHistory ? '/sync-to-history' : '/sync-all-data';
-            fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data),
-                cache: 'no-store'
-            })
-            .then(response => response.json())
-            .then(result => {
-                document.body.removeChild(loadingEl);
-                if (result.status === 'success') {
-                    // Update the timestamp
-                    document.getElementById('dataTimestamp').value = result.timestamp;
-                    // Update the last-edited-by field in real time
-
-                    
-                    const successEl = document.createElement('div');
-                    successEl.className = 'sync-success';
-                    successEl.innerHTML = '<i class="fas fa-check-circle"></i> ' +
-                                        (saveToHistory ? 'Data synced and saved to history!' : 'Data synced successfully!');
-                    successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-                    document.body.appendChild(successEl);
-                    
-                    setTimeout(() => {
-                        document.body.removeChild(successEl);
-                    }, 3000);
-                    
-                } else {
-                    createNotification('error', 'Error syncing data: ' + (result.message || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                document.body.removeChild(loadingEl);
-                console.error('Error:', error);
-                createNotification('error', 'Error syncing data. Please try again.');
-            });
-        })
-        .catch(() => {
-            document.body.removeChild(loadingEl);
-            createNotification('error', 'Could not determine username. Please log in again.');
-        });
-}
 
 // Add a function to periodically check for updates from other tabs
 function setupUpdateChecker() {
@@ -2025,103 +1918,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Enhanced version of syncAllDataToRedis to support history
-function syncAllDataToRedis(saveToHistory = false) {
-    const tableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
-    const services = [];
-    
-    // If there are no rows, don't proceed
-    if (tableRows.length === 0) {
-        createNotification('info', 'No data to sync.');
-        return;
-    }
-    
-    // Gather data from all rows
-    tableRows.forEach(row => {
-        const cells = row.cells;
-        if (cells.length < 7) return;
-        
-        const serviceName = cells[0].textContent;
-        const date = cells[1].textContent;
-        const startTime = cells[2].dataset.original || cells[2].textContent;
-        const endTime = cells[3].dataset.original || cells[3].textContent;
-        const endDate = cells[4].textContent;
-        const comments = cells[5].textContent;
-        const priority = row.getAttribute('data-priority') || 'low';
-        
-        services.push({
-            name: serviceName,
-            start_time: startTime,
-            end_time: endTime,
-            end_date: endDate || date,
-            comments: comments,
-            priority: priority
-        });
-    });
-    
-    // Get the current header title
-    const headerTitle = document.getElementById('headerTitle').textContent;
-    
-    // Get the original email body if available
-    const emailBody = document.getElementById('emailBody');
-    const originalBody = emailBody ? emailBody.textContent : '';
-    
-    // Create the data object
-    const data = {
-        services: services,
-        date: services.length > 0 ? services[0].end_date : new Date().toISOString().split('T')[0],
-        header_title: headerTitle,
-        original_body: originalBody
-    };
-    
-    // Show loading animation
-    const loadingEl = document.createElement('div');
-    loadingEl.className = 'sync-loading';
-    loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + 
-                         (saveToHistory ? 'Syncing & saving to history...' : 'Syncing data...');
-    loadingEl.style = 'position:fixed; top:20px; right:20px; background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-    document.body.appendChild(loadingEl);
-    
-    // Send to server
-    const endpoint = saveToHistory ? '/sync-to-history' : '/sync-all-data';
-    
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data),
-        cache: 'no-store'
-    })
-    .then(response => response.json())
-    .then(result => {
-        document.body.removeChild(loadingEl);
-        if (result.status === 'success') {
-            // Update the timestamp
-            document.getElementById('dataTimestamp').value = result.timestamp;
-            // Update the last-edited-by field in real time
 
-            const successEl = document.createElement('div');
-            successEl.className = 'sync-success';
-            successEl.innerHTML = '<i class="fas fa-check-circle"></i> ' +
-                                (saveToHistory ? 'Data synced and saved to history!' : 'Data synced successfully!');
-            successEl.style = 'position:fixed; top:20px; right:20px; background:var(--success-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000;';
-            document.body.appendChild(successEl);
-            
-            setTimeout(() => {
-                document.body.removeChild(successEl);
-            }, 3000);
-            
-        } else {
-            createNotification('error', 'Error syncing data: ' + (result.message || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        document.body.removeChild(loadingEl);
-        console.error('Error:', error);
-        createNotification('error', 'Error syncing data. Please try again.');
-    });
-}
 
 // Open history modal and load history items
 function openHistoryModal(viewOnly = false) {
@@ -3532,7 +3329,28 @@ function hideOfflineNotch() {
         }, 500);
     }
 }
+// ... existing code ...
 
+// Periodically check if reauth is expired and update overlays accordingly
+setInterval(function() {
+    if (isAuthenticated()) {
+        enableRestrictedFeatures();
+    } else {
+        disableRestrictedFeatures();
+    }
+}, 2000);
+
+// ... existing code ...
+// Periodically check if reauth is expired and update overlays accordingly
+setInterval(function() {
+    if (isAuthenticated()) {
+        enableRestrictedFeatures();
+    } else {
+        disableRestrictedFeatures();
+    }
+}, 2000);
+
+// ... existing code ...
 // Example usage:
 // showOfflineNotch() - shows offline notification
 // showOfflineNotch(true) - shows back online notification

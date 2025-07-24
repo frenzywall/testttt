@@ -325,58 +325,6 @@ def save_to_history(data):
         logger.error(f"Error saving to history: {str(e)}")
         return False
 
-def convert_sweden_to_ist(sweden_time_str, date_str):
-    """Convert Sweden TZ time into IST."""
-    sweden_tz = pytz.timezone('Europe/Stockholm')
-    ist_tz = pytz.timezone('Asia/Kolkata')
-    try:
-        
-        sweden_time_str = re.sub(r'\s*(CET|CEST)\s*', '', sweden_time_str).strip()
-        
-        if '-' in sweden_time_str:
-            parts = sweden_time_str.split('-')
-            try:
-                start = parts[0].strip()
-                end = parts[1].strip()
-                
-               
-                if len(start.split()) == 1:  
-                    start = f"{date_str} {start}"
-                if len(end.split()) == 1: 
-                    end = f"{date_str} {end}"
-                
-               
-                start_ist = convert_sweden_to_ist(start, date_str)
-                end_ist = convert_sweden_to_ist(end, date_str)
-                return f"{start_ist}-{end_ist}"
-            except Exception as e:
-                logger.warning(f"Error splitting time range: {e}")
-                return sweden_time_str
-        
-        try:
-            
-            if len(sweden_time_str.split()) == 1: 
-                sweden_time_str = f"{date_str} {sweden_time_str}"
-            
-            
-            dt = parser.parse(sweden_time_str)
-            
-           
-            if dt.tzinfo is None:
-                dt = sweden_tz.localize(dt)
-            
-            
-            ist_time = dt.astimezone(ist_tz)
-            return ist_time.strftime("%I:%M %p")  
-            
-        except Exception as e:
-            logger.warning(f"Error parsing single time: {e}")
-            return sweden_time_str
-            
-    except Exception as e:
-        logger.warning(f"Error converting time {sweden_time_str}: {e}")
-        return sweden_time_str
-
 def extract_date_from_subject(subject):
     date_patterns = [
         r'\d{2}-\d{2}-\d{4}',
