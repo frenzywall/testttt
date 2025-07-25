@@ -3340,17 +3340,27 @@ setInterval(function() {
     }
 }, 2000);
 
-// ... existing code ...
-// Periodically check if reauth is expired and update overlays accordingly
-setInterval(function() {
-    if (isAuthenticated()) {
-        enableRestrictedFeatures();
-    } else {
-        disableRestrictedFeatures();
-    }
-}, 2000);
+
 
 // ... existing code ...
 // Example usage:
 // showOfflineNotch() - shows offline notification
 // showOfflineNotch(true) - shows back online notification
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/check-reauth', { credentials: 'same-origin' })
+        .then(res => {
+            if (!res.ok) throw new Error('Not authenticated');
+            return res.json();
+        })
+        .then(data => {
+            if (!data.valid) {
+                localStorage.removeItem('reauthUntil');
+            }
+        })
+        .catch(() => {
+            // If the server is unreachable or session is invalid, clear local reauth
+            localStorage.removeItem('reauthUntil');
+        });
+    // ...existing code...
+});
