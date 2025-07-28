@@ -84,14 +84,6 @@ GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 # Add environment variable for Redis connection pool size
 REDIS_MAX_CONNECTIONS = int(os.environ.get('REDIS_MAX_CONNECTIONS', 20))  # Default pool size
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
-
-app.secret_key = os.environ.get('SECRET_KEY')
-if not app.secret_key:
-    app.secret_key = secrets.token_hex(16)
-    logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
-
-
 logger.info(f"Session timeout configured for {SESSION_TIMEOUT_SECONDS} seconds (testing mode)")
 
 # --- Redis client for app data (decode_responses=True, db=0) ---
