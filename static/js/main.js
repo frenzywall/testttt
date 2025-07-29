@@ -1849,30 +1849,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Handle dropdown item clicks
-        document.getElementById('syncToRedis').addEventListener('click', function() {
-            syncAllDataToRedis(false); // Regular sync without history
-            const dropdownParent = syncDropdown.parentElement;
-            if (dropdownParent) {
-                dropdownParent.classList.remove('open');
-            }
-        });
-        
-        document.getElementById('syncToHistory').addEventListener('click', function() {
-            syncAllDataToRedis(true); // Sync and save to history
-            const dropdownParent = syncDropdown.parentElement;
-            if (dropdownParent) {
-                dropdownParent.classList.remove('open');
-            }
-        });
-        
-        document.getElementById('viewHistory').addEventListener('click', function() {
-            openHistoryModal();
-            const dropdownParent = syncDropdown.parentElement;
-            if (dropdownParent) {
-                dropdownParent.classList.remove('open');
-            }
-        });
+        // Note: Dropdown item click handlers are now handled in setupDropdownActions function
+        // to prevent duplicate event listeners
     }
     
     // History modal
@@ -2416,27 +2394,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // This function sets up the dropdown item click handlers
 function setupDropdownActions(dropdownParent) {
-    // Handle dropdown item clicks
-    document.getElementById('syncToRedis').addEventListener('click', function() {
+    // Define named functions for event handlers
+    const syncToRedisHandler = function() {
         syncAllDataToRedis(false); // Regular sync without history
         if (dropdownParent) {
             dropdownParent.classList.remove('open');
         }
-    });
+    };
     
-    document.getElementById('syncToHistory').addEventListener('click', function() {
+    const syncToHistoryHandler = function() {
         syncAllDataToRedis(true); // Sync and save to history
         if (dropdownParent) {
             dropdownParent.classList.remove('open');
         }
-    });
+    };
     
-    document.getElementById('viewHistory').addEventListener('click', function() {
+    const viewHistoryHandler = function() {
         openHistoryModal();
         if (dropdownParent) {
             dropdownParent.classList.remove('open');
         }
-    });
+    };
+    
+    // Get button elements
+    const syncToRedisBtn = document.getElementById('syncToRedis');
+    const syncToHistoryBtn = document.getElementById('syncToHistory');
+    const viewHistoryBtn = document.getElementById('viewHistory');
+    
+    // Only add event listeners if they don't already exist
+    if (syncToRedisBtn && !syncToRedisBtn._hasSyncListener) {
+        syncToRedisBtn.addEventListener('click', syncToRedisHandler);
+        syncToRedisBtn._hasSyncListener = true;
+    }
+    
+    if (syncToHistoryBtn && !syncToHistoryBtn._hasSyncListener) {
+        syncToHistoryBtn.addEventListener('click', syncToHistoryHandler);
+        syncToHistoryBtn._hasSyncListener = true;
+    }
+    
+    if (viewHistoryBtn && !viewHistoryBtn._hasSyncListener) {
+        viewHistoryBtn.addEventListener('click', viewHistoryHandler);
+        viewHistoryBtn._hasSyncListener = true;
+    }
 }
 
 // Add info icons to the dropdown items
