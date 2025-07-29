@@ -1118,13 +1118,6 @@ def delete_row():
     save_stored_data(stored_data)
     return jsonify({'status': 'success'})
 
-@app.route('/save-title', methods=['POST'])
-def save_title():
-    """Save the header title without automatic Redis sync"""
-    stored_data = get_stored_data() or {}
-    stored_data['header_title'] = request.json['title']
-    return jsonify({'status': 'success'})
-
 @app.route('/save-parsed-data', methods=['POST'])
 def save_parsed_data():
     """Save the entire dataset from parsed data editing"""

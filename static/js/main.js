@@ -867,15 +867,6 @@ saveHeaderBtn.addEventListener('click', function() {
     headerTitle.classList.remove('editable');
     editHeaderBtn.style.display = 'flex';
     saveHeaderBtn.style.display = 'none';
-    fetch('/save-title', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        title: headerTitle.textContent
-    })
-    });
 });
 
 headerTitle.addEventListener('keydown', function(e) {
@@ -2153,6 +2144,9 @@ function loadHistoryItem(timestamp, viewOnly = false) {
     }).then(confirmed => {
       if (!confirmed) return;
       
+      // Clear any existing notifications before starting the loading process
+      clearAllNotifications();
+      
       // Show loading state
       const loadingEl = document.createElement('div');
       loadingEl.id = 'history-loading-indicator';
@@ -2183,6 +2177,9 @@ function loadHistoryItem(timestamp, viewOnly = false) {
           removeLoadingElement();
           
           if (result.status === 'success') {
+            // Clear all existing notifications before showing new ones
+            clearAllNotifications();
+            
             // Call the updateUIWithHistoryData function with the history data
             updateUIWithHistoryData(result.data);
             
@@ -2526,6 +2523,12 @@ function createNotification(type, message, persistent = false, clickable = false
   return notification;
 }
 
+// Helper function to clear all notifications
+function clearAllNotifications() {
+  const existingNotifications = document.querySelectorAll('.notification');
+  existingNotifications.forEach(note => note.remove());
+}
+
 // Update the resetForm event listener to use our custom dialog
 document.addEventListener('DOMContentLoaded', function() {
   const resetFormBtn = document.getElementById('resetForm');
@@ -2719,7 +2722,7 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
 
 // ...existing code...
 
-// Update the resetForm event listener to require a passkey and use our custom dialog
+// Update the resetForm event listener to use our custom dialog
 document.addEventListener('DOMContentLoaded', function() {
   const resetFormBtn = document.getElementById('resetForm');
   if (resetFormBtn) {
@@ -3086,6 +3089,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data && data.timestamp && data.title) {
                     // Wait 3 seconds before showing the history notification
                     setTimeout(() => {
+                        // Clear existing notifications before creating new ones
+                        clearAllNotifications();
+                        
                         // Wait for any existing notifications to complete their animations
                         setTimeout(() => {
                             // Create notification with separate refresh and dismiss buttons
