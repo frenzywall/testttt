@@ -242,7 +242,6 @@ const ChangeTracker = {
     attachEventListeners: function() {
         // Listen for edit and save to the header title
         const editHeaderBtn = document.getElementById('editHeaderBtn');
-        const saveHeaderBtn = document.getElementById('saveHeaderBtn');
         let originalTitle = '';
 
         if (editHeaderBtn) {
@@ -252,17 +251,7 @@ const ChangeTracker = {
             });
         }
 
-        if (saveHeaderBtn) {
-            saveHeaderBtn.addEventListener('click', () => {
-                // Compare with the new title after save
-                const newTitle = document.querySelector('.header-title').textContent.trim();
-                
-                // Compare the titles and only mark as unsaved if changed
-                if (originalTitle !== newTitle) {
-                    this.markUnsaved();
-                }
-            });
-        }
+        // Note: saveHeaderBtn event listener is handled in main.js to avoid conflicts
 
         // Listen for save buttons in the table rows
         document.addEventListener('click', event => {

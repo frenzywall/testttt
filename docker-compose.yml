@@ -38,7 +38,8 @@ services:
 
       # --- Rate limiting ---
       - RATE_LIMIT=5                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.
-      - RATE_WINDOW=60                    # Window size in seconds for rate limiting. Default: 60 (1 minute).
+      - RATE_WINDOW=30                    # Window size in seconds for rate limiting. Default: 60 (1 minute).
+      - RATE_LIMIT_ENABLED=true          # Enable/disable rate limiting. true/false. Default: true.
 
       # --- History and temp ---
       - HISTORY_LIMIT=1000                # Max number of history entries to keep. Default: 1000. Lower to save memory.

@@ -2856,7 +2856,7 @@ background-color: rgba(245, 158, 11, 0.4);
 /* Elegant, minimal history UI with glassmorphism */
 /* Position the history modal to the right side */
 .history-modal {
-    max-height: 80vh; /* Reduced to add more space at bottom */
+    max-height: 60vh; /* Reduced to prevent overflow */
     display: flex;
     flex-direction: column;
     border-radius: 15px;
@@ -2864,7 +2864,7 @@ background-color: rgba(245, 158, 11, 0.4);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     position: absolute;
     right: 20px;
-    top: 80px; /* Adjust as needed to position below the header */
+    top: 40px; /* Moved up further */
     padding: 1.25rem;
     overflow: hidden;
     width: 420px; /* Increased width to show full titles */
@@ -2934,7 +2934,7 @@ background-color: rgba(245, 158, 11, 0.4);
   .history-list {
     flex: 1;
     overflow-y: auto;
-    max-height: calc(80vh - 200px); /* Reduced height to ensure space at bottom */
+    max-height: calc(60vh - 250px); /* Reduced height to prevent overflow */
     border-radius: 12px;
     border: 1px solid rgba(var(--glass-border-rgb, 255, 255, 255), 0.05);
     padding: 0.25rem 0.2rem;
@@ -2943,6 +2943,7 @@ background-color: rgba(245, 158, 11, 0.4);
     scrollbar-color: #6b7280 var(--glass-bg);
     background: rgba(255, 255, 255, 0.02);
     box-sizing: border-box;
+    min-height: 200px;
   }
   
   .history-list::-webkit-scrollbar {
@@ -3075,7 +3076,7 @@ background-color: rgba(245, 158, 11, 0.4);
   .history-item-summary {
     font-size: 0.75rem;
     color: var(--secondary-color);
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.5rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -3860,5 +3861,182 @@ background-color: rgba(245, 158, 11, 0.4);
   }
 }
 /* --- End Offline Notch Styles --- */
+
+/* History Results Counter */
+.history-results-counter {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  margin-bottom: 0.5rem;
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* History Pagination */
+.history-pagination {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-direction: row;
+}
+
+.pagination-info {
+  font-size: 0.75rem;
+  color: var(--secondary-color);
+  margin: 0 0.5rem;
+  white-space: nowrap;
+}
+
+.pagination-results {
+  font-size: 0.75rem;
+  color: var(--secondary-color);
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-direction: row;
+}
+
+.pagination-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+
+/* Dark theme adjustments */
+[data-theme="dark"] .history-results-counter {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .pagination-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .pagination-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="dark"] .page-number {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .page-number:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .pagination-buttons {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .page-numbers {
+    order: 2;
+  }
+  
+  .pagination-btn {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .pagination-btn.next {
+    order: 3;
+  }
+}
+
+/* Search input improvements */
+.history-search input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.history-search input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] .history-search input {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .history-search input:focus {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: var(--primary-color);
+}
+
+/* Loading state improvements */
+.loading-history {
+  text-align: center;
+  padding: 2rem;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.loading-history i {
+  margin-right: 0.5rem;
+  color: var(--primary-color);
+}
+
+/* Error state improvements */
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  color: var(--danger-color);
+  font-size: 0.9rem;
+}
+
+.error-message i {
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+}
 
 

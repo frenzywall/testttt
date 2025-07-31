@@ -1,7 +1,130 @@
 // Import Luxon library for DateTime operations
 const { DateTime } = luxon || window.luxon;
 
+// Smart History Caching System
+class SmartHistoryCache {
+    constructor() {
+        this.cache = new Map();
+        this.searchCache = new Map();
+        this.pageCache = new Map();
+        this.failedSearchCache = new Map(); // Track failed searches
+        this.lastSyncTimestamp = 0;
+        this.cacheTTL = 5 * 60 * 1000; // 5 minutes
+        this.maxCacheSize = 100; // Prevent memory leaks
+    }
+    
+    // Cache key generators
+    getPageKey(page, perPage) {
+        return `page_${page}_${perPage}`;
+    }
+    
+    getSearchKey(searchTerm) {
+        return `search_${searchTerm.toLowerCase().trim()}`;
+    }
+    
+    // Cache invalidation
+    invalidateCache() {
+        this.cache.clear();
+        this.searchCache.clear();
+        this.pageCache.clear();
+        this.failedSearchCache.clear(); // Clear failed search cache too
+    }
+    
+    // Check if a search term is known to return no results
+    isFailedSearch(searchTerm) {
+        const failed = this.failedSearchCache.get(searchTerm);
+        if (failed && (Date.now() - failed.timestamp) < this.cacheTTL) {
+            return true;
+        }
+        if (failed) {
+            this.failedSearchCache.delete(searchTerm); // Remove expired entry
+        }
+        return false;
+    }
+    
+    // Mark a search term as failed
+    markFailedSearch(searchTerm) {
+        this.failedSearchCache.set(searchTerm, {
+            timestamp: Date.now()
+        });
+        
+        // Limit failed search cache size
+        if (this.failedSearchCache.size > this.maxCacheSize) {
+            const firstKey = this.failedSearchCache.keys().next().value;
+            this.failedSearchCache.delete(firstKey);
+        }
+    }
+    
+    // Check if cache is valid
+    isCacheValid(timestamp) {
+        return (Date.now() - timestamp) < this.cacheTTL;
+    }
+    
+    // Get cached data
+    getCachedData(key, cacheType = 'general') {
+        const cache = cacheType === 'search' ? this.searchCache : 
+                     cacheType === 'page' ? this.pageCache : this.cache;
+        
+        const cached = cache.get(key);
+        if (cached && this.isCacheValid(cached.timestamp)) {
+            return cached.data;
+        }
+        
+        if (cached) {
+            cache.delete(key); // Remove expired cache
+        }
+        return null;
+    }
+    
+    // Set cached data with LRU eviction
+    setCachedData(key, data, cacheType = 'general') {
+        const cache = cacheType === 'search' ? this.searchCache : 
+                     cacheType === 'page' ? this.pageCache : this.cache;
+        
+        // Implement LRU eviction to prevent memory leaks
+        if (cache.size >= this.maxCacheSize) {
+            // Remove oldest entry (first key in Map)
+            const firstKey = cache.keys().next().value;
+            cache.delete(firstKey);
+        }
+        
+        cache.set(key, {
+            data: data,
+            timestamp: Date.now()
+        });
+    }
+    
+    // Update sync timestamp for invalidation
+    updateSyncTimestamp() {
+        this.lastSyncTimestamp = Date.now();
+        this.invalidateCache();
+    }
+    
+    // Clear failed search cache (called via update checker when new data is added)
+    clearFailedSearchCache() {
+        this.failedSearchCache.clear();
+    }
+    
+    // Check if any prefix of the search term is known to return no results
+    isFailedSearchPrefix(searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Check if any prefix of the search term is in failed cache
+        for (let i = 1; i <= searchLower.length; i++) {
+            const prefix = searchLower.substring(0, i);
+            const failed = this.failedSearchCache.get(prefix);
+            if (failed && (Date.now() - failed.timestamp) < this.cacheTTL) {
+                return true; // Found a failed prefix
+            }
+        }
+        return false;
+    }
+}
 
+// Global cache instance
+const historyCache = new SmartHistoryCache();
+// Make it globally accessible for logout handlers
+window.historyCache = historyCache;
 
 const modal = document.getElementById('emailModal');
 const viewOriginalBtn = document.getElementById('viewOriginal');
@@ -9,8 +132,41 @@ const closeBtn = document.querySelector('#emailModal .close');
 const confirmDialog = document.getElementById('deleteConfirmDialog');
 let rowToDelete = null;
 
+// Function to update the parsed data table with current main table data
+function updateParsedDataFromMainTable() {
+    const mainTableRows = document.querySelectorAll('#changeTable tbody tr:not(.empty-state)');
+    const parsedDataBody = document.getElementById('parsedDataBody');
+    
+    // Clear the parsed data table
+    parsedDataBody.innerHTML = '';
+    
+    // Add current table data to parsed data table
+    mainTableRows.forEach(row => {
+        const cells = row.cells;
+        if (cells.length < 6) return;
+        
+        const serviceName = cells[0].textContent;
+        const date = cells[1].textContent;
+        const startTime = cells[2].textContent;
+        const endTime = cells[3].textContent;
+        const comments = cells[5].textContent;
+        
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-service', serviceName);
+        newRow.innerHTML = `
+            <td>${serviceName}</td>
+            <td>${date}</td>
+            <td>${startTime} - ${endTime}</td>
+            <td>${comments}</td>
+        `;
+        parsedDataBody.appendChild(newRow);
+    });
+}
+
 viewOriginalBtn.onclick = function() {
     ensureAuthenticated(() => {
+        // Update the parsed data table with current table data before showing modal
+        updateParsedDataFromMainTable();
         modal.style.display = "block";
     }, "Please enter the passkey to compare and edit");
 }
@@ -29,42 +185,115 @@ window.onclick = function(event) {
 }
 
 
+// Helper function to convert time to minutes for sorting
+function convertTimeToMinutes(timeStr) {
+    if (!timeStr || timeStr === '-' || timeStr.trim() === '') {
+        return -1; // Put empty times at the end
+    }
+    
+    // Handle time ranges (e.g., "08:00-10:00")
+    if (timeStr.includes('-')) {
+        const [start] = timeStr.split('-');
+        timeStr = start.trim();
+    }
+    
+    // Extract time from format like "08:00 AM" or "08:00"
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        
+        // Handle AM/PM
+        if (timeStr.toLowerCase().includes('pm') && hours !== 12) {
+            hours += 12;
+        } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
+            hours = 0;
+        }
+        
+        return hours * 60 + minutes;
+    }
+    
+    return 0; // Default for invalid times
+}
+
+// Helper function to convert date string to comparable format
+function convertDateToComparable(dateStr) {
+    if (!dateStr || dateStr === '-' || dateStr.trim() === '') {
+        return new Date(0); // Put empty dates at the end
+    }
+    
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? new Date(0) : date;
+}
+
 document.querySelectorAll('th.sortable').forEach(header => {
     header.addEventListener('click', function() {
-    const table = this.closest('table');
-    const index = Array.from(this.parentNode.children).indexOf(this);
-    const isAsc = this.classList.contains('sorted-asc');
-    
-    
-    table.querySelectorAll('th').forEach(th => {
-        th.classList.remove('sorted-asc', 'sorted-desc');
-    });
-    
-    
-    this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-    
-    
-    const rows = Array.from(table.querySelectorAll('tbody tr'));
-    rows.sort((a, b) => {
-        const aValue = a.cells[index].textContent;
-        const bValue = b.cells[index].textContent;
+        const table = this.closest('table');
+        const index = Array.from(this.parentNode.children).indexOf(this);
+        const isAsc = this.classList.contains('sorted-asc');
         
-        if (isAsc) {
-        return bValue.localeCompare(aValue);
-        } else {
-        return aValue.localeCompare(bValue);
-        }
-    });
-    
-    
-    const tbody = table.querySelector('tbody');
-    rows.forEach(row => tbody.appendChild(row));
-    
-    
-    rows.forEach(row => {
-        row.classList.add('highlight-row');
-        setTimeout(() => row.classList.remove('highlight-row'), 1500);
-    });
+        // Clear all sort classes
+        table.querySelectorAll('th').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+        });
+        
+        // Add sort class to clicked header
+        this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+        
+        const rows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state)'));
+        rows.sort((a, b) => {
+            let aValue = a.cells[index].textContent.trim();
+            let bValue = b.cells[index].textContent.trim();
+            
+            // Special handling for different column types
+            if (index === 6) { // Impact Priority column (0-indexed)
+                const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+                const aPriority = a.getAttribute('data-priority') || 'low';
+                const bPriority = b.getAttribute('data-priority') || 'low';
+                
+                if (isAsc) {
+                    return priorityOrder[bPriority] - priorityOrder[aPriority];
+                } else {
+                    return priorityOrder[aPriority] - priorityOrder[bPriority];
+                }
+            } else if (index === 1 || index === 4) { // Date columns (DATE and END DATE)
+                // Convert dates to comparable format
+                const aDate = convertDateToComparable(aValue);
+                const bDate = convertDateToComparable(bValue);
+                
+                if (isAsc) {
+                    return bDate - aDate;
+                } else {
+                    return aDate - bDate;
+                }
+            } else if (index === 2 || index === 3) { // Time columns (START TIME and END TIME)
+                // Handle time sorting (convert to minutes for comparison)
+                const aMinutes = convertTimeToMinutes(aValue);
+                const bMinutes = convertTimeToMinutes(bValue);
+                
+                if (isAsc) {
+                    return bMinutes - aMinutes;
+                } else {
+                    return aMinutes - bMinutes;
+                }
+            } else {
+                // Default string comparison for Services and Comments
+                if (isAsc) {
+                    return bValue.localeCompare(aValue);
+                } else {
+                    return aValue.localeCompare(bValue);
+                }
+            }
+        });
+        
+        const tbody = table.querySelector('tbody');
+        rows.forEach(row => tbody.appendChild(row));
+        
+        // Apply row highlighting
+        rows.forEach(row => applyRowHighlight(row));
+        
+        // Reapply active filter
+        applyActiveFilter();
     });
 });
 
@@ -417,50 +646,7 @@ function applyActiveFilter() {
     });
 }
 
-document.querySelectorAll('th.sortable').forEach(header => {
-    header.addEventListener('click', function() {
-    const table = this.closest('table');
-    const index = Array.from(this.parentNode.children).indexOf(this);
-    const isAsc = this.classList.contains('sorted-asc');
-    
-    table.querySelectorAll('th').forEach(th => {
-        th.classList.remove('sorted-asc', 'sorted-desc');
-    });
-    
-    this.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-    
-    const rows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state)'));
-    rows.sort((a, b) => {
-        if (index === 5) {
-        const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
-        const aPriority = a.getAttribute('data-priority');
-        const bPriority = b.getAttribute('data-priority');
-        
-        if (isAsc) {
-            return priorityOrder[bPriority] - priorityOrder[aPriority];
-        } else {
-            return priorityOrder[aPriority] - priorityOrder[bPriority];
-        }
-        } else {
-        const aValue = a.cells[index].textContent;
-        const bValue = b.cells[index].textContent;
-        
-        if (isAsc) {
-            return bValue.localeCompare(aValue);
-        } else {
-            return aValue.localeCompare(bValue);
-        }
-        }
-    });
-    
-    const tbody = table.querySelector('tbody');
-    rows.forEach(row => tbody.appendChild(row));
-    
-    rows.forEach(row => applyRowHighlight(row));
-    
-    applyActiveFilter();
-    });
-});
+
 
 const tzControl = document.getElementById('tzControl');
 const fromTzSelect = document.getElementById('fromTimezone');
@@ -764,7 +950,7 @@ document.getElementById('downloadHtml').addEventListener('click', function() {
         styles += rule.cssText;
         });
     } catch (e) {
-        console.log('Could not read stylesheet:', e);
+        // Could not read stylesheet
     }
     });
 
@@ -847,6 +1033,11 @@ const saveHeaderBtn = document.getElementById('saveHeaderBtn');
 
 editHeaderBtn.addEventListener('click', function() {
     ensureAuthenticated(() => {
+        // Store the original title for change tracking
+        if (window.ChangeTracker) {
+            window.ChangeTracker.originalTitle = headerTitle.textContent.trim();
+        }
+        
         headerTitle.contentEditable = true;
         headerTitle.classList.add('editable');
         headerTitle.focus();
@@ -863,6 +1054,18 @@ editHeaderBtn.addEventListener('click', function() {
 });
 
 saveHeaderBtn.addEventListener('click', function() {
+    // Get the new title after save
+    const newTitle = headerTitle.textContent.trim();
+    
+    // Check if title has changed and update change tracker
+    if (window.ChangeTracker && window.ChangeTracker.originalTitle !== undefined) {
+        if (window.ChangeTracker.originalTitle !== newTitle) {
+            window.ChangeTracker.markUnsaved();
+        }
+        // Clear the stored original title
+        window.ChangeTracker.originalTitle = undefined;
+    }
+    
     headerTitle.contentEditable = false;
     headerTitle.classList.remove('editable');
     editHeaderBtn.style.display = 'flex';
@@ -871,13 +1074,20 @@ saveHeaderBtn.addEventListener('click', function() {
 
 headerTitle.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
-    e.preventDefault();
-    saveHeaderBtn.click();
+        e.preventDefault();
+        saveHeaderBtn.click();
     } else if (e.key === 'Escape') {
-    headerTitle.contentEditable = false;
-    headerTitle.classList.remove('editable');
-    editHeaderBtn.style.display = 'flex';
-    saveHeaderBtn.style.display = 'none';
+        // Restore the original title on escape
+        if (window.ChangeTracker && window.ChangeTracker.originalTitle !== undefined) {
+            headerTitle.textContent = window.ChangeTracker.originalTitle;
+            // Clear the stored original title since we're canceling
+            window.ChangeTracker.originalTitle = undefined;
+        }
+        
+        headerTitle.contentEditable = false;
+        headerTitle.classList.remove('editable');
+        editHeaderBtn.style.display = 'flex';
+        saveHeaderBtn.style.display = 'none';
     }
 });
 
@@ -1219,6 +1429,8 @@ saveDataBtn.addEventListener('click', function() {
         }, 3000);
     }, 1000);
 });
+
+
 
 // Function to update the main table with data from the parsed data table
 function updateMainTableFromParsedData() {
@@ -1616,6 +1828,13 @@ function syncAllDataToRedis(saveToHistory = false) {
             .then(result => {
                 document.body.removeChild(loadingEl);
                 if (result.status === 'success') {
+                    // Invalidate cache when data is synced (especially when saving to history)
+                    if (saveToHistory) {
+                        historyCache.updateSyncTimestamp();
+                        // Clear failed search cache when new data is added
+                        historyCache.failedSearchCache.clear();
+                    }
+                    
                     // Update the timestamp
                     document.getElementById('dataTimestamp').value = result.timestamp;
                     // Update the last-edited-by field in real time
@@ -1777,18 +1996,40 @@ function setupUpdateChecker() {
                 wasOffline = false;
             }
             failedChecks = 0; // Reset on success
-            // ... existing update logic ...
+            
             if (data.updated) {
+                // Clear failed search cache when data is updated
+                if (window.historyCache) {
+                    window.historyCache.clearFailedSearchCache();
+                }
+                
                 // Remove any existing notifications first
                 const existingNotice = document.querySelector('.update-notice');
                 if (existingNotice) {
                     existingNotice.remove();
                 }
-                // ... existing code ...
+                
+                // Create notification with a unique ID for the refresh link
+                const updateNotice = document.createElement('div');
+                updateNotice.className = 'update-notice';
+                updateNotice.innerHTML = '<i class="fas fa-info-circle"></i> Data has been updated. <a href="#" id="refreshPageLink">Refresh</a> to see the latest changes.';
+                updateNotice.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--primary-color); color:white; padding:10px 15px; border-radius:4px; z-index:10000; text-align:center;';
+                document.body.appendChild(updateNotice);
+                
+                // Attach event listener AFTER the element is in the DOM
+                const refreshLink = document.getElementById('refreshPageLink');
+                if (refreshLink) {
+                    refreshLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        // Use more reliable refresh methods
+                        window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now();
+                    });
+                }
             }
             // Remove offline notch if present (let the back online message handle removal)
         })
         .catch(error => {
+            console.error('Error checking for updates:', error);
             failedChecks++;
             if (failedChecks >= maxFails && !wasOffline) {
                 showOfflineNotch(false);
@@ -1857,19 +2098,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const historyModal = document.getElementById('historyModal');
     const historyModalClose = historyModal.querySelector('.close');
     
+    // Function to clear search when modal closes
+    function clearHistorySearch() {
+        const historySearch = document.getElementById('historySearch');
+        if (historySearch) {
+            historySearch.value = '';
+            currentHistorySearch = '';
+        }
+    }
+    
     historyModalClose.addEventListener('click', function() {
         historyModal.style.display = "none";
+        clearHistorySearch();
     });
     
     window.addEventListener('click', function(event) {
         if (event.target === historyModal) {
             historyModal.style.display = "none";
+            clearHistorySearch();
         }
     });
 
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape' && historyModal.style.display === "block") {
             historyModal.style.display = "none";
+            clearHistorySearch();
         }
     });
     
@@ -1877,123 +2130,165 @@ document.addEventListener('DOMContentLoaded', function() {
     const historySearch = document.getElementById('historySearch');
     const historyClearSearch = document.getElementById('historyClearSearch');
     
-    historySearch.addEventListener('input', function() {
-        filterHistoryItems(this.value);
-    });
-    
-    historyClearSearch.addEventListener('click', function() {
-        historySearch.value = '';
-        filterHistoryItems('');
-    });
+    if (historySearch) {
+        historySearch.addEventListener('input', function() {
+            const searchTerm = this.value.trim();
+            handleHistorySearch(searchTerm);
+        });
+        
+        // Clear search functionality
+        if (historyClearSearch) {
+            historyClearSearch.addEventListener('click', function() {
+                historySearch.value = '';
+                currentHistorySearch = ''; // Reset search state
+                openHistoryModal(currentViewOnly, '', 1);
+            });
+        }
+    }
 });
 
 
 
-// Open history modal and load history items
-function openHistoryModal(viewOnly = false) {
-    const historyModal = document.getElementById('historyModal');
-    const historyList = document.getElementById('historyList');
+// Global variables for pagination state
+let currentHistoryPage = 1;
+let currentHistorySearch = '';
+let historyPagination = null;
+let currentViewOnly = false; // Track current view-only state
+
+// Debounced search function
+let searchTimeout;
+const SEARCH_DELAY = 650; // Increased to 650ms as requested
+const MIN_SEARCH_LENGTH = 1; // Allow single character searches
+
+// --- Single result optimization state ---
+let lastSingleResult = null;
+let lastSingleResultSearch = '';
+let lastSingleResultTime = 0;
+const SINGLE_RESULT_TTL = 10000; // 10 seconds
+// ... existing code ...
+
+// Open history modal and load history items with caching
+async function openHistoryModal(viewOnly = false, searchTerm = '', page = 1) {
     
-    // Show loading state
-    historyList.innerHTML = '<div class="loading-history"><i class="fas fa-circle-notch fa-spin"></i> Loading history...</div>';
-    historyModal.style.display = "block";
-    
-    // Fetch history from server
-    fetch('/get-history', {
-        method: 'GET',
-        cache: 'no-store'
-    })
-    .then(response => response.json())
-    .then(history => {
-        if (history.length === 0) {
+        const historyModal = document.getElementById('historyModal');
+        const historyList = document.getElementById('historyList');
+        const paginationControls = document.getElementById('paginationControls');
+        const resultsCounter = document.getElementById('resultsCounter');
+        
+        // Ensure modal elements exist
+        if (!historyModal || !historyList) {
+            console.error('History modal elements not found!');
+            return;
+        }
+        
+        // Show modal immediately to prevent race conditions
+        historyModal.style.display = "block";
+        
+        // Update global state
+        currentHistoryPage = page;
+        currentHistorySearch = searchTerm;
+        currentViewOnly = viewOnly; // Track view-only state
+        
+            // Determine cache key and type
+    let cacheKey, cacheType;
+    if (searchTerm) {
+        cacheKey = historyCache.getSearchKey(searchTerm);
+        cacheType = 'search';
+    } else {
+        cacheKey = historyCache.getPageKey(page, 10);
+        cacheType = 'page';
+    }
+        
+            // Check cache first
+    const cachedData = historyCache.getCachedData(cacheKey, cacheType);
+    if (cachedData) {
+        displayHistoryData(cachedData, searchTerm, page, viewOnly);
+        return;
+    }
+        
+        // Show loading state
+        historyList.innerHTML = '<div class="loading-history"><i class="fas fa-circle-notch fa-spin"></i> Loading history...</div>';
+        
+                try {
+            // Build URL with parameters
+            const params = new URLSearchParams();
+            if (searchTerm) {
+                params.append('search', searchTerm);
+            } else {
+                params.append('page', page);
+                params.append('per_page', 10);  // Changed to 10 for better UX
+            }
+            
+            // Fetch history from server
+            const response = await fetch(`/get-history?${params}`, {
+                method: 'GET',
+                cache: 'no-store'
+            });
+        
+        if (response.status === 304) {
+            // Not Modified - use existing cache
+            const cachedData = historyCache.getCachedData(cacheKey, cacheType);
+            if (cachedData) {
+                displayHistoryData(cachedData, searchTerm, page, viewOnly);
+                return;
+            }
+        }
+        
+        // Check for error status codes
+        if (!response.ok) {
+            let errorMessage = 'Error loading history. Please try again.';
+            
+            if (response.status === 429) {
+                errorMessage = 'Too many requests. Please wait a moment and try again.';
+                // Add visual indicator for rate limiting
+                const searchInput = document.querySelector('#historySearch');
+                if (searchInput) {
+                    searchInput.style.borderColor = '#ff6b6b';
+                    setTimeout(() => {
+                        searchInput.style.borderColor = '';
+                    }, 3000);
+                }
+            } else if (response.status === 401) {
+                errorMessage = 'Authentication required. Please log in again.';
+            } else if (response.status === 403) {
+                errorMessage = 'Access denied. Please check your permissions.';
+            } else if (response.status === 500) {
+                errorMessage = 'Server error. Please try again later.';
+            }
+            
             historyList.innerHTML = `
-                <div class="empty-history">
-                    <i class="fas fa-inbox"></i>
-                    <p>No synced history items found</p>
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>${errorMessage}</p>
                 </div>
             `;
             return;
         }
         
-        // Populate history items
-        historyList.innerHTML = '';
-        history.forEach(item => {
-            const historyItem = document.createElement('div');
-            historyItem.className = 'history-item';
-            historyItem.dataset.timestamp = item.timestamp;
-            
-            const serviceCount = item.data?.services?.length || 0;
-            
-            // NEW: Convert saved UTC date to local timezone using the system's tz.
-            let formattedDate = 'Unknown date';
-            let formattedTime = '';
-            if (item.date) {
-                const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const dt = DateTime.fromFormat(item.date, "yyyy-MM-dd HH:mm:ss", {zone: 'utc'}).setZone(localTz);
-                formattedDate = dt.toFormat("yyyy-MM-dd");
-                formattedTime = dt.toFormat("hh:mm a") + " (" + localTz + ")";
+        const data = await response.json();
+        
+        // Cache the result
+        historyCache.setCachedData(cacheKey, data, cacheType);
+        
+        // Disable or enable search based on is_empty (only when not searching)
+        if (typeof data.is_empty !== 'undefined' && !searchTerm) {
+            const historySearch = document.getElementById('historySearch');
+            const searchBtn = document.getElementById('searchBtn');
+            if (data.is_empty) {
+                if (historySearch) historySearch.disabled = true;
+                if (searchBtn) searchBtn.disabled = true;
+                if (historySearch) historySearch.placeholder = 'No history to search...';
+            } else {
+                if (historySearch) historySearch.disabled = false;
+                if (searchBtn) searchBtn.disabled = false;
+                if (historySearch) historySearch.placeholder = 'Search history by title or date...';
             }
-            
-            historyItem.innerHTML = `
-                <div class="history-item-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1.2rem;">
-                    <div class="history-item-title" style="flex:1;min-width:0;">
-                        <span class="history-item-badge"></span>
-                        <span style="font-size:1.15em;font-weight:bold;">${item.title || 'Change Weekend'}</span>
-                    </div>
-                    <div class="history-item-date-time" style="display:flex;flex-direction:column;align-items:flex-end;min-width:120px;">
-                        <span class="history-item-date" style="font-size:0.77em;color:#b0b8c9;">${formattedDate}</span>
-                        <span class="history-item-time" style="font-size:0.77em;color:#b0b8c9;">${formattedTime}</span>
-                    </div>
-                </div>
-                <div class="history-item-summary">
-                    ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
-                </div>
-                <div class="history-item-actions">
-                    <button class="history-item-btn load">
-                        <i class="fas fa-cloud-download-alt"></i> Load
-                    </button>
-                    <button class="history-item-btn delete">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            `;
-            
-            historyList.appendChild(historyItem);
-        });
-        
-        // Add event listeners to load buttons
-        document.querySelectorAll('.history-item-btn.load').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const timestamp = this.closest('.history-item').dataset.timestamp;
-                loadHistoryItem(timestamp, viewOnly); // pass flag here
-            });
-        });
-        
-        // Add event listeners to delete buttons
-        if (!viewOnly) {
-            document.querySelectorAll('.history-item-btn.delete').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const timestamp = this.closest('.history-item').dataset.timestamp;
-                    deleteHistoryItem(timestamp, this.closest('.history-item')); // This will use our new custom dialog
-                });
-            });
-        } else {
-            // hide delete buttons in view‐only mode
-            document.querySelectorAll('.history-item-btn.delete').forEach(btn => btn.remove());
         }
         
-        // Make whole item clickable to expand (future enhancement)
-        document.querySelectorAll('.history-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                if (!e.target.closest('.history-item-btn')) {
-                    // Future: toggle expanded view with more details
-                }
-            });
-        });
-    })
-    .catch(error => {
+        // Display data
+        displayHistoryData(data, searchTerm, page, viewOnly);
+        
+    } catch (error) {
         console.error('Error loading history:', error);
         historyList.innerHTML = `
             <div class="error-message">
@@ -2001,7 +2296,297 @@ function openHistoryModal(viewOnly = false) {
                 <p>Error loading history. Please try again.</p>
             </div>
         `;
+    }
+}
+
+// Display history data (extracted from openHistoryModal for reuse)
+function displayHistoryData(data, searchTerm, page, viewOnly) {
+    
+    const historyModal = document.getElementById('historyModal');
+    const historyList = document.getElementById('historyList');
+    const paginationControls = document.getElementById('paginationControls');
+    const resultsCounter = document.getElementById('resultsCounter');
+    
+    // Ensure modal is shown
+    if (historyModal) {
+        historyModal.style.display = "block";
+    }
+    
+    const history = data.items || data; // Handle both paginated and full list
+    const pagination = data.pagination;
+    
+    if (history.length === 0) {
+        historyList.innerHTML = `
+            <div class="empty-history">
+                <i class="fas fa-inbox"></i>
+                <p>${searchTerm ? `No results found for '${searchTerm}'` : 'Your sync history will appear here once you start syncing...'}</p>
+            </div>
+        `;
+        
+        // Mark failed search for future early exits
+        if (searchTerm) {
+            historyCache.markFailedSearch(searchTerm);
+        }
+        
+        // Update results counter for no results
+        updateResultsCounter(0, null, searchTerm);
+        
+        // Hide pagination controls for search with no results
+        if (paginationControls) {
+            paginationControls.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Show/hide pagination controls
+    if (paginationControls) {
+        paginationControls.style.display = searchTerm ? 'none' : 'block';
+    }
+    
+    // Update results counter
+    updateResultsCounter(history.length, pagination, searchTerm);
+    
+    // Store pagination info
+    historyPagination = pagination;
+    
+    // Populate history items
+    populateHistoryItems(history, viewOnly);
+    
+    // Update pagination controls
+    if (pagination && !searchTerm) {
+        updatePaginationControls(pagination);
+    }
+
+    // Track single result optimization
+    if (searchTerm && history.length === 1) {
+        lastSingleResult = history[0];
+        lastSingleResultSearch = searchTerm;
+        lastSingleResultTime = Date.now();
+        // console.log('[SingleResultOpt] Caching single result for search:', searchTerm);
+    } else if (searchTerm && history.length !== 1) {
+        lastSingleResult = null;
+        lastSingleResultSearch = '';
+        lastSingleResultTime = 0;
+    }
+}
+
+// Populate history items
+function populateHistoryItems(history, viewOnly) {
+    const historyList = document.getElementById('historyList');
+    historyList.innerHTML = '';
+    
+    history.forEach(item => {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+        historyItem.dataset.timestamp = item.timestamp;
+        
+        const serviceCount = item.data?.services?.length || 0;
+        
+        // Convert saved UTC date to local timezone
+        let formattedDate = 'Unknown date';
+        let formattedTime = '';
+        if (item.date) {
+            const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const dt = DateTime.fromFormat(item.date, "yyyy-MM-dd HH:mm:ss", {zone: 'utc'}).setZone(localTz);
+            formattedDate = dt.toFormat("yyyy-MM-dd");
+            formattedTime = dt.toFormat("hh:mm a") + " (" + localTz + ")";
+        }
+        
+        // Add match source info if available
+        let matchSourceHtml = '';
+        if (item._match_sources && item._match_sources.length > 0) {
+            const matchSources = item._match_sources.join(', ');
+            matchSourceHtml = `
+                <div class="history-item-match-source" style="font-size:0.75em;color:white;margin-top:0.3rem;">
+                    <i class="fas fa-search"></i> ${matchSources}
+                </div>
+            `;
+        }
+        
+        historyItem.innerHTML = `
+            <div class="history-item-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1.2rem;">
+                <div class="history-item-title" style="flex:1;min-width:0;">
+                    <span class="history-item-badge"></span>
+                    <span style="font-size:1.15em;font-weight:bold;">${item.title || 'Change Weekend'}</span>
+                </div>
+                <div class="history-item-date-time" style="display:flex;flex-direction:column;align-items:flex-end;min-width:120px;">
+                    <span class="history-item-date" style="font-size:0.77em;color:#b0b8c9;">${formattedDate}</span>
+                    <span class="history-item-time" style="font-size:0.77em;color:#b0b8c9;">${formattedTime}</span>
+                </div>
+            </div>
+            <div class="history-item-summary">
+                ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
+            </div>
+            ${matchSourceHtml}
+            <div class="history-item-actions">
+                <button class="history-item-btn load">
+                    <i class="fas fa-cloud-download-alt"></i> Load
+                </button>
+                <button class="history-item-btn delete">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        `;
+        
+        historyList.appendChild(historyItem);
     });
+    
+    // Add event listeners to load buttons
+    document.querySelectorAll('.history-item-btn.load').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const timestamp = this.closest('.history-item').dataset.timestamp;
+            loadHistoryItem(timestamp, viewOnly);
+        });
+    });
+    
+    // Add event listeners to delete buttons
+    if (!viewOnly) {
+        document.querySelectorAll('.history-item-btn.delete').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const timestamp = this.closest('.history-item').dataset.timestamp;
+                deleteHistoryItem(timestamp, this.closest('.history-item'));
+            });
+        });
+    } else {
+        // hide delete buttons in view‐only mode
+        document.querySelectorAll('.history-item-btn.delete').forEach(btn => btn.remove());
+    }
+}
+
+// Update results counter
+function updateResultsCounter(itemCount, pagination, searchTerm) {
+    const paginationControls = document.getElementById('paginationControls');
+    if (paginationControls) {
+        if (searchTerm) {
+            if (itemCount === 0) {
+                paginationControls.innerHTML = `<span class="pagination-info">0 results found</span>`;
+            } else {
+                paginationControls.innerHTML = `<span class="pagination-info">${itemCount} result${itemCount !== 1 ? 's' : ''} found</span>`;
+            }
+        } else if (pagination) {
+            const start = (pagination.current_page - 1) * pagination.per_page + 1;
+            const end = Math.min(start + itemCount - 1, pagination.total_items);
+            paginationControls.innerHTML = `
+                <button class="pagination-btn prev" ${!pagination.has_prev ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="pagination-info">Page ${pagination.current_page} of ${pagination.total_pages}</span>
+                <button class="pagination-btn next" ${!pagination.has_next ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <span class="pagination-results">Showing ${start}-${end} of ${pagination.total_items}</span>
+            `;
+            
+            // Add event listeners for pagination buttons
+            const prevBtn = paginationControls.querySelector('.pagination-btn.prev');
+            const nextBtn = paginationControls.querySelector('.pagination-btn.next');
+            
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (pagination.has_prev) {
+                        openHistoryModal(currentViewOnly, currentHistorySearch, pagination.current_page - 1);
+                    }
+                });
+            }
+            
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (pagination.has_next) {
+                        openHistoryModal(currentViewOnly, currentHistorySearch, pagination.current_page + 1);
+                    }
+                });
+            }
+        }
+    }
+}
+
+// Update pagination controls
+function updatePaginationControls(pagination) {
+    // This function is now handled by updateResultsCounter to avoid duplication
+    // The pagination controls are updated inline with the results counter
+}
+
+
+
+// Handle search with debouncing
+function handleHistorySearch(searchTerm) {
+    clearTimeout(searchTimeout);
+    
+    // Don't search if too short
+    if (searchTerm.length < MIN_SEARCH_LENGTH) {
+        if (searchTerm.length === 0) {
+            // Clear search, return to paginated view with current view-only state
+            currentHistorySearch = ''; // Reset search state
+            openHistoryModal(currentViewOnly, '', 1);
+        }
+        // Clear single result tracking
+        lastSingleResult = null;
+        lastSingleResultSearch = '';
+        lastSingleResultTime = 0;
+        return;
+    }
+
+    // --- Single result optimization: If we have a single result and the new search is a prefix of the previous search ---
+    if (lastSingleResult && lastSingleResultSearch && searchTerm.startsWith(lastSingleResultSearch)) {
+        const now = Date.now();
+        if (now - lastSingleResultTime < SINGLE_RESULT_TTL) {
+            // Check if the single result still matches the new search term
+            const title = lastSingleResult.title || '';
+            const date = lastSingleResult.date || '';
+            const searchLower = searchTerm.toLowerCase();
+            if (title.toLowerCase().includes(searchLower) || date.toLowerCase().includes(searchLower)) {
+                // Still the same single result, display it immediately without API call
+                // console.log('[SingleResultOpt] Using cached single result for search:', searchTerm);
+                const historyList = document.getElementById('historyList');
+                if (historyList) {
+                    // Update the single result tracking
+                    lastSingleResultSearch = searchTerm;
+                    // DO NOT update lastSingleResultTime here (fixed expiration)
+                    populateHistoryItems([lastSingleResult], currentViewOnly);
+                    updateResultsCounter(1, null, searchTerm);
+                    // Hide pagination controls for single result
+                    const paginationControls = document.getElementById('paginationControls');
+                    if (paginationControls) {
+                        paginationControls.style.display = 'none';
+                    }
+                }
+                return;
+            }
+        } else {
+            // TTL expired
+            // console.log('[SingleResultOpt] TTL expired for single result cache. Falling back to normal search.');
+            lastSingleResult = null;
+            lastSingleResultSearch = '';
+            lastSingleResultTime = 0;
+        }
+    }
+    // ... existing code ...
+    // Check if this search term or any of its prefixes are known to return no results
+    if (historyCache.isFailedSearch(searchTerm) || historyCache.isFailedSearchPrefix(searchTerm)) {
+        // Early exit - show no results immediately
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+            historyList.innerHTML = `
+                <div class="empty-history">
+                    <i class="fas fa-inbox"></i>
+                    <p>No results found for '${searchTerm}'</p>
+                </div>
+            `;
+        }
+        // Clear single result tracking
+        lastSingleResult = null;
+        lastSingleResultSearch = '';
+        lastSingleResultTime = 0;
+        return;
+    }
+    // ... existing code ...
+    searchTimeout = setTimeout(() => {
+        // Preserve the current view-only state during search
+        currentHistorySearch = searchTerm; // Update search state
+        openHistoryModal(currentViewOnly, searchTerm);
+    }, SEARCH_DELAY);
 }
 
 // Add this new function to delete a history item
@@ -2035,6 +2620,9 @@ function deleteHistoryItem(timestamp, itemElement) {
             setTimeout(() => {
                 document.body.removeChild(loadingEl);
                 if (result.status === 'success') {
+                    // Invalidate cache after successful deletion
+                    historyCache.invalidateCache();
+                    
                     // Remove the item from UI with animation
                     itemElement.style.opacity = '0';
                     itemElement.style.transform = 'translateX(20px)';
@@ -2046,7 +2634,7 @@ function deleteHistoryItem(timestamp, itemElement) {
                             document.getElementById('historyList').innerHTML = `
                                 <div class="empty-history">
                                     <i class="fas fa-inbox"></i>
-                                    <p>No synced history items found</p>
+                                    <p>Your sync history will appear here once you start syncing...</p>
                                 </div>
                             `;
                         }
@@ -2984,6 +3572,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear local reauth cache on SSE logout
                 localStorage.removeItem('reauthUntil');
                 localStorage.removeItem('reauthUser');
+                // Clear all local caches on logout
+                if (window.historyCache) {
+                    window.historyCache.invalidateCache();
+                }
                 // User is being logged out (session expired or admin kickout)
                 showTopBarAnimation({
                     color: '#ef4444',
@@ -2997,6 +3589,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.reload(); // Force reload to trigger backend session check
                 }, 1000); // 1 second delay for user to see the notification
             });
+            
+
+            
             sse.addEventListener('login', function(e) {
                 let data;
                 try {
@@ -3193,6 +3788,10 @@ window.sseSource.addEventListener('logout', function(e) {
     // Clear local reauth cache on SSE logout
     localStorage.removeItem('reauthUntil');
     localStorage.removeItem('reauthUser');
+    // Clear all local caches on logout
+    if (window.historyCache) {
+        window.historyCache.invalidateCache();
+    }
     // User is being logged out (session expired or admin kickout)
     showTopBarAnimation({
         color: '#ef4444',

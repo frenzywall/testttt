@@ -22,6 +22,38 @@ import threading
 from flask import g
 from flask_session import Session
 
+# Server-side caching for history
+class HistoryCache:
+    def __init__(self):
+        self.cache = {}
+        self.etags = {}
+    
+    def get_cache_key(self, search_term=None, page=None, per_page=None):
+        if search_term:
+            return f"search_{hashlib.md5(search_term.encode()).hexdigest()}"
+        else:
+            return f"page_{page}_{per_page}"
+    
+    def get_etag(self, cache_key):
+        return self.etags.get(cache_key, "0")
+    
+    def set_cache(self, cache_key, data, etag):
+        self.cache[cache_key] = {
+            'data': data,
+            'timestamp': time.time(),
+            'etag': etag
+        }
+        self.etags[cache_key] = etag
+    
+    def get_cache(self, cache_key):
+        cached = self.cache.get(cache_key)
+        if cached and (time.time() - cached['timestamp']) < 300:  # 5 min TTL
+            return cached['data'], cached['etag']
+        return None, None
+
+# Global cache instance
+history_cache = HistoryCache()
+
 # --- Supported Environment Variables ---
 # SECRET_KEY: Flask secret key
 # FLASK_DEBUG: Enable Flask debug mode (0/1)
@@ -193,12 +225,17 @@ static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 RATE_LIMIT = int(os.getenv('RATE_LIMIT', 5))  
 RATE_WINDOW = int(os.getenv('RATE_WINDOW', 60))  
+RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
 # Remove the in-memory ip_attempts dict
 # ip_attempts = {}
 
 def rate_limit(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check if rate limiting is enabled
+        if not RATE_LIMIT_ENABLED:
+            return f(*args, **kwargs)
+        
         ip = request.remote_addr
         current_time = int(time.time())
         redis_key = f"rate_limit:{ip}"
@@ -248,8 +285,10 @@ def get_stored_history():
         logger.error(f"Error retrieving history from Redis: {str(e)}")
         return []
 
+
+
 def save_to_history(data):
-    """Save current data to history"""
+    """Save current data to history with indexing"""
     try:
         history = get_stored_history()      
         current_timestamp = datetime.now().timestamp()       
@@ -277,11 +316,92 @@ def save_to_history(data):
         # Limit the history size. Change the HISTORY_LIMIT variable above to adjust the limit.
         history = history[:HISTORY_LIMIT]
 
+        # Save main history data
         redis_client.set('change_management_history', json.dumps(history))
+        
+        # Update pagination index for O(1) access
+        update_pagination_index(history)
+        
+        # Clear failed search cache when new data is added
+        clear_failed_search_cache()
+        
         return True
     except Exception as e:
         logger.error(f"Error saving to history: {str(e)}")
         return False
+
+def update_pagination_index(history):
+    """Update Redis index for O(1) pagination"""
+    try:
+        # Clear existing index
+        redis_client.delete('history_pagination_index')
+        
+        # Create sorted set with timestamps as scores for O(1) range queries
+        for i, entry in enumerate(history):
+            timestamp = entry.get('timestamp', 0)
+            redis_client.zadd('history_pagination_index', {str(i): timestamp})
+        
+        # Store total count for quick access
+        redis_client.set('history_total_count', len(history))
+        
+    except Exception as e:
+        logger.error(f"Error updating pagination index: {str(e)}")
+
+def get_paginated_history_optimized(page, per_page):
+    """Get paginated history using Redis ZRANGE for O(1) performance"""
+    try:
+        total_count = int(redis_client.get('history_total_count') or 0)
+        if total_count == 0:
+            return [], {'current_page': page, 'per_page': per_page, 'total_items': 0, 'total_pages': 0, 'has_next': False, 'has_prev': False}
+        
+        # Calculate range for this page
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page - 1
+        
+        # Get indices for this page using ZREVRANGE (newest first)
+        indices = redis_client.zrevrange('history_pagination_index', start_idx, end_idx)
+        
+        # Get full history and extract only the needed items
+        history = get_stored_history()
+        paginated_items = []
+        
+        for idx_str in indices:
+            idx = int(idx_str)
+            if idx < len(history):
+                paginated_items.append(history[idx])
+        
+        total_pages = (total_count + per_page - 1) // per_page
+        
+        return paginated_items, {
+            'current_page': page,
+            'per_page': per_page,
+            'total_items': total_count,
+            'total_pages': total_pages,
+            'has_next': page < total_pages,
+            'has_prev': page > 1
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting paginated history: {str(e)}")
+        # Fallback to original method
+        return get_paginated_history_fallback(page, per_page)
+
+def get_paginated_history_fallback(page, per_page):
+    """Fallback method for pagination"""
+    history = get_stored_history()
+    total_items = len(history)
+    total_pages = (total_items + per_page - 1) // per_page
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    
+    return history[start_idx:end_idx], {
+        'current_page': page,
+        'per_page': per_page,
+        'total_items': total_items,
+        'total_pages': total_pages,
+        'has_next': page < total_pages,
+        'has_prev': page > 1
+    }
 
 def extract_date_from_subject(subject):
     date_patterns = [
@@ -719,7 +839,8 @@ def inject_user():
 @app.before_request
 def require_login():
     allowed = [
-        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events'
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events',
+        '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
     ]
     if request.path.startswith('/static/') or request.path.startswith('/misc/'):
         return
@@ -972,6 +1093,19 @@ def sync_to_history():
     
     save_to_history(stored_data)
     
+    # Invalidate server-side cache when new data is saved to history
+    history_cache.cache.clear()
+    history_cache.etags.clear()
+    
+    # Update pagination index for new data
+    history = get_stored_history()
+    update_pagination_index(history)
+    
+    # Rebuild search index for new data
+    create_search_index()
+    
+
+    
     response = jsonify({
         'status': 'success', 
         'timestamp': stored_data['last_modified']
@@ -999,16 +1133,52 @@ def check_updates():
     return response
 
 @app.route('/get-history', methods=['GET'])
+@rate_limit
 def get_history():
-    """Get the sync history"""
-    history = get_stored_history()
-    response = jsonify(history)
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    """Get the sync history with pagination and search"""
+    search = request.args.get('search', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)  # Changed to 10 for better UX
+    
+    # Generate cache key
+    cache_key = history_cache.get_cache_key(search, page, per_page)
+    
+    # Check ETag from request
+    if_none_match = request.headers.get('If-None-Match')
+    cached_data, cached_etag = history_cache.get_cache(cache_key)
+    
+    if cached_data and if_none_match == cached_etag:
+        return '', 304  # Not Modified
+    
+    # Generate new data
+    if search:
+        data = search_history_redis_optimized(search)
+        is_empty = (len(data) == 0)
+        response = jsonify({
+            'items': data,
+            'is_empty': is_empty
+        })
+    else:
+        # Use optimized pagination for O(1) performance
+        items, pagination = get_paginated_history_optimized(page, per_page)
+        is_empty = (len(items) == 0)
+        data = {
+            'items': items,
+            'pagination': pagination,
+            'is_empty': is_empty
+        }
+        response = jsonify(data)
+    
+    # Generate ETag and cache (simplified timestamp-based)
+    etag = f"{int(time.time())}"
+    history_cache.set_cache(cache_key, data, etag)
+    
+    response.headers['ETag'] = etag
+    response.headers['Cache-Control'] = 'private, max-age=300'
     return response
 
 @app.route('/load-from-history/<timestamp>', methods=['GET'])
+@rate_limit
 def load_from_history(timestamp):
     """Load data from a specific history point"""
     history = get_stored_history()
@@ -1042,6 +1212,7 @@ def load_from_history(timestamp):
     return response
 
 @app.route('/delete-from-history/<timestamp>', methods=['DELETE'])
+@rate_limit
 def delete_from_history(timestamp):
     """Delete a specific history entry by timestamp"""
     history = get_stored_history()
@@ -1052,6 +1223,17 @@ def delete_from_history(timestamp):
         return jsonify({'status': 'error', 'message': 'History entry not found'})
     
     redis_client.set('change_management_history', json.dumps(updated_history))
+    
+    # Invalidate server-side cache
+    history_cache.cache.clear()
+    history_cache.etags.clear()
+    
+    # Update pagination index after deletion
+    history = get_stored_history()
+    update_pagination_index(history)
+    
+    # Rebuild search index after deletion
+    create_search_index()
     
     return jsonify({'status': 'success'})
 
@@ -1350,6 +1532,17 @@ def clear_ai_stats():
             'message': f'Error clearing AI statistics: {str(e)}'
         }), 500
 
+@app.route('/rebuild-search-index', methods=['POST'])
+@rate_limit
+def rebuild_search_index():
+    """Manually rebuild the search index"""
+    try:
+        create_search_index()
+        return jsonify({'status': 'success', 'message': 'Search index rebuilt successfully'})
+    except Exception as e:
+        logger.error(f"Error rebuilding search index: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Error rebuilding search index: {str(e)}'}), 500
+
 @app.route('/ask-ai', methods=['POST'])
 def ask_ai():
     """Handle AI questions about the page content"""
@@ -1450,6 +1643,277 @@ def ai_chat_enabled():
 
 
 
+def create_search_index():
+    """Create Redis search index for O(1) search performance"""
+    try:
+        all_history = get_stored_history()
+        if not all_history:
+            return
+        
+        # Clear existing search indexes
+        search_keys = redis_client.keys('search:title:*')
+        date_keys = redis_client.keys('search:date:*')
+        if search_keys:
+            redis_client.delete(*search_keys)
+        if date_keys:
+            redis_client.delete(*date_keys)
+        
+        # Create search indexes
+        for entry in all_history:
+            title = entry.get('title', '').lower().strip()
+            date = entry.get('date', '').lower().strip()
+            timestamp = entry.get('timestamp')
+            
+            if not timestamp:
+                continue
+            
+            # Index by title words
+            if title:
+                for word in title.split():
+                    if word:  # Skip empty words
+                        redis_client.sadd(f'search:title:{word}', timestamp)
+            
+            # Index by date and date components
+            if date:
+                redis_client.sadd(f'search:date:{date}', timestamp)
+                
+                # Also index date components for partial matching
+                date_parts = date.split('-')
+                for part in date_parts:
+                    if part:
+                        redis_client.sadd(f'search:date:{part}', timestamp)
+        
+        logger.info(f"Search index created for {len(all_history)} entries")
+        
+    except Exception as e:
+        logger.error(f"Error creating search index: {str(e)}")
+
+def search_history_redis_optimized(search_term):
+    """Hybrid search: Redis filtering + intelligent scoring with failed search cache"""
+    try:
+        search_lower = search_term.lower().strip()
+        
+        if len(search_lower) < 1:
+            return []
+        
+
+        
+        # Step 1: Use Redis for initial filtering (O(1))
+        title_matches = redis_client.smembers(f'search:title:{search_lower}')
+        date_matches = redis_client.smembers(f'search:date:{search_lower}')
+        
+        # Get all potential matches
+        all_matches = title_matches.union(date_matches)
+        
+        if not all_matches:
+            # Try Redis-based partial matching (O(k) instead of O(n))
+            partial_results = search_history_redis_partial(search_lower)
+            
+
+            
+            return partial_results
+        
+        # Step 2: Get full entries and apply intelligent scoring
+        matching_entries = []
+        for timestamp in all_matches:
+            entry = get_history_entry_by_timestamp(timestamp)
+            if entry:
+                # Apply intelligent scoring
+                scored_entry = apply_search_scoring(entry, search_lower)
+                if scored_entry:
+                    matching_entries.append(scored_entry)
+        
+        # Sort by relevance score (highest first), then by timestamp (newest first)
+        matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
+        
+        # Remove the temporary score field
+        for entry in matching_entries:
+            entry.pop('_search_score', None)
+        
+        return matching_entries
+        
+    except Exception as e:
+        logger.error(f"Error in Redis search: {str(e)}")
+        # Fallback to original search
+        return search_history_optimized_fallback(search_term)
+
+
+
+def apply_search_scoring(entry, search_lower):
+    """Apply intelligent scoring to a single entry"""
+    title = entry.get('title', '').lower()
+    date = entry.get('date', '').lower()
+    
+    # Initialize scoring
+    score = 0
+    match_found = False
+    
+    # 1. TITLE SEARCH (Highest Priority)
+    if search_lower in title:
+        match_found = True
+        # Exact title match (highest relevance)
+        if title == search_lower:
+            score += 100
+        # Title starts with search term
+        elif title.startswith(search_lower):
+            score += 50
+        # Title contains search term as a word
+        elif f' {search_lower} ' in f' {title} ':
+            score += 30
+        # Title contains search term anywhere
+        else:
+            score += 20
+    
+    # 2. DATE SEARCH (Medium Priority)
+    if search_lower in date:
+        match_found = True
+        # Exact date match
+        if date == search_lower:
+            score += 40
+        # Date contains search term
+        else:
+            score += 15
+    
+    # Only include entries that have matches
+    if match_found:
+        # Add timestamp bonus (newer entries get slight preference)
+        timestamp_bonus = min(entry.get('timestamp', 0) / 1000000, 5)  # Max 5 points for recency
+        score += timestamp_bonus
+        
+        # Add match source information for display
+        match_sources = []
+        if search_lower in title:
+            if title == search_lower:
+                match_sources.append("exact title match")
+            elif title.startswith(search_lower):
+                match_sources.append("title starts with")
+            elif f' {search_lower} ' in f' {title} ':
+                match_sources.append("title word match")
+            else:
+                match_sources.append("title contains")
+        
+        if search_lower in date:
+            if date == search_lower:
+                match_sources.append("exact date match")
+            else:
+                match_sources.append("date contains")
+        
+        entry['_search_score'] = score
+        entry['_match_sources'] = match_sources
+        return entry
+    
+    return None
+
+def get_history_entry_by_timestamp(timestamp):
+    """Get a single history entry by timestamp"""
+    try:
+        all_history = get_stored_history()
+        for entry in all_history:
+            if str(entry.get('timestamp')) == str(timestamp):
+                return entry
+        return None
+    except Exception as e:
+        logger.error(f"Error getting history entry: {str(e)}")
+        return None
+
+def search_history_optimized_fallback(search_term):
+    """Fallback to original O(n) search if Redis search fails"""
+    search_lower = search_term.lower().strip()
+    
+    if len(search_lower) < 1:
+        return []
+    
+    # Get all history entries
+    all_history = get_stored_history()
+    if not all_history:
+        return []
+    
+    matching_entries = []
+    
+    for entry in all_history:
+        title = entry.get('title', '').lower()
+        date = entry.get('date', '').lower()
+        
+        # Initialize scoring
+        score = 0
+        match_found = False
+        
+        # 1. TITLE SEARCH (Highest Priority)
+        if search_lower in title:
+            match_found = True
+            # Exact title match (highest relevance)
+            if title == search_lower:
+                score += 100
+            # Title starts with search term
+            elif title.startswith(search_lower):
+                score += 50
+            # Title contains search term as a word
+            elif f' {search_lower} ' in f' {title} ':
+                score += 30
+            # Title contains search term anywhere
+            else:
+                score += 20
+        
+        # 2. DATE SEARCH (Medium Priority)
+        if search_lower in date:
+            match_found = True
+            # Exact date match
+            if date == search_lower:
+                score += 40
+            # Date contains search term
+            else:
+                score += 15
+        
+        # Only include entries that have matches
+        if match_found:
+            # Add timestamp bonus (newer entries get slight preference)
+            timestamp_bonus = min(entry.get('timestamp', 0) / 1000000, 5)  # Max 5 points for recency
+            score += timestamp_bonus
+            
+            # Add match source information for display
+            match_sources = []
+            if search_lower in title:
+                if title == search_lower:
+                    match_sources.append("exact title match")
+                elif title.startswith(search_lower):
+                    match_sources.append("title starts with")
+                elif f' {search_lower} ' in f' {title} ':
+                    match_sources.append("title word match")
+                else:
+                    match_sources.append("title contains")
+            
+            if search_lower in date:
+                if date == search_lower:
+                    match_sources.append("exact date match")
+                else:
+                    match_sources.append("date contains")
+            
+            entry['_search_score'] = score
+            entry['_match_sources'] = match_sources
+            matching_entries.append(entry)
+    
+    # Sort by relevance score (highest first), then by timestamp (newest first)
+    matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
+    
+    # Remove the temporary score field
+    for entry in matching_entries:
+        entry.pop('_search_score', None)
+    
+    return matching_entries
+
+def clear_failed_search_cache():
+    """Clear all failed search cache entries"""
+    try:
+        # Get all failed search keys
+        failed_keys = redis_client.keys('failed_search:*')
+        if failed_keys:
+            redis_client.delete(*failed_keys)
+            logger.info(f"Cleared {len(failed_keys)} failed search cache entries")
+    except Exception as e:
+        logger.error(f"Error clearing failed search cache: {str(e)}")
+
+
+
 # Global error handler for unhandled exceptions
 @app.errorhandler(Exception)
 def handle_global_exception(e):
@@ -1471,6 +1935,93 @@ def handle_global_exception(e):
         code = e.code
     return render_template('error.html', message="Something went wrong. Please try again later."), code
 
+# Initialize search index on startup (runs regardless of how app is started)
+try:
+    create_search_index()
+    logger.info("Search index initialized successfully")
+except Exception as e:
+    logger.error(f"Error initializing search index: {str(e)}")
+
+# Log rate limiting status (runs regardless of how app is started)
+if RATE_LIMIT_ENABLED:
+    logger.info(f"Rate limiting ENABLED: {RATE_LIMIT} requests per {RATE_WINDOW} seconds")
+else:
+    logger.info("Rate limiting DISABLED")
+
+def search_history_redis_partial(search_lower):
+    """
+    Redis-based partial matching using pattern matching - O(k) instead of O(n)
+    
+    Performance improvements:
+    - O(k) complexity where k = matching keys (usually < 10)
+    - No loading entire history into memory
+    - Uses Redis SCAN with pattern matching
+    - Limited to 50 keys per pattern to prevent performance issues
+    - Maintains same scoring and sorting as original
+    """
+    try:
+        if len(search_lower) < 1:
+            return []
+        
+        partial_matches = set()
+        max_keys_to_scan = 50  # Limit scanning to prevent performance issues
+        
+        # Use Redis SCAN with pattern matching for partial matches
+        # Pattern 1: Search for titles containing the search term
+        title_pattern = f'search:title:*{search_lower}*'
+        cursor = 0
+        keys_scanned = 0
+        while True:
+            cursor, keys = redis_client.scan(cursor, match=title_pattern, count=20)
+            for key in keys:
+                # Extract timestamps from matching keys
+                timestamps = redis_client.smembers(key)
+                partial_matches.update(timestamps)
+                keys_scanned += 1
+                if keys_scanned >= max_keys_to_scan:
+                    break
+            if cursor == 0 or keys_scanned >= max_keys_to_scan:
+                break
+        
+        # Pattern 2: Search for dates containing the search term
+        date_pattern = f'search:date:*{search_lower}*'
+        cursor = 0
+        keys_scanned = 0
+        while True:
+            cursor, keys = redis_client.scan(cursor, match=date_pattern, count=20)
+            for key in keys:
+                timestamps = redis_client.smembers(key)
+                partial_matches.update(timestamps)
+                keys_scanned += 1
+                if keys_scanned >= max_keys_to_scan:
+                    break
+            if cursor == 0 or keys_scanned >= max_keys_to_scan:
+                break
+        
+        if not partial_matches:
+            return []
+        
+        # Process and score the partial matches
+        matching_entries = []
+        for timestamp in partial_matches:
+            entry = get_history_entry_by_timestamp(timestamp)
+            if entry:
+                scored_entry = apply_search_scoring(entry, search_lower)
+                if scored_entry:
+                    matching_entries.append(scored_entry)
+        
+        # Sort by relevance score (highest first), then by timestamp (newest first)
+        matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
+        
+        # Remove the temporary score field
+        for entry in matching_entries:
+            entry.pop('_search_score', None)
+        
+        return matching_entries
+        
+    except Exception as e:
+        logger.error(f"Error in Redis partial search: {str(e)}")
+        return []
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'

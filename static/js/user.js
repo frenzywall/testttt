@@ -105,6 +105,10 @@ function showProfileModal(user) {
             // Clear local reauth cache on manual logout
             localStorage.removeItem('reauthUntil');
             localStorage.removeItem('reauthUser');
+            // Clear all local caches on manual logout
+            if (window.historyCache) {
+                window.historyCache.invalidateCache();
+            }
             fetch('/logout', {method:'POST'}).then(()=>window.location='/login');
         });
     };
