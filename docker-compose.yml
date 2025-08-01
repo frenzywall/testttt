@@ -95,6 +95,8 @@ services:
 
 volumes:
   redis_data:
+    name: ChangeData  # ← your chosen volume name
+    # external: true  # ← uncomment if volume already exists outside this compose
 
 networks:
   change_management:
