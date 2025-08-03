@@ -19,84 +19,750 @@
 })();
     </script>
     <style>
-        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #181f2a; }
-        .login-container {
-            background: rgba(30,40,60,0.98);
-            border-radius: 18px;
-            box-shadow: 0 8px 32px rgba(59,130,246,0.18);
-            padding: 2.5rem 2.5rem 2rem 2.5rem;
-            width: 100%;
-            max-width: 400px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            height: 100vh;
+            background: #0f1419;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            opacity: 0;
+            animation: pageLoad 0.8s ease-out forwards;
+        }
+        
+        @keyframes pageLoad {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .header {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            right: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+        
+        .brand-section {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo {
+            width: 32px;
+            height: 32px;
+            margin-right: 1rem;
+        }
+        
+        .brand-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.2;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+        }
+        
+        .nav-link:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-link.active {
+            background: #3b82f6;
+            color: #ffffff;
+        }
+        
+        .settings-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        
+        .settings-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .settings-notch {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 320px;
+            min-height: 120px;
+            border-radius: 0 0 20px 20px;
+            background: rgba(60, 60, 67, 0.78);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            color: rgba(255, 255, 255, 0.87);
+            font-weight: 500;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            letter-spacing: -0.24px;
+            text-align: center;
+            user-select: none;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
         }
-        .login-logo {
-            width: 60px;
-            margin-bottom: 1.2rem;
+        
+        .settings-notch.active {
+            pointer-events: auto;
+            opacity: 1;
+            visibility: visible;
         }
-        .login-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 1.5rem;
+        
+        .settings-notch-slide-in {
+            animation: settingsNotchSlideIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
-        .login-form {
+        
+        .settings-notch-slide-up {
+            animation: settingsNotchSlideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        
+        @keyframes settingsNotchSlideIn {
+            0% { top: -60px; }
+            100% { top: 0px; }
+        }
+        
+        @keyframes settingsNotchSlideUp {
+            0% { top: 0px; }
+            100% { top: -60px; }
+        }
+        
+        .settings-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+        
+        .setting-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.5rem;
+        }
+        
+        .setting-label {
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #475569;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background: #3b82f6;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+        
+        .content-left {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 1.2rem;
+            justify-content: center;
+            padding: 3rem 4rem;
+            max-width: 50%;
+            padding-top: 6rem;
+            opacity: 0;
+            animation: contentSlideIn 1s ease-out 0.2s forwards;
         }
+        
+        @keyframes contentSlideIn {
+            0% { opacity: 0; transform: translateX(-30px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        
+        .headline {
+            font-size: 2.8rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+        }
+        
+        .highlight {
+            background: #3b82f6;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+        }
+        
+        .intro-text {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        
+        .cards-container {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .feature-card {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-description {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+        
+        .content-right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: contentSlideIn 1s ease-out 0.4s forwards;
+        }
+        
+        .login-overlay {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            visibility: visible;
+            transition: all 0.8s ease;
+            animation: loginFormSlide 1.2s ease-out 0.6s both;
+        }
+        
+        .login-container {
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid #334155;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 
+                0 0 30px rgba(59, 130, 246, 0.3),
+                0 0 60px rgba(59, 130, 246, 0.15),
+                0 0 0 1px rgba(59, 130, 246, 0.4);
+        }
+        
+        @keyframes loginFormSlide {
+            0% {
+                opacity: 0;
+                transform: translateY(40px) scale(0.9);
+            }
+            50% {
+                opacity: 0.7;
+                transform: translateY(20px) scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .login-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .login-logo {
+            width: 40px;
+            margin-right: 1rem;
+        }
+        
+        .login-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
         .login-form input {
-            padding: 0.8rem 1rem;
-            border-radius: 10px;
-            border: 1.5px solid #2d3a4d;
-            background: #232c3d;
-            color: #fff;
-            font-size: 1.1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #ffffff;
+            font-size: 1rem;
             outline: none;
-            transition: border 0.2s;
+            transition: border-color 0.2s;
         }
+        
         .login-form input:focus {
             border-color: #3b82f6;
         }
+        
+        .login-error {
+            color: #fecaca;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            text-align: center;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            backdrop-filter: blur(4px);
+        }
+        
         .login-btn {
-            background: linear-gradient(135deg, #2563eb, #3b82f6);
-            color: #fff;
+            background: #3b82f6;
+            color: #ffffff;
             font-weight: 600;
             border: none;
-            border-radius: 10px;
-            padding: 0.9rem 0;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: background 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(59,130,246,0.13);
-        }
-        .login-btn:hover {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-        }
-        .login-error {
-            color: #ef4444;
-            background: rgba(239,68,68,0.08);
             border-radius: 8px;
-            padding: 0.7rem 1rem;
-            margin-bottom: 0.5rem;
+            padding: 0.75rem 1rem;
             font-size: 1rem;
-            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .login-btn:hover {
+            background: #2563eb;
+        }
+        
+        .login-btn:hover::before {
+            left: 100%;
+        }
+        
+        .login-btn.loading {
+            background: #1d4ed8;
+            cursor: not-allowed;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .login-btn.loading::after {
+            content: '';
+            position: static;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            flex-shrink: 0;
+        }
+        
+        .login-btn.loading span {
+            opacity: 1;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #94a3b8;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 15;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        
+        .close-btn:hover {
+            color: #ffffff;
+            background: #374151;
+            border-color: #3b82f6;
+        }
+        
+        /* Minimal Layout Styles */
+        .minimal-layout .content-left {
+            display: none;
+        }
+        
+        .minimal-layout .content-right {
+            justify-content: center;
+        }
+        
+        .minimal-layout .login-overlay {
+            opacity: 1;
+            visibility: visible;
+            transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: minimalLoginSlide 1.5s ease-in-out 0.3s both;
+        }
+        
+        .minimal-layout .login-container {
+            transform: translateY(0);
+            animation: minimalContainerScale 1.5s ease-in-out 0.6s both;
+        }
+        
+        @keyframes minimalLoginSlide {
+            0% { opacity: 0; transform: translateY(50px) scale(0.8); }
+            50% { opacity: 0.5; transform: translateY(25px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        
+        @keyframes minimalContainerScale {
+            0% { transform: translateY(20px) scale(0.9); box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); }
+            50% { transform: translateY(10px) scale(0.95); box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); }
+            100% { transform: translateY(0) scale(1); box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .content-left { padding: 2rem; max-width: 100%; }
+            .headline { font-size: 2rem; }
+            .visual-element { width: 250px; height: 250px; }
+            .nav-links { display: none; }
+            
+            .cards-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .feature-card {
+                padding: 1.25rem;
+            }
+            
+            .card-title {
+                font-size: 1.1rem;
+            }
+            
+            .card-description {
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <img src="/static/misc/ericsson-logo.png" alt="Logo" class="login-logo">
-        <div class="login-title">Change Management Login</div>
-        <form class="login-form" id="loginForm" autocomplete="off">
-            <div id="loginError" class="login-error" style="display:none;"></div>
-            <input type="text" id="username" name="username" placeholder="Username" required autofocus>
-            <input type="password" id="password" name="password" placeholder="Password" required>
-            <button type="submit" class="login-btn">Log In</button>
-        </form>
+    <div class="main-container">
+        <div class="header">
+            <div class="brand-section">
+                <img src="/static/misc/ericsson-logo.png" alt="Logo" class="logo">
+                <div class="brand-name">Change Management</div>
+            </div>
+            <div class="nav-links">
+                <a href="#" class="nav-link active">Home</a>
+                <a href="#" class="nav-link" id="signInBtn">Sign in</a>
+                <button class="settings-btn" id="settingsBtn">⚙️</button>
+            </div>
+        </div>
+        
+        <div class="content-left">
+            <div class="headline">
+                A <span class="highlight">secure change</span><br>
+                management<br>
+                platform
+            </div>
+            
+            <div class="intro-text">
+                Do you really want to manage critical changes without proper tracking and control?
+            </div>
+            
+            <div class="cards-container">
+                <div class="feature-card">
+                    <div class="card-title">Secure</div>
+                    <div class="card-description">Manage changes with enterprise-grade security and audit trails</div>
+                </div>
+                <div class="feature-card">
+                    <div class="card-title">Trackable</div>
+                    <div class="card-description">Every change is logged, tracked, and version controlled</div>
+                </div>
+                <div class="feature-card">
+                    <div class="card-title">Collaborative</div>
+                    <div class="card-description">Team-based approval workflows and real-time notifications</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-right">
+            <div class="login-overlay" id="loginOverlay">
+                <div class="login-container">
+                    <div class="login-header">
+                        <img src="/static/misc/ericsson-logo.png" alt="Logo" class="login-logo">
+                        <div class="login-title">Change Management Login</div>
+                    </div>
+                    <form class="login-form" id="loginForm" autocomplete="off">
+                        <div id="loginError" class="login-error" style="display:none;"></div>
+                        <input type="text" id="username" name="username" placeholder="Username" required autofocus>
+                        <input type="password" id="password" name="password" placeholder="Password" required>
+                        <button type="submit" class="login-btn" id="loginBtn">
+                            <span>Log In</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+    
+    <div class="settings-notch" id="settingsNotch">
+        <div class="settings-title">Layout Preferences</div>
+        <div class="setting-option">
+            <div class="setting-label">Show Full Landing Page</div>
+            <div class="toggle-switch" id="layoutToggle"></div>
+        </div>
+    </div>
+    
     <script src="/static/js/login.js"></script>
+    <script>
+        // User preference management
+        function getUserPreference() {
+            return localStorage.getItem('landingPreference') !== 'minimal';
+        }
+        
+        function saveUserPreference(isFull) {
+            localStorage.setItem('landingPreference', isFull ? 'full' : 'minimal');
+        }
+        
+        function applyLayoutPreference(isFull) {
+            const mainContainer = document.querySelector('.main-container');
+            
+            if (!isFull) {
+                mainContainer.classList.add('minimal-layout');
+            } else {
+                mainContainer.classList.remove('minimal-layout');
+            }
+        }
+        
+        // Settings notch functionality
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsNotch = document.getElementById('settingsNotch');
+        const layoutToggle = document.getElementById('layoutToggle');
+        let settingsTimeout;
+        
+        if (settingsBtn && settingsNotch && layoutToggle) {
+            settingsBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const isFull = getUserPreference();
+                if (isFull) {
+                    layoutToggle.classList.add('active');
+                } else {
+                    layoutToggle.classList.remove('active');
+                }
+                
+                settingsNotch.classList.add('active');
+                requestAnimationFrame(() => {
+                    settingsNotch.classList.add('settings-notch-slide-in');
+                });
+                
+                clearTimeout(settingsTimeout);
+                settingsTimeout = setTimeout(() => {
+                    hideSettingsNotch();
+                }, 3000);
+            });
+            
+            layoutToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                this.classList.toggle('active');
+                const isFull = this.classList.contains('active');
+                saveUserPreference(isFull);
+                applyLayoutPreference(isFull);
+                
+                clearTimeout(settingsTimeout);
+                settingsTimeout = setTimeout(() => {
+                    hideSettingsNotch();
+                }, 3000);
+            });
+        }
+        
+        function hideSettingsNotch() {
+            if (settingsNotch) {
+                settingsNotch.classList.remove('settings-notch-slide-in');
+                settingsNotch.classList.add('settings-notch-slide-up');
+                setTimeout(() => {
+                    settingsNotch.classList.remove('active');
+                }, 500);
+            }
+        }
+        
+        document.addEventListener('click', function(e) {
+            if (settingsNotch && settingsBtn) {
+                if (!settingsNotch.contains(e.target) && !settingsBtn.contains(e.target)) {
+                    if (settingsNotch.classList.contains('active')) {
+                        hideSettingsNotch();
+                    }
+                }
+            }
+        });
+        
+        // Navigation functionality
+        document.querySelector('.nav-link.active').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.reload();
+        });
+        
+        // Mouse movement animation
+        const loginContainer = document.querySelector('.login-container');
+        
+        if (loginContainer) {
+            loginContainer.addEventListener('mousemove', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const deltaX = (x - centerX) / centerX;
+                const deltaY = (y - centerY) / centerY;
+                const intensity = Math.max(0, 1 - Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+                
+                this.style.boxShadow = `
+                    0 0 ${30 + intensity * 20}px rgba(59, 130, 246, ${0.3 + intensity * 0.2}),
+                    0 0 ${60 + intensity * 30}px rgba(59, 130, 246, ${0.15 + intensity * 0.1}),
+                    0 0 0 1px rgba(59, 130, 246, ${0.4 + intensity * 0.2})
+                `;
+            });
+            
+            loginContainer.addEventListener('mouseleave', function() {
+                this.style.boxShadow = `
+                    0 0 30px rgba(59, 130, 246, 0.3),
+                    0 0 60px rgba(59, 130, 246, 0.15),
+                    0 0 0 1px rgba(59, 130, 246, 0.4)
+                `;
+            });
+        }
+        
+        // Login form functionality
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                loginBtn.classList.add('loading');
+                loginBtn.querySelector('span').textContent = 'Logging in...';
+                
+                setTimeout(() => {
+                    loginBtn.classList.remove('loading');
+                    loginBtn.querySelector('span').textContent = 'Log In';
+                    console.log('Login attempted');
+                }, 2000);
+            });
+        }
+        
+        // Apply saved preference on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const isFull = getUserPreference();
+            applyLayoutPreference(isFull);
+        });
+    </script>
 </body>
 </html> 
