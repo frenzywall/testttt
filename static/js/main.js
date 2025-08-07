@@ -2207,7 +2207,10 @@ async function openHistoryModal(viewOnly = false, searchTerm = '', page = 1) {
     }
         
         // Show loading state
-        historyList.innerHTML = '<div class="loading-history"><i class="fas fa-circle-notch fa-spin"></i> Loading history...</div>';
+        const loadingMessage = searchTerm 
+            ? `Searching history for "${searchTerm}"...`
+            : 'Loading history...';
+        historyList.innerHTML = `<div class="loading-history"><i class="fas fa-circle-notch fa-spin"></i> ${loadingMessage}</div>`;
         
                 try {
             // Build URL with parameters
@@ -2902,6 +2905,16 @@ function createConfirmDialog(options) {
             }, 300);
         });
         
+        // Handle Enter key to confirm
+        dialogOverlay.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmBtn.click();
+          }
+        });
+        // Focus the confirm button for accessibility
+        setTimeout(() => confirmBtn.focus(), 100);
+
         // Cancel action
         cancelBtn.addEventListener('click', () => {
             dialogOverlay.classList.remove('active');

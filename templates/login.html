@@ -30,14 +30,20 @@
             background: #0f1419;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #ffffff;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
         }
         
         .main-container {
             display: flex;
-            height: 100vh;
+            min-height: 100vh;
+            height: auto;
             opacity: 0;
             animation: pageLoad 0.8s ease-out forwards;
+            overflow-x: hidden;
+            overflow-y: auto;
+            flex-wrap: wrap;
         }
         
         @keyframes pageLoad {
@@ -46,14 +52,18 @@
         }
         
         .header {
-            position: absolute;
-            top: 2rem;
-            left: 2rem;
-            right: 2rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
             z-index: 10;
+            padding: 1rem 2rem;
+            background: rgba(15, 20, 25, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .brand-section {
@@ -229,11 +239,13 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 3rem 4rem;
+            padding: 2rem 3rem;
             max-width: 50%;
             padding-top: 6rem;
             opacity: 0;
             animation: contentSlideIn 1s ease-out 0.2s forwards;
+            overflow-y: auto;
+            min-height: calc(100vh - 80px);
         }
         
         @keyframes contentSlideIn {
@@ -242,10 +254,12 @@
         }
         
         .headline {
-            font-size: 2.8rem;
+            font-size: clamp(1.5rem, 4vw, 2.8rem);
             font-weight: 700;
             line-height: 1.1;
             margin-bottom: 1rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .highlight {
@@ -255,23 +269,27 @@
         }
         
         .intro-text {
-            font-size: 1rem;
+            font-size: clamp(0.875rem, 2vw, 1rem);
             color: #94a3b8;
             margin-bottom: 2rem;
             line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .cards-container {
             display: flex;
-            gap: 1.5rem;
+            gap: clamp(0.75rem, 2vw, 1.5rem);
             margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
         
         .feature-card {
             flex: 1;
+            min-width: 200px;
             background: rgba(30, 41, 59, 0.8);
             border-radius: 12px;
-            padding: 1.5rem;
+            padding: clamp(1rem, 3vw, 1.5rem);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
@@ -301,11 +319,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: clamp(1rem, 3vw, 2rem);
             position: relative;
-            overflow: hidden;
             opacity: 0;
             animation: contentSlideIn 1s ease-out 0.4s forwards;
+            overflow-y: auto;
+            min-height: calc(100vh - 80px);
         }
         
         .login-overlay {
@@ -317,14 +336,17 @@
             visibility: visible;
             transition: all 0.8s ease;
             animation: loginFormSlide 1.2s ease-out 0.6s both;
+            width: 100%;
+            height: 100%;
         }
         
         .login-container {
             background: rgba(30, 41, 59, 0.95);
             border-radius: 12px;
-            padding: 2rem;
+            padding: clamp(1.5rem, 4vw, 2rem);
             width: 90%;
             max-width: 400px;
+            min-width: 280px;
             border: 1px solid #334155;
             transform: translateY(0);
             transition: all 0.3s ease;
@@ -459,6 +481,38 @@
             opacity: 1;
         }
         
+        .auth-switch {
+            text-align: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .auth-switch a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .auth-switch a:hover {
+            color: #60a5fa;
+        }
+        
+        .signup-success {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            text-align: center;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            backdrop-filter: blur(4px);
+        }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -496,6 +550,8 @@
         
         .minimal-layout .content-right {
             justify-content: center;
+            width: 100%;
+            padding-top: 80px;
         }
         
         .minimal-layout .login-overlay {
@@ -508,6 +564,7 @@
         .minimal-layout .login-container {
             transform: translateY(0);
             animation: minimalContainerScale 1.5s ease-in-out 0.6s both;
+            margin-top: 2rem;
         }
         
         @keyframes minimalLoginSlide {
@@ -522,28 +579,269 @@
             100% { transform: translateY(0) scale(1); box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); }
         }
         
+        /* Responsive adjustments for minimal layout */
+        @media (max-width: 1024px) {
+            .minimal-layout .content-right {
+                padding-top: 60px;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                display: flex;
+            }
+            .minimal-layout .login-container {
+                margin-top: 1rem;
+            }
+        }
+        
         @media (max-width: 768px) {
-            .main-container { flex-direction: column; }
-            .content-left { padding: 2rem; max-width: 100%; }
-            .headline { font-size: 2rem; }
-            .visual-element { width: 250px; height: 250px; }
-            .nav-links { display: none; }
+            .minimal-layout .content-right {
+                padding-top: 50px;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                display: flex;
+            }
+            .minimal-layout .login-container {
+                margin-top: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .minimal-layout .content-right {
+                padding-top: 40px;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                display: flex;
+            }
+            .minimal-layout .login-container {
+                margin-top: 0;
+            }
+        }
+        
+        /* Responsive Design Improvements */
+        @media (max-width: 1200px) {
+            .content-left { 
+                padding: 1.5rem 2rem; 
+                max-width: 55%;
+            }
+            .content-right {
+                padding: 1.5rem;
+            }
+            .headline { 
+                font-size: clamp(1.5rem, 3.5vw, 2.2rem); 
+            }
+            .cards-container {
+                gap: 1rem;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+                min-height: auto;
+                height: auto;
+            }
+            .content-left { 
+                padding: 1.5rem 2rem; 
+                max-width: 100%;
+                min-height: auto;
+                padding-top: 5rem;
+            }
+            .content-right {
+                padding: 1.5rem;
+                min-height: auto;
+                flex: none;
+            }
+            .headline { 
+                font-size: clamp(1.5rem, 3.5vw, 2.2rem); 
+            }
+            .cards-container {
+                gap: 1rem;
+            }
+            .header {
+                position: fixed;
+                padding: 0.75rem 1.5rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container { 
+                flex-direction: column;
+                min-height: auto;
+                height: auto;
+            }
+            .content-left { 
+                padding: 1rem 1.5rem; 
+                max-width: 100%;
+                min-height: auto;
+                padding-top: 4rem;
+            }
+            .content-right {
+                padding: 1rem;
+                min-height: auto;
+                flex: none;
+            }
+            .headline { 
+                font-size: clamp(1.3rem, 3vw, 1.8rem); 
+            }
+            .nav-links { 
+                display: flex; 
+                gap: 0.5rem;
+            }
+            .nav-link {
+                font-size: 0.8rem;
+                padding: 0.3rem 0.6rem;
+            }
+            .settings-btn {
+                font-size: 0.9rem;
+                padding: 0.3rem;
+            }
             
             .cards-container {
                 flex-direction: column;
-                gap: 1rem;
+                gap: 0.75rem;
             }
             
             .feature-card {
-                padding: 1.25rem;
+                padding: 0.875rem;
+                min-width: auto;
             }
             
             .card-title {
-                font-size: 1.1rem;
+                font-size: 0.9rem;
             }
             
             .card-description {
-                font-size: 0.85rem;
+                font-size: 0.75rem;
+            }
+            
+            .login-container {
+                width: 95%;
+                padding: 1.25rem;
+                min-width: 250px;
+            }
+            
+            .header {
+                padding: 0.5rem 1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .main-container { 
+                flex-direction: column;
+                min-height: auto;
+                height: auto;
+                padding: 0;
+            }
+            .content-left { 
+                max-width: 100%;
+                padding: 1rem;
+                padding-top: 4rem;
+                min-height: auto;
+            }
+            .content-right {
+                padding: 1rem;
+                min-height: auto;
+                flex: none;
+            }
+            .headline { 
+                font-size: clamp(1.2rem, 4vw, 1.5rem); 
+            }
+            .login-container {
+                width: 100%;
+                max-width: 350px;
+                min-width: 250px;
+            }
+            .header {
+                padding: 0.5rem 0.75rem;
+            }
+            .brand-name {
+                font-size: 1rem;
+            }
+            .logo {
+                width: 28px;
+                height: 28px;
+            }
+            .nav-links {
+                gap: 0.4rem;
+            }
+            .nav-link {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+            .settings-btn {
+                font-size: 0.8rem;
+                padding: 0.25rem;
+            }
+        }
+        
+        @media (max-width: 320px) {
+            .main-container {
+                padding: 0;
+            }
+            .content-left {
+                padding: 0.75rem;
+                padding-top: 3rem;
+            }
+            .content-right {
+                padding: 0.75rem;
+            }
+            .login-container {
+                padding: 1rem;
+                min-width: 200px;
+            }
+            .feature-card {
+                padding: 0.75rem;
+            }
+            .header {
+                padding: 0.5rem;
+            }
+            .nav-links {
+                gap: 0.3rem;
+            }
+            .nav-link {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.4rem;
+            }
+            .settings-btn {
+                font-size: 0.75rem;
+                padding: 0.2rem;
+            }
+        }
+        
+        /* Zoom-specific fixes */
+        @media screen and (max-resolution: 96dpi) {
+            .main-container {
+                min-height: auto;
+                height: auto;
+            }
+            .content-left,
+            .content-right {
+                min-height: auto;
+                height: auto;
+            }
+        }
+        
+        /* High zoom level support */
+        @media screen and (min-resolution: 144dpi) {
+            .main-container {
+                min-height: auto;
+                height: auto;
+                overflow-y: auto;
+            }
+            .content-left,
+            .content-right {
+                min-height: auto;
+                height: auto;
+                overflow-y: auto;
+            }
+            .header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
             }
         }
     </style>
@@ -582,10 +880,6 @@
                     <div class="card-title">Trackable</div>
                     <div class="card-description">Every change is logged, tracked, and version controlled</div>
                 </div>
-                <div class="feature-card">
-                    <div class="card-title">Collaborative</div>
-                    <div class="card-description">Team-based approval workflows and real-time notifications</div>
-                </div>
             </div>
         </div>
         
@@ -604,6 +898,11 @@
                             <span>Log In</span>
                         </button>
                     </form>
+                    
+                    <div class="auth-switch" id="authSwitch" style="display:none;">
+                        <span id="switchText">Already have an account? </span>
+                        <a href="#" id="switchLink">Sign In</a>
+                    </div>
                 </div>
             </div>
         </div>

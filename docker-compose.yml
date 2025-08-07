@@ -31,14 +31,15 @@ services:
       - REDIS_PORT=6379                   # Redis server port. Default: 6379.
       - REDIS_DB=0                        # Redis DB index for app data. Default: 0. Change if you want to separate data.
       - REDIS_SESSION_DB=1                # Redis DB index for session data. Default: 1. Change if you want to separate sessions.
+      - REDIS_HISTORY_DB=2                # Redis DB index for history data. Default: 2. Change if you want to separate history.
       - REDIS_SOCKET_TIMEOUT=5            # Redis socket timeout in seconds. Default: 5. Increase if you have slow network/storage.
       - REDIS_SOCKET_CONNECT_TIMEOUT=5    # Redis connect timeout in seconds. Default: 5.
       - REDIS_HEALTH_CHECK_INTERVAL=30    # Redis health check interval in seconds. Default: 30.
       - REDIS_MAX_CONNECTIONS=100    
 
       # --- Rate limiting ---
-      - RATE_LIMIT=5                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.
-      - RATE_WINDOW=30                    # Window size in seconds for rate limiting. Default: 60 (1 minute).
+      - RATE_LIMIT=20                      # Max requests per window (per IP). Default: 5. Increase to allow more requests.
+      - RATE_WINDOW=60                    # Window size in seconds for rate limiting. Default: 60 (1 minute).
       - RATE_LIMIT_ENABLED=true          # Enable/disable rate limiting. true/false. Default: true.
 
       # --- History and temp ---
@@ -50,6 +51,8 @@ services:
       - GEMINI_MODEL=gemini-2.5-flash       # Gemini model name. E.g., 'gemini-2.5-flash', 'gemini-1.5-pro'. Check your API provider for available models.
       # --- AI chat toggle (optional, for UI) ---
       - AI_CHAT_ENABLED=true             # true/false. Enables or disables AI chat features in the UI. Default: true.
+      # --- Sign-up feature toggle (optional, for admin control) ---
+      - SIGNUP_ENABLED=false             # true/false. Enables or disables public user sign-up. Default: false (admin only).
       # --- Passkey for restricted actions (recommended for extra security) ---
       - PASSKEY=changeme                  # Passkey for extra security on admin actions. Any string. Set for production.
 
@@ -96,7 +99,7 @@ services:
 volumes:
   redis_data:
     name: ChangeData  # ← your chosen volume name
-    # external: true  # ← uncomment if volume already exists outside this compose
+    #external: true  # ← uncomment if volume already exists outside this compose
 
 networks:
   change_management:

@@ -49,6 +49,7 @@ function showProfileModal(user) {
                         </div>
                       </div>
                     </div>
+
                 </div>
                 <div class="profile-right">
                     <div id="adminSection" style="margin:0;">
@@ -61,6 +62,9 @@ function showProfileModal(user) {
                             <span id="userRefreshIcon" class="user-refresh-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;" title="Refresh User List">
                                 <i class="fas fa-sync-alt"></i>
                             </span>
+                            <span id="signupToggleIcon" class="signup-toggle-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;color:#94a3b8;transition:color 0.2s;" title="Sign Up Settings" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">
+                                <i class="fas fa-user-plus"></i>
+                            </span>
                         </div>
                         <div class="user-mgmt-card">
                             <div id="userList"></div>
@@ -70,6 +74,55 @@ function showProfileModal(user) {
             </div>
         `;
         document.body.appendChild(modal);
+        
+        // Add iPhone notch for admin settings
+        const settingsNotch = document.createElement('div');
+        settingsNotch.className = 'settings-notch';
+        settingsNotch.id = 'adminSettingsNotch';
+        settingsNotch.style.cssText = `
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 320px;
+            min-height: 120px;
+            border-radius: 0 0 20px 20px;
+            background: rgba(60, 60, 67, 0.78);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            color: rgba(255, 255, 255, 0.87);
+            font-weight: 500;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            letter-spacing: -0.24px;
+            text-align: center;
+            user-select: none;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+        `;
+        settingsNotch.innerHTML = `
+            <div class="settings-title" style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff;">Sign Up Settings</div>
+            <div class="setting-option" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 0.5rem;">
+                <div class="setting-label" style="color: #e2e8f0; font-size: 0.9rem;">Enable Public Sign Up</div>
+                <div class="toggle-switch" id="signupToggle" style="position: relative; width: 44px; height: 24px; background: #475569; border-radius: 12px; cursor: pointer; transition: background 0.3s;">
+                    <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; transition: transform 0.3s;"></div>
+                </div>
+            </div>
+            <div class="setting-description" style="color: #94a3b8; font-size: 0.8rem; line-height: 1.4; text-align: left;">
+                When enabled, new users can create accounts on the login page
+            </div>
+            <div id="signupToggleMsg" class="profile-msg" style="display: none; margin-top: 0.5rem;"></div>
+        `;
+        document.body.appendChild(settingsNotch);
     }
     // Fill info
     document.getElementById('profileStatus').textContent = user.role === 'admin' ? 'Admin' : 'User';
@@ -175,10 +228,8 @@ function showProfileModal(user) {
                 // Validation: both fields required
                 if (!oldPw || !newPw) {
                     msgDiv.textContent = 'Please fill in all fields.';
-                    msgDiv.classList.add('info-msg', 'white-text');
+                    msgDiv.classList.add('error-msg');
                     return;
-                } else {
-                    msgDiv.classList.remove('white-text');
                 }
                 // Prevent double submission
                 submitBtn.disabled = true;
@@ -206,6 +257,8 @@ function showProfileModal(user) {
                     }
                     submitBtn.disabled = false;
                 }).catch(()=>{
+                    msgDiv.textContent = 'Unable to update password';
+                    msgDiv.className = 'profile-msg error-msg';
                     submitBtn.disabled = false;
                 });
                 // Clear message on input
@@ -213,9 +266,11 @@ function showProfileModal(user) {
                     msgDiv.textContent = '';
                     msgDiv.className = 'profile-msg';
                 };
-            };
-        }
-    };
+                    };
+        
+
+    }
+};
     document.getElementById('closePwBtn').onclick = function() {
         document.getElementById('changePwSection').style.display = 'none';
         document.getElementById('addUserForm').style.display = '';
@@ -235,6 +290,9 @@ function showProfileModal(user) {
                 document.getElementById('changePwSection').style.display = 'none';
                 document.getElementById('addUserForm').style.display = '';
             }
+        }).catch(()=>{
+            document.getElementById('profileMsg').textContent = 'Unable to update password';
+            document.getElementById('profileMsg').className = 'profile-msg error-msg';
         });
     };
     // Admin user management
@@ -308,7 +366,11 @@ function showProfileModal(user) {
                         // Username and last login
                         const info = document.createElement('div');
                         info.className = 'user-info';
-                        info.innerHTML = `<span class="user-name">${u}</span>${lastLoginHtml}`;
+                        const createdBy = uobj.created_by || 'admin';
+                        const indicator = createdBy === 'signup' ? 
+                            '<span class="user-signup-indicator" title="Self-signed up"><i class="fas fa-user-plus"></i></span>' : 
+                            '<span class="user-admin-indicator" title="Added by admin"><i class="fas fa-user-cog"></i></span>';
+                        info.innerHTML = `<div class="user-name-row"><span class="user-name">${u}</span>${indicator}</div>${lastLoginHtml}`;
                         card.appendChild(info);
                         // Actions
                         const actions = document.createElement('div');
@@ -323,7 +385,6 @@ function showProfileModal(user) {
                         logout.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
                         logout.className = 'btn user-logout-btn';
                         logout.title = 'Logout User';
-                        logout.style.background = 'linear-gradient(135deg,#f59e0b,#fbbf24)';
                         
                         // Delete button
                         const del = document.createElement('button');
@@ -335,46 +396,132 @@ function showProfileModal(user) {
                         edit.onclick = function() {
                             if (editing) return;
                             editing = true;
+                            
+                            // Hide other elements during edit
+                            const avatar = card.querySelector('.user-avatar');
+                            const userInfo = card.querySelector('.user-info');
+                            const userActions = card.querySelector('.user-actions');
+                            
+                            if (avatar) avatar.style.display = 'none';
+                            if (userInfo) userInfo.style.display = 'none';
+                            if (userActions) userActions.style.display = 'none';
+                            
                             // Remove any other open editors
                             document.querySelectorAll('.user-edit-inline').forEach(e=>e.remove());
-                            // Inline form
-                            const inline = document.createElement('div');
-                            inline.className = 'user-edit-inline';
-                            inline.style.display = 'flex';
-                            inline.style.alignItems = 'center';
-                            inline.style.gap = '0.5rem';
-                            inline.style.marginTop = '0.5rem';
-                            inline.innerHTML = `
-                              <input type="password" class="user-edit-input" placeholder="New Password" style="padding:0.4rem 0.8rem;border-radius:7px;border:1px solid #3b82f6;background:rgba(255,255,255,0.08);color:#eaf1fb;font-size:0.98rem;outline:none;">
-                              <button class="btn save-btn" style="padding:0.4rem 1.5rem;font-size:1.08rem;">Save</button>
-                              <button class="btn cancel-btn" style="padding:0.4rem 1.5rem;font-size:1.08rem;">Cancel</button>
-                              <span class="user-edit-msg" style="margin-left:0.5rem;font-size:0.98rem;"></span>
+                            
+                            // Create edit form
+                            const editForm = document.createElement('div');
+                            editForm.className = 'user-edit-inline';
+                            editForm.innerHTML = `
+                                <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.3rem;">
+                                    <div style="font-weight: 600; color: #eaf1fb; font-size: 1rem; letter-spacing: 0.01em;">${u}</div>
+                                    <div style="font-size: 0.8rem; color: #60a5fa; font-weight: 500;">Change Password</div>
+                                </div>
+                                <div class="input-row">
+                                    <input type="password" placeholder="New Password" autocomplete="new-password">
+                                    <button class="btn save-btn">
+                                        <i class="fas fa-check"></i>
+                                        Save
+                                    </button>
+                                    <button class="btn cancel-btn">
+                                        <i class="fas fa-times"></i>
+                                        Cancel
+                                    </button>
+                                </div>
+                                <div class="user-edit-msg"></div>
                             `;
-                            info.appendChild(inline);
+                            
+                            card.appendChild(editForm);
+                            
+                            // Focus on input
+                            setTimeout(() => {
+                                const inputField = editForm.querySelector('input[type="password"]');
+                                if (inputField) {
+                                    inputField.focus();
+                                }
+                            }, 100);
+                            
+                            // Clear error message when user starts typing
+                            const inputField = editForm.querySelector('input[type="password"]');
+                            if (inputField) {
+                                inputField.addEventListener('input', function() {
+                                    const msgElement = editForm.querySelector('.user-edit-msg');
+                                    if (msgElement && msgElement.textContent.includes('Enter password')) {
+                                        msgElement.textContent = '';
+                                        msgElement.className = 'user-edit-msg';
+                                    }
+                                });
+                            }
+                            
                             // Save/cancel logic
-                            inline.querySelector('.cancel-btn').onclick = function() {
-                                inline.remove();
+                            const restoreLayout = () => {
+                                if (avatar) avatar.style.display = 'flex';
+                                if (userInfo) userInfo.style.display = 'flex';
+                                if (userActions) userActions.style.display = 'flex';
+                                editForm.remove();
                                 editing = false;
                             };
-                            inline.querySelector('.save-btn').onclick = function() {
-                                const npw = inline.querySelector('.user-edit-input').value;
-                                if (!npw) {
-                                    inline.querySelector('.user-edit-msg').textContent = 'Enter password';
+                            
+                            editForm.querySelector('.cancel-btn').onclick = function() {
+                                restoreLayout();
+                            };
+                            
+                            editForm.querySelector('.save-btn').onclick = function() {
+                                const inputField = editForm.querySelector('input[type="password"]');
+                                const msgElement = editForm.querySelector('.user-edit-msg');
+                                
+                                if (!inputField) {
+                                    console.error('Password input field not found');
                                     return;
                                 }
+                                
+                                const npw = inputField.value;
+                                if (!npw) {
+                                    if (msgElement) {
+                                        msgElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Enter password';
+                                        msgElement.className = 'user-edit-msg error';
+                                    }
+                                    return;
+                                }
+                                
+                                // Disable buttons during save
+                                const saveBtn = editForm.querySelector('.save-btn');
+                                const cancelBtn = editForm.querySelector('.cancel-btn');
+                                if (saveBtn) saveBtn.disabled = true;
+                                if (cancelBtn) cancelBtn.disabled = true;
+                                if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                                
                                 fetch('/users',{
                                     method:'PUT',
                                     headers:{'Content-Type':'application/json'},
                                     body:JSON.stringify({username:u,password:npw})
                                 }).then(r=>r.json()).then(data=>{
-                                    inline.querySelector('.user-edit-msg').textContent = data.status==='success'?'Updated!':(data.message||'Error');
                                     if(data.status==='success') {
                                         createNotification('success', 'Password updated successfully!');
                                         setTimeout(()=>{
-                                            inline.remove();
-                                            editing = false;
-                                        }, 1000);
+                                            restoreLayout();
+                                        }, 500);
+                                    } else {
+                                        if (msgElement) {
+                                            msgElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (data.message || 'Error');
+                                            msgElement.className = 'user-edit-msg error';
+                                        }
+                                        if (saveBtn) {
+                                            saveBtn.disabled = false;
+                                            saveBtn.innerHTML = '<i class="fas fa-check"></i> Save';
+                                        }
+                                        if (cancelBtn) cancelBtn.disabled = false;
                                     }
+                                }).catch(() => {
+                                    if (msgElement) {
+                                        msgElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Network error';
+                                        msgElement.className = 'user-edit-msg error';
+                                    }
+                                    if (saveBtn) {
+                                        saveBtn.disabled = false;
+                                        saveBtn.innerHTML = '<i class="fas fa-check"></i> Save';
+                                    }
+                                    if (cancelBtn) cancelBtn.disabled = false;
                                 });
                             };
                         };
@@ -486,10 +633,8 @@ function showProfileModal(user) {
             // Validation: both fields required
             if (!nu || !npw) {
                 msgDiv.textContent = 'Please fill in all fields.';
-                msgDiv.classList.add('info-msg', 'white-text');
+                msgDiv.classList.add('error-msg');
                 return;
-            } else {
-                msgDiv.classList.remove('white-text');
             }
             fetch('/users',{
                 method:'POST',
@@ -513,6 +658,11 @@ function showProfileModal(user) {
                     msgDiv.className = 'profile-msg';
                 }, 2500);
                 refreshUsers();
+            }).catch(()=>{
+                msgDiv.textContent = 'Unable to add user';
+                msgDiv.className = 'profile-msg error-msg';
+                // Don't clear form fields on network error
+                // Don't auto-hide the error message
             });
             // Clear message on input
             document.getElementById('newUser').oninput = document.getElementById('newUserPw').oninput = function() {
@@ -521,6 +671,132 @@ function showProfileModal(user) {
                 msgDiv.style.display = 'none';
             };
         };
+        
+        // Signup toggle functionality for admin
+        setTimeout(() => {
+            const signupToggleIcon = document.getElementById('signupToggleIcon');
+            const adminSettingsNotch = document.getElementById('adminSettingsNotch');
+            const signupToggle = document.getElementById('signupToggle');
+            const signupToggleMsg = document.getElementById('signupToggleMsg');
+            let settingsTimeout;
+            
+            if (signupToggleIcon && adminSettingsNotch) {
+                // Signup toggle icon click handler
+                signupToggleIcon.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Load current signup status
+                    fetch('/signup-enabled')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.enabled) {
+                                signupToggle.classList.add('active');
+                                signupToggle.style.background = '#3b82f6';
+                                signupToggle.querySelector('.toggle-slider').style.transform = 'translateX(20px)';
+                            } else {
+                                signupToggle.classList.remove('active');
+                                signupToggle.style.background = '#475569';
+                                signupToggle.querySelector('.toggle-slider').style.transform = 'translateX(0)';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Failed to load signup status:', err);
+                        });
+                    
+                    adminSettingsNotch.classList.add('active');
+                    adminSettingsNotch.style.pointerEvents = 'auto';
+                    adminSettingsNotch.style.opacity = '1';
+                    adminSettingsNotch.style.visibility = 'visible';
+                    requestAnimationFrame(() => {
+                        adminSettingsNotch.style.top = '0px';
+                    });
+                    
+                    clearTimeout(settingsTimeout);
+                    settingsTimeout = setTimeout(() => {
+                        hideAdminSettingsNotch();
+                    }, 5000);
+                });
+                
+                // Signup toggle functionality
+                if (signupToggle) {
+                    signupToggle.onclick = function() {
+                        
+                        // Show loading state
+                        this.style.pointerEvents = 'none';
+                        signupToggleMsg.style.display = '';
+                        signupToggleMsg.textContent = 'Updating...';
+                        signupToggleMsg.className = 'profile-msg info-msg';
+                        
+                        fetch('/toggle-signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                if (data.enabled) {
+                                    this.classList.add('active');
+                                    this.style.background = '#3b82f6';
+                                    this.querySelector('.toggle-slider').style.transform = 'translateX(20px)';
+                                    signupToggleMsg.textContent = 'Sign-up enabled!';
+                                    signupToggleMsg.className = 'profile-msg success-msg';
+                                } else {
+                                    this.classList.remove('active');
+                                    this.style.background = '#475569';
+                                    this.querySelector('.toggle-slider').style.transform = 'translateX(0)';
+                                    signupToggleMsg.textContent = 'Sign-up disabled!';
+                                    signupToggleMsg.className = 'profile-msg info-msg';
+                                }
+                                
+                                // Force refresh the login page signup status
+                                if (window.location.pathname === '/login') {
+                                    window.location.reload();
+                                }
+                            } else {
+                                signupToggleMsg.textContent = data.message || 'Failed to update setting';
+                                signupToggleMsg.className = 'profile-msg error-msg';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Toggle error:', err);
+                            signupToggleMsg.textContent = 'Network error';
+                            signupToggleMsg.className = 'profile-msg error-msg';
+                        })
+                        .finally(() => {
+                            this.style.pointerEvents = '';
+                            setTimeout(() => {
+                                signupToggleMsg.style.display = 'none';
+                            }, 3000);
+                        });
+                    };
+                }
+                
+                // Hide settings notch when clicking outside
+                const outsideClickHandler = function(e) {
+                    if (adminSettingsNotch && signupToggleIcon) {
+                        if (!adminSettingsNotch.contains(e.target) && !signupToggleIcon.contains(e.target)) {
+                            if (adminSettingsNotch.classList.contains('active')) {
+                                hideAdminSettingsNotch();
+                            }
+                        }
+                    }
+                };
+                document.addEventListener('click', outsideClickHandler);
+                
+                function hideAdminSettingsNotch() {
+                    if (adminSettingsNotch) {
+                        adminSettingsNotch.style.top = '-60px';
+                        setTimeout(() => {
+                            adminSettingsNotch.classList.remove('active');
+                            adminSettingsNotch.style.pointerEvents = 'none';
+                            adminSettingsNotch.style.opacity = '0';
+                            adminSettingsNotch.style.visibility = 'hidden';
+                        }, 500);
+                    }
+                }
+            }
+        }, 100); // Small delay to ensure modal is fully rendered
     }
 }
 

@@ -257,15 +257,20 @@ const ChangeTracker = {
         document.addEventListener('click', event => {
             const saveBtn = event.target.closest('.save-btn');
             if (saveBtn) {
-                const row = saveBtn.closest('tr');
-                
-                // Only mark as unsaved if the row has actually changed
-                if (this.hasRowChanged(row)) {
-                    this.markUnsaved();
+                // Only track changes for save buttons within the main change table
+                const table = saveBtn.closest('#changeTable');
+                if (table) {
+                    const row = saveBtn.closest('tr');
+                    if (row) {
+                        // Only mark as unsaved if the row has actually changed
+                        if (this.hasRowChanged(row)) {
+                            this.markUnsaved();
+                        }
+                        
+                        // Clear original values after save
+                        row.originalValues = null;
+                    }
                 }
-                
-                // Clear original values after save
-                row.originalValues = null;
             }
         });
         
@@ -273,8 +278,14 @@ const ChangeTracker = {
         document.addEventListener('click', event => {
             const editBtn = event.target.closest('.edit-btn');
             if (editBtn) {
-                const row = editBtn.closest('tr');
-                this.storeOriginalValues(row);
+                // Only track changes for edit buttons within the main change table
+                const table = editBtn.closest('#changeTable');
+                if (table) {
+                    const row = editBtn.closest('tr');
+                    if (row) {
+                        this.storeOriginalValues(row);
+                    }
+                }
             }
         });
         

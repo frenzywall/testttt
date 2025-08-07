@@ -155,8 +155,8 @@
 }
 
 #adminSection {
-    margin: 2rem 0 0 0;
-    padding: 0 2.5rem 2rem 2.5rem;
+    margin: 1rem 0 0 0;
+    padding: 0 1.5rem 1.5rem 1.5rem;
     background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(30,41,59,0.12));
     border-radius: 16px;
     box-shadow: 0 2px 12px rgba(59,130,246,0.08);
@@ -170,28 +170,28 @@
     color: #3b82f6;
     font-size: 1.2rem;
     font-weight: 700;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 /* User Management Modern Styles */
 .user-count {
     font-size: 1.05rem;
     color: #60a5fa;
     font-weight: 600;
-    margin-bottom: 0.5rem;
-    margin-top: 0.2rem;
+    margin-bottom: 0.3rem;
+    margin-top: 0.1rem;
     padding-left: 0.2rem;
 }
 .user-divider {
     height: 1px;
     background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
     opacity: 0.18;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     border-radius: 2px;
 }
 #userList {
     display: flex;
     flex-direction: column;
-    gap: 0.7rem;
+    gap: 0.4rem;
     flex: 1 1 auto;    /* fill available height */
     min-height: 0;     /* enable flex children to shrink */
     overflow: hidden;  /* contain inner scroll area */
@@ -201,15 +201,15 @@
     align-items: center;
     background: linear-gradient(135deg, rgba(59,130,246,0.10), rgba(30,41,59,0.18));
     border-radius: 12px;
-    padding: 1.2rem 1.2rem 1.2rem 1.2rem;
+    padding: 0.8rem 1rem 0.8rem 1rem;
     color: #eaf1fb;
     font-size: 1rem;
     font-weight: 500;
     box-shadow: 0 2px 8px rgba(59,130,246,0.06);
-    margin-bottom: 0.7rem;
+    margin-bottom: 0.4rem;
     transition: box-shadow 0.2s, background 0.2s;
-    gap: 1.2rem;
-    min-height: 80px;
+    gap: 1rem;
+    min-height: 70px;
 }
 .user-card:hover {
     box-shadow: 0 6px 18px rgba(59,130,246,0.13);
@@ -251,14 +251,14 @@
     gap: 0.5rem;
 }
 .user-logout-btn {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: #fff;
     border-radius: 8px;
     padding: 0.5rem 0.9rem;
     font-size: 1.1rem;
     font-weight: 600;
     border: none;
-    box-shadow: 0 2px 8px rgba(245,158,11,0.08);
+    box-shadow: 0 2px 8px rgba(59,130,246,0.08);
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s;
     display: flex;
@@ -268,8 +268,8 @@
 
 .user-logout-btn:hover {
     filter: brightness(1.1);
-    background: linear-gradient(135deg, #d97706, #fbbf24);
-    box-shadow: 0 4px 12px rgba(245,158,11,0.15);
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(59,130,246,0.15);
 }
 
 .user-delete-btn {
@@ -360,14 +360,14 @@
     flex: 1 1 auto;
     min-height: 0;
     height: auto;
-    margin: 2rem 1.5rem 1.5rem 1.5rem;
+    margin: 1rem 1rem 1rem 1rem;
     background: linear-gradient(135deg, rgba(74,144,226,0.10), rgba(30,41,59,0.18));
     border-radius: 16px;
     box-shadow: 0 4px 24px rgba(59,130,246,0.10);
-    padding: 1.2rem 1.2rem 1.2rem 1.2rem;
+    padding: 0.8rem 1rem 0.8rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
+    gap: 0.8rem;
     overflow: hidden;
 }
 .user-list-scroll {
@@ -376,8 +376,8 @@
     max-height: 100%;
     overflow-y: auto;
     padding-right: 0.2rem;
-    padding-top: 0.5rem;
-    padding-bottom: 1rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.5rem;
     scrollbar-width: thin;
     scrollbar-color: #3b82f6 #1e293b;
 }
@@ -652,21 +652,60 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.7rem;
+    gap: 0.6rem;
+    margin-top: 0;
+    width: 100%;
+    padding: 0.6rem;
+}
+
+.user-edit-inline .input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     width: 100%;
 }
 .user-edit-inline input {
-    width: 220px;
+    flex: 1;
     max-width: 100%;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #3b82f6;
+    background: rgba(255, 255, 255, 0.08);
+    color: #eaf1fb;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.user-edit-inline input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    background: rgba(255, 255, 255, 0.12);
 }
 .user-edit-inline .user-edit-msg {
     margin-left: 0;
     margin-top: 0.2rem;
-    font-size: 0.98rem;
+    font-size: 0.9rem;
     min-height: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.user-edit-inline .user-edit-msg.error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.user-edit-inline .user-edit-msg.success {
     color: #22c55e;
-    display: block;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
 }
 @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -825,47 +864,47 @@
     background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: #fff;
     font-weight: 600;
-    border-radius: 10px;
-    padding: 0.7rem 1.5rem;
-    font-size: 1.08rem;
-    box-shadow: 0 2px 10px rgba(59,130,246,0.18), 0 1.5px 8px 0 rgba(255,255,255,0.04) inset;
-    border: 1.5px solid rgba(59,130,246,0.18);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.15), 0 1px 4px 0 rgba(255,255,255,0.03) inset;
+    border: 1px solid rgba(59,130,246,0.15);
     transition: box-shadow 0.2s, border 0.2s, filter 0.18s;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     letter-spacing: 0.01em;
     backdrop-filter: blur(6px);
 }
 .user-edit-inline .save-btn:hover {
-    box-shadow: 0 4px 18px 2px #3b82f6aa, 0 1.5px 8px 0 rgba(255,255,255,0.08) inset;
-    border: 1.5px solid #60a5fa;
-    filter: brightness(1.08) saturate(1.04);
+    box-shadow: 0 3px 12px 2px #3b82f6aa, 0 1px 4px 0 rgba(255,255,255,0.06) inset;
+    border: 1px solid #60a5fa;
+    filter: brightness(1.06) saturate(1.02);
 }
 .user-edit-inline .cancel-btn {
     background: #323a46;
     color: #eaf1fb;
     font-weight: 600;
-    border-radius: 10px;
-    padding: 0.7rem 1.5rem;
-    font-size: 1.08rem;
-    box-shadow: 0 2px 10px rgba(30,41,59,0.13), 0 1.5px 8px 0 rgba(255,255,255,0.03) inset;
-    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(30,41,59,0.12), 0 1px 4px 0 rgba(255,255,255,0.02) inset;
+    border: 1px solid rgba(255,255,255,0.06);
     transition: box-shadow 0.2s, border 0.2s, filter 0.18s;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     letter-spacing: 0.01em;
     backdrop-filter: blur(6px);
 }
 .user-edit-inline .cancel-btn:hover {
-    box-shadow: 0 4px 14px 2px #fff1, 0 1.5px 8px 0 rgba(255,255,255,0.06) inset;
-    border: 1.5px solid #64748b;
-    filter: brightness(1.04) saturate(1.02);
+    box-shadow: 0 3px 10px 2px #fff1, 0 1px 4px 0 rgba(255,255,255,0.04) inset;
+    border: 1px solid #64748b;
+    filter: brightness(1.03) saturate(1.01);
 }
 
 /* --- Larger Add User Form Fields --- */
@@ -887,3 +926,45 @@
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(10px); }
 }
+
+/* User creation indicators */
+.user-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.user-signup-indicator,
+.user-admin-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.user-signup-indicator {
+    color: #10b981;
+}
+
+.user-admin-indicator {
+    color: #ef4444;
+}
+
+.user-signup-indicator:hover,
+.user-admin-indicator:hover {
+    opacity: 1;
+}
+
+.user-info {
+    position: relative;
+}
+
+.user-last-login {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+

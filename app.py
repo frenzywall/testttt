@@ -19,8 +19,110 @@ from google import genai
 from google.genai import types
 import bcrypt
 import threading
+import time
 from flask import g
 from flask_session import Session
+
+# Thread synchronization for search index operations
+search_index_lock = threading.Lock()
+searchhaus_index_busy = False
+search_index_last_rebuild = 0
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+class OptimizedKeyManager:
+    """
+    Use Redis hash tags to group related keys for efficient management
+    
+    Technical Benefits:
+    1. All related keys stored on same Redis node (cluster support)
+    2. Atomic operations across related keys
+    3. Efficient bulk operations
+    4. Better memory locality
+    """
+    def __init__(self, redis_client):
+        self.redis = redis_client
+        self.history_prefix = "{history}"
+    
+    def get_history_item_key(self, timestamp):
+        return f"{self.history_prefix}:item:{timestamp}"
+    
+    def get_metadata_key(self):
+        return f"{self.history_prefix}:metadata"
+    
+    def get_search_key(self, search_type, term):
+        return f"{self.history_prefix}:search:{search_type}:{term}"
+    
+    def get_cache_key(self, cache_type, term):
+        return f"{self.history_prefix}:cache:{cache_type}:{term}"
+    
+    def get_all_history_pattern(self):
+        return f"{self.history_prefix}:*"
+
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key:
+    app.secret_key = secrets.token_hex(16)
+    logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
+
+
+# --- Supported Environment Variables ---
+# SECRET_KEY: Flask secret key
+# FLASK_DEBUG: Enable Flask debug mode (0/1)
+# PORT: Flask app port
+# SESSION_TIMEOUT_SECONDS: Session timeout for users (seconds)
+# SESSION_TIMEOUT_HOURS: Session timeout for users (hours)
+# PERMANENT_SESSION_LIFETIME_DAYS: Session lifetime for admin users (days)
+# REDIS_HOST: Redis host
+# REDIS_PORT: Redis port
+# REDIS_DB: Redis DB for app data (default 0)
+# REDIS_SESSION_DB: Redis DB for session data (default 1)
+# REDIS_SOCKET_TIMEOUT: Redis socket timeout (seconds)
+# REDIS_SOCKET_CONNECT_TIMEOUT: Redis socket connect timeout (seconds)
+# REDIS_HEALTH_CHECK_INTERVAL: Redis health check interval (seconds)
+# ADMIN_USERNAME: Default admin username
+# ADMIN_PASSWORD: Default admin password
+# PASSKEY: Passkey for restricted actions
+# RATE_LIMIT: Rate limit (requests per window)
+# RATE_WINDOW: Rate limit window (seconds)
+# HISTORY_LIMIT: Max history entries
+# TEMP_DIR: Temp file directory
+# GEMINI_API_KEY: Google Gemini API key
+# GEMINI_MODEL: Google Gemini model name
+# SIGNUP_ENABLED: Enable sign-up feature (true/false)
+
+# --- Load config from environment variables ---
+SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
+REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # Default 5 minutes
+SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
+PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
+REDIS_HISTORY_DB = int(os.environ.get('REDIS_HISTORY_DB', 2))
+REDIS_SOCKET_TIMEOUT = int(os.environ.get('REDIS_SOCKET_TIMEOUT', 5))
+REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get('REDIS_SOCKET_CONNECT_TIMEOUT', 5))
+REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get('REDIS_HEALTH_CHECK_INTERVAL', 30))
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
+PASSKEY = os.environ.get('PASSKEY')
+RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
+RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
+HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
+TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+SIGNUP_ENABLED = os.environ.get('SIGNUP_ENABLED', 'false').lower() == 'true'
+SIGNUP_REDIS_KEY = 'signup_enabled'
+EXISTING_USER_MATCH_MESSAGE = 'existing_user_match'
+
 
 # Server-side caching for history
 class HistoryCache:
@@ -53,65 +155,6 @@ class HistoryCache:
 
 # Global cache instance
 history_cache = HistoryCache()
-
-# --- Supported Environment Variables ---
-# SECRET_KEY: Flask secret key
-# FLASK_DEBUG: Enable Flask debug mode (0/1)
-# PORT: Flask app port
-# SESSION_TIMEOUT_SECONDS: Session timeout for users (seconds)
-# SESSION_TIMEOUT_HOURS: Session timeout for users (hours)
-# PERMANENT_SESSION_LIFETIME_DAYS: Session lifetime for admin users (days)
-# REDIS_HOST: Redis host
-# REDIS_PORT: Redis port
-# REDIS_DB: Redis DB for app data (default 0)
-# REDIS_SESSION_DB: Redis DB for session data (default 1)
-# REDIS_SOCKET_TIMEOUT: Redis socket timeout (seconds)
-# REDIS_SOCKET_CONNECT_TIMEOUT: Redis socket connect timeout (seconds)
-# REDIS_HEALTH_CHECK_INTERVAL: Redis health check interval (seconds)
-# ADMIN_USERNAME: Default admin username
-# ADMIN_PASSWORD: Default admin password
-# PASSKEY: Passkey for restricted actions
-# RATE_LIMIT: Rate limit (requests per window)
-# RATE_WINDOW: Rate limit window (seconds)
-# HISTORY_LIMIT: Max history entries
-# TEMP_DIR: Temp file directory
-# GEMINI_API_KEY: Google Gemini API key
-# GEMINI_MODEL: Google Gemini model name
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-app = Flask(__name__, static_folder='static', static_url_path='/static')
-
-app.secret_key = os.environ.get('SECRET_KEY')
-if not app.secret_key:
-    app.secret_key = secrets.token_hex(16)
-    logger.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for production.")
-
-# --- Load config from environment variables ---
-SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
-REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # Default 5 minutes
-SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
-PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
-REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
-REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-REDIS_DB = int(os.environ.get('REDIS_DB', 0))
-REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
-REDIS_SOCKET_TIMEOUT = int(os.environ.get('REDIS_SOCKET_TIMEOUT', 5))
-REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get('REDIS_SOCKET_CONNECT_TIMEOUT', 5))
-REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get('REDIS_HEALTH_CHECK_INTERVAL', 30))
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
-PASSKEY = os.environ.get('PASSKEY')
-RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
-RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
-HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
-TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 
 # Add environment variable for Redis connection pool size
 REDIS_MAX_CONNECTIONS = int(os.environ.get('REDIS_MAX_CONNECTIONS', 20))  # Default pool size
@@ -156,6 +199,30 @@ try:
 except redis.RedisError as e:
     logger.error(f"Redis connection error (session data): {str(e)}")
     session_redis = None
+
+# --- Redis client for History data (decode_responses=True, db=2) ---
+try:
+    history_redis_pool = redis.ConnectionPool(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_HISTORY_DB,  # Use a different DB for history data
+        decode_responses=True,
+        max_connections=REDIS_MAX_CONNECTIONS,
+        socket_timeout=REDIS_SOCKET_TIMEOUT,
+        socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+    )
+    history_redis = redis.Redis(connection_pool=history_redis_pool)
+    history_redis.ping()
+    logger.info("Successfully connected to Redis (history data) with connection pooling")
+    
+    # Initialize key managers
+    history_key_manager = OptimizedKeyManager(history_redis)
+    
+except redis.RedisError as e:
+    logger.error(f"Redis connection error (history data): {str(e)}")
+    history_redis = None
+    history_key_manager = None
 
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_REDIS'] = session_redis
@@ -276,11 +343,40 @@ def save_stored_data(data):
         logger.error(f"Error saving data to Redis: {str(e)}")
         return False
 
-def get_stored_history():
-    """Get sync history from Redis"""
+def get_history_item_by_timestamp(timestamp):
+    """Get a single history item by timestamp"""
     try:
-        history = redis_client.get('change_management_history')
-        return json.loads(history) if history else []
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return None
+        item_key = history_key_manager.get_history_item_key(timestamp)
+        item_data = history_redis.get(item_key)
+        if item_data:
+            logger.debug(f"Retrieved history item: {item_key}")
+            return json.loads(item_data)
+        logger.warning(f"History item not found: {item_key}")
+        return None
+    except Exception as e:
+        logger.error(f"Error getting history item {timestamp}: {str(e)}")
+        return None
+
+def get_stored_history():
+    """Get sync history from Redis - backward compatibility function"""
+    try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return []
+        # Get all timestamps from metadata sorted set
+        metadata_key = history_key_manager.get_metadata_key()
+        all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
+        
+        history = []
+        for metadata_json, timestamp in all_timestamps:
+            item = get_history_item_by_timestamp(timestamp)
+            if item:
+                history.append(item)
+        
+        return history
     except Exception as e:
         logger.error(f"Error retrieving history from Redis: {str(e)}")
         return []
@@ -288,69 +384,66 @@ def get_stored_history():
 
 
 def save_to_history(data):
-    """Save current data to history with indexing"""
+    """Save current data to history with individual Redis keys for better performance"""
     try:
-        history = get_stored_history()      
-        current_timestamp = datetime.now().timestamp()       
-        duplicate_found = False
-        if history:
-            latest_entry = history[0]
-            if (current_timestamp - latest_entry.get('timestamp', 0) < 60 and
-                latest_entry.get('title') == data.get('header_title', 'Change Weekend') and
-                len(latest_entry.get('data', {}).get('services', [])) == len(data.get('services', []))):
-                latest_entry['data'] = data
-                latest_entry['timestamp'] = current_timestamp
-                latest_entry['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                duplicate_found = True
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return False
+        current_timestamp = datetime.now().timestamp()
         
-        if not duplicate_found:
-            history_entry = {
-                'timestamp': current_timestamp,
-                'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'title': data.get('header_title', 'Change Weekend'),
-                'data': data
-            }
+        # Store the full history item as a separate Redis key
+        history_item = {
+            'timestamp': current_timestamp,
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'title': data.get('header_title', 'Change Weekend'),
+            'data': data
+        }
+        
+        # Use pipelining for bulk operations
+        with history_redis.pipeline() as pipe:
+            # Store individual item
+            item_key = history_key_manager.get_history_item_key(current_timestamp)
+            pipe.set(item_key, json.dumps(history_item))
             
-            history.insert(0, history_entry)
+            # Store metadata in sorted set for efficient pagination
+            metadata = {
+                'title': data.get('header_title', 'Change Weekend'),
+                'date': data.get('date', ''),
+                'service_count': len(data.get('services', []))
+            }
+            metadata_key = history_key_manager.get_metadata_key()
+            # Ensure timestamp is stored as float for proper sorting
+            pipe.zadd(metadata_key, {json.dumps(metadata): float(current_timestamp)})
+            
+            # Cleanup old entries (keep only HISTORY_LIMIT most recent)
+            total_items = history_redis.zcard(metadata_key)
+            if total_items > HISTORY_LIMIT:
+                # Remove oldest items
+                items_to_remove = total_items - HISTORY_LIMIT
+                oldest_timestamps = history_redis.zrange(metadata_key, 0, items_to_remove - 1)
+                for timestamp in oldest_timestamps:
+                    pipe.delete(history_key_manager.get_history_item_key(timestamp))
+                pipe.zremrangebyrank(metadata_key, 0, items_to_remove - 1)
+            
+            # Execute all operations in single network round trip
+            pipe.execute()
         
-        # Limit the history size. Change the HISTORY_LIMIT variable above to adjust the limit.
-        history = history[:HISTORY_LIMIT]
-
-        # Save main history data
-        redis_client.set('change_management_history', json.dumps(history))
-        
-        # Update pagination index for O(1) access
-        update_pagination_index(history)
-        
-        # Clear failed search cache when new data is added
-        clear_failed_search_cache()
-        
+        # Update search index for new data (async)
+        threading.Thread(target=create_search_index, daemon=True).start()
         return True
     except Exception as e:
         logger.error(f"Error saving to history: {str(e)}")
         return False
 
-def update_pagination_index(history):
-    """Update Redis index for O(1) pagination"""
-    try:
-        # Clear existing index
-        redis_client.delete('history_pagination_index')
-        
-        # Create sorted set with timestamps as scores for O(1) range queries
-        for i, entry in enumerate(history):
-            timestamp = entry.get('timestamp', 0)
-            redis_client.zadd('history_pagination_index', {str(i): timestamp})
-        
-        # Store total count for quick access
-        redis_client.set('history_total_count', len(history))
-        
-    except Exception as e:
-        logger.error(f"Error updating pagination index: {str(e)}")
-
 def get_paginated_history_optimized(page, per_page):
-    """Get paginated history using Redis ZRANGE for O(1) performance"""
+    """Get paginated history using Redis ZREVRANGE for O(1) performance"""
     try:
-        total_count = int(redis_client.get('history_total_count') or 0)
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return get_paginated_history_fallback(page, per_page)
+        metadata_key = history_key_manager.get_metadata_key()
+        total_count = history_redis.zcard(metadata_key)
+        
         if total_count == 0:
             return [], {'current_page': page, 'per_page': per_page, 'total_items': 0, 'total_pages': 0, 'has_next': False, 'has_prev': False}
         
@@ -358,21 +451,19 @@ def get_paginated_history_optimized(page, per_page):
         start_idx = (page - 1) * per_page
         end_idx = start_idx + per_page - 1
         
-        # Get indices for this page using ZREVRANGE (newest first)
-        indices = redis_client.zrevrange('history_pagination_index', start_idx, end_idx)
+        # Get metadata for this page using ZREVRANGE (newest first)
+        metadata_items = history_redis.zrevrange(metadata_key, start_idx, end_idx, withscores=True)
         
-        # Get full history and extract only the needed items
-        history = get_stored_history()
-        paginated_items = []
-        
-        for idx_str in indices:
-            idx = int(idx_str)
-            if idx < len(history):
-                paginated_items.append(history[idx])
+        # Fetch only the needed items
+        items = []
+        for metadata_json, timestamp in metadata_items:
+            item = get_history_item_by_timestamp(timestamp)
+            if item:
+                items.append(item)
         
         total_pages = (total_count + per_page - 1) // per_page
         
-        return paginated_items, {
+        return items, {
             'current_page': page,
             'per_page': per_page,
             'total_items': total_count,
@@ -611,6 +702,15 @@ def bootstrap_admin():
 # Call bootstrap_admin at startup
 bootstrap_admin()
 
+# Load signup setting from Redis
+try:
+    signup_setting = redis_client.get(SIGNUP_REDIS_KEY)
+    if signup_setting is not None:
+        SIGNUP_ENABLED = signup_setting == '1'
+        logger.info(f"Loaded signup setting from Redis: {'enabled' if SIGNUP_ENABLED else 'disabled'}")
+except Exception as e:
+    logger.warning(f"Could not load signup setting from Redis: {str(e)}")
+
 # Get users dict
 def get_users():
     try:
@@ -699,7 +799,7 @@ def manage_users():
         if request.method == 'GET':
             # Return users with last_login, sorted by last_login descending (latest first)
             user_list = [
-                {'username': u, 'last_login': users[u].get('last_login', '-')}
+                {'username': u, 'last_login': users[u].get('last_login', '-'), 'created_by': users[u].get('created_by', 'admin')}
                 for u in users if users[u]['role'] != 'admin']
             user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
             return jsonify({'users': user_list})
@@ -711,7 +811,7 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
             if username in users:
                 return jsonify({'status': 'error', 'message': 'User already exists'}), 400
-            users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-'}
+            users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-', 'created_by': 'admin'}
             save_users(users)
             return jsonify({'status': 'success'})
         elif request.method == 'DELETE':
@@ -839,7 +939,7 @@ def inject_user():
 @app.before_request
 def require_login():
     allowed = [
-        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events',
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events',
         '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
     ]
     if request.path.startswith('/static/') or request.path.startswith('/misc/'):
@@ -879,6 +979,106 @@ def require_login():
             return resp
     # --- Update last_activity ---
     session['last_activity'] = datetime.now(timezone.utc).isoformat()
+
+@app.route('/signup-enabled', methods=['GET'])
+def signup_enabled():
+    """Get current sign-up status"""
+    try:
+        # Use Redis transaction for atomic operation
+        with redis_client.pipeline() as pipe:
+            pipe.watch(SIGNUP_REDIS_KEY)
+            signup_setting = redis_client.get(SIGNUP_REDIS_KEY)
+            
+            if signup_setting is not None:
+                global SIGNUP_ENABLED
+                SIGNUP_ENABLED = signup_setting == '1'
+            else:
+                # Initialize Redis with current global value
+                pipe.multi()
+                pipe.set(SIGNUP_REDIS_KEY, '1' if SIGNUP_ENABLED else '0')
+                pipe.execute()
+    except Exception as e:
+        logger.error(f"Error checking signup status from Redis: {str(e)}")
+        # Fallback to global variable if Redis fails
+        pass
+    
+    return jsonify({'enabled': SIGNUP_ENABLED})
+
+@app.route('/toggle-signup', methods=['POST'])
+@rate_limit
+def toggle_signup():
+    """Admin endpoint to toggle sign-up feature"""
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    
+    try:
+        # Use Redis transaction for atomic operation
+        with redis_client.pipeline() as pipe:
+            pipe.watch(SIGNUP_REDIS_KEY)
+            global SIGNUP_ENABLED
+            SIGNUP_ENABLED = not SIGNUP_ENABLED
+            
+            pipe.multi()
+            pipe.set(SIGNUP_REDIS_KEY, '1' if SIGNUP_ENABLED else '0')
+            pipe.execute()
+            
+        logger.info(f"Sign-up feature {'enabled' if SIGNUP_ENABLED else 'disabled'} by admin {session.get('username')}")
+        return jsonify({'status': 'success', 'enabled': SIGNUP_ENABLED})
+    except Exception as e:
+        logger.error(f"Error toggling sign-up: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/signup', methods=['POST'])
+@rate_limit
+def signup():
+    """Handle user sign-up"""
+    if not SIGNUP_ENABLED:
+        return jsonify({'status': 'error', 'message': 'Sign-up is currently disabled'}), 403
+    
+    data = request.json
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Invalid request data'}), 400
+    
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    
+    if not username or not password:
+        return jsonify({'status': 'error', 'message': 'Username and password required'}), 400
+    
+    if len(username) < 3:
+        return jsonify({'status': 'error', 'message': 'Username must be at least 3 characters'}), 400
+    
+    try:
+        users = get_users()
+        if username in users:
+            existing_user = users[username]
+            if check_password(password, existing_user['password']):
+                logger.info(f"Signup attempt with existing credentials: {username}")
+                return jsonify({'status': 'error', 'message': EXISTING_USER_MATCH_MESSAGE}), 400
+            else:
+                logger.info(f"Signup attempt with existing username but wrong password: {username}")
+                return jsonify({'status': 'error', 'message': 'Username already exists'}), 400
+        
+        # Only validate password length for NEW users
+        if len(password) < 6:
+            return jsonify({'status': 'error', 'message': 'Password must be at least 6 characters'}), 400
+        
+        # Create new user
+        users[username] = {
+            'username': username,
+            'password': hash_password(password),
+            'role': 'user',
+            'last_login': '-',
+            'created_by': 'signup'
+        }
+        save_users(users)
+        
+        logger.info(f"New user signed up: {username}")
+        return jsonify({'status': 'success', 'message': 'Account created successfully'})
+        
+    except Exception as e:
+        logger.error(f"Error during signup: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to create account'}), 500
 
 @app.route('/login', methods=['GET'])
 def login_page():
@@ -1097,12 +1297,10 @@ def sync_to_history():
     history_cache.cache.clear()
     history_cache.etags.clear()
     
-    # Update pagination index for new data
-    history = get_stored_history()
-    update_pagination_index(history)
+    # No need to update pagination index - using Redis sorted sets now
     
-    # Rebuild search index for new data
-    create_search_index()
+    # Rebuild search index for new data (async)
+    threading.Thread(target=create_search_index, daemon=True).start()
     
 
     
@@ -1181,61 +1379,74 @@ def get_history():
 @rate_limit
 def load_from_history(timestamp):
     """Load data from a specific history point"""
-    history = get_stored_history()
-    
-    selected_entry = None
-    for entry in history:
-        if str(entry.get('timestamp')) == timestamp:
-            selected_entry = entry
-            break
-    
-    if not selected_entry:
-        return jsonify({'status': 'error', 'message': 'History entry not found'})
-    
-    # Set a temporary session key to store the data (without saving to Redis)
-    session['temp_history_data'] = selected_entry['data']
-    
-    # Publish SSE event to the current user
-    username = session.get('username')
-    if username:
-        publish_sse_event(username, 'history-loaded', {
-            'timestamp': timestamp,
-            'title': selected_entry['data'].get('header_title', 'Change Weekend')
-        })
-        logger.info(f"History loaded event sent to user {username} for timestamp {timestamp}")
-    
-    # Return success without modifying the main Redis data
-    response = jsonify({'status': 'success', 'data': selected_entry['data']})
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    try:
+        # Get the specific history item
+        history_item = get_history_item_by_timestamp(timestamp)
+        
+        if not history_item:
+            return jsonify({'status': 'error', 'message': 'History entry not found'})
+        
+        # Set a temporary session key to store the data (without saving to Redis)
+        session['temp_history_data'] = history_item['data']
+        
+        # Publish SSE event to the current user
+        username = session.get('username')
+        if username:
+            publish_sse_event(username, 'history-loaded', {
+                'timestamp': timestamp,
+                'title': history_item['data'].get('header_title', 'Change Weekend')
+            })
+            logger.info(f"History loaded event sent to user {username} for timestamp {timestamp}")
+        
+        # Return success without modifying the main Redis data
+        response = jsonify({'status': 'success', 'data': history_item['data']})
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error loading history entry: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Error loading entry: {str(e)}'}), 500
 
 @app.route('/delete-from-history/<timestamp>', methods=['DELETE'])
 @rate_limit
 def delete_from_history(timestamp):
     """Delete a specific history entry by timestamp"""
-    history = get_stored_history()
-    
-    updated_history = [entry for entry in history if str(entry.get('timestamp')) != timestamp]
-    
-    if len(updated_history) == len(history):
-        return jsonify({'status': 'error', 'message': 'History entry not found'})
-    
-    redis_client.set('change_management_history', json.dumps(updated_history))
-    
-    # Invalidate server-side cache
-    history_cache.cache.clear()
-    history_cache.etags.clear()
-    
-    # Update pagination index after deletion
-    history = get_stored_history()
-    update_pagination_index(history)
-    
-    # Rebuild search index after deletion
-    create_search_index()
-    
-    return jsonify({'status': 'success'})
+    try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return jsonify({'status': 'error', 'message': 'History service unavailable'}), 500
+        # Remove from metadata sorted set
+        metadata_key = history_key_manager.get_metadata_key()
+        all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
+        found = False
+        
+        for metadata_json, ts in all_timestamps:
+            if str(ts) == timestamp:
+                # Remove from metadata sorted set
+                history_redis.zrem(metadata_key, metadata_json)
+                # Remove the actual item
+                item_key = history_key_manager.get_history_item_key(ts)
+                history_redis.delete(item_key)
+                found = True
+                break
+        
+        if not found:
+            return jsonify({'status': 'error', 'message': 'History entry not found'})
+        
+        # Invalidate server-side cache
+        history_cache.cache.clear()
+        history_cache.etags.clear()
+        
+        # Rebuild search index after deletion (async)
+        threading.Thread(target=create_search_index, daemon=True).start()
+        
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        logger.error(f"Error deleting history entry: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Error deleting entry: {str(e)}'}), 500
 
 @app.route('/save-changes', methods=['POST'])
 def save_changes():
@@ -1420,15 +1631,23 @@ def health_check():
     """Simple health check endpoint"""
     try:
         redis_client.ping()
+        history_status = 'connected' if history_redis and history_redis.ping() else 'disconnected'
+        search_index_status = 'busy' if is_search_index_busy() else 'idle'
+        
         return jsonify({
             'status': 'healthy',
-            'redis': 'connected'
+            'redis': 'connected',
+            'history_redis': history_status,
+            'search_index': search_index_status,
+            'search_index_last_rebuild': search_index_last_rebuild
         })
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         return jsonify({
             'status': 'unhealthy',
             'redis': 'disconnected',
+            'history_redis': 'disconnected',
+            'search_index': 'unknown',
             'error': str(e)
         }), 500
 
@@ -1532,16 +1751,18 @@ def clear_ai_stats():
             'message': f'Error clearing AI statistics: {str(e)}'
         }), 500
 
-@app.route('/rebuild-search-index', methods=['POST'])
-@rate_limit
-def rebuild_search_index():
-    """Manually rebuild the search index"""
-    try:
-        create_search_index()
-        return jsonify({'status': 'success', 'message': 'Search index rebuilt successfully'})
-    except Exception as e:
-        logger.error(f"Error rebuilding search index: {str(e)}")
-        return jsonify({'status': 'error', 'message': f'Error rebuilding search index: {str(e)}'}), 500
+#Comment this out to enable manual rebuild of search index.
+
+# @app.route('/rebuild-search-index', methods=['POST'])
+# @rate_limit
+# def rebuild_search_index():
+#     """Manually rebuild the search index"""
+#     try:
+#         create_search_index()
+#         return jsonify({'status': 'success', 'message': 'Search index rebuilt successfully'})
+#     except Exception as e:
+#         logger.error(f"Error rebuilding search index: {str(e)}")
+#         return jsonify({'status': 'error', 'message': f'Error rebuilding search index: {str(e)}'}), 500
 
 @app.route('/ask-ai', methods=['POST'])
 def ask_ai():
@@ -1644,63 +1865,125 @@ def ai_chat_enabled():
 
 
 def create_search_index():
-    """Create Redis search index for O(1) search performance"""
-    try:
-        all_history = get_stored_history()
-        if not all_history:
-            return
-        
-        # Clear existing search indexes
-        search_keys = redis_client.keys('search:title:*')
-        date_keys = redis_client.keys('search:date:*')
-        if search_keys:
-            redis_client.delete(*search_keys)
-        if date_keys:
-            redis_client.delete(*date_keys)
-        
-        # Create search indexes
-        for entry in all_history:
-            title = entry.get('title', '').lower().strip()
-            date = entry.get('date', '').lower().strip()
-            timestamp = entry.get('timestamp')
+    """
+    Create Redis search index for O(1) search performance with pipelining
+    
+    Thread Safety:
+    - Uses threading.Lock() to prevent concurrent index rebuilds
+    - Tracks rebuild status to avoid unnecessary operations
+    - Implements debouncing (minimum 5 seconds between rebuilds)
+    """
+    global searchhaus_index_busy, search_index_last_rebuild
+    
+    # Thread safety: Check if another rebuild is in progress
+    if searchhaus_index_busy:
+        logger.info("Search index rebuild already in progress, skipping...")
+        return
+    
+    # Debouncing: Prevent too frequent rebuilds (minimum 5 seconds apart)
+    current_time = time.time()
+    if current_time - search_index_last_rebuild < 5:
+        logger.info("Search index rebuild too recent, skipping...")
+        return
+    
+    # Acquire lock to prevent concurrent rebuilds
+    with search_index_lock:
+        try:
+            # Set busy flag
+            searchhaus_index_busy = True
+            search_index_last_rebuild = current_time
             
-            if not timestamp:
-                continue
+            logger.info("Starting search index rebuild...")
             
-            # Index by title words
-            if title:
-                for word in title.split():
-                    if word:  # Skip empty words
-                        redis_client.sadd(f'search:title:{word}', timestamp)
+            if not history_redis or not history_key_manager:
+                logger.error("History Redis client not available")
+                return
             
-            # Index by date and date components
-            if date:
-                redis_client.sadd(f'search:date:{date}', timestamp)
+            # Get all timestamps from metadata sorted set
+            metadata_key = history_key_manager.get_metadata_key()
+            all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
+            if not all_timestamps:
+                logger.info("No history data found for indexing")
+                return
+            
+            # Use pipelining for bulk operations
+            with history_redis.pipeline() as pipe:
+                # Clear existing search indexes
+                search_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:title:*')
+                date_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:date:*')
+                if search_keys:
+                    pipe.delete(*search_keys)
+                    logger.debug(f"Cleared {len(search_keys)} title search keys")
+                if date_keys:
+                    pipe.delete(*date_keys)
+                    logger.debug(f"Cleared {len(date_keys)} date search keys")
                 
-                # Also index date components for partial matching
-                date_parts = date.split('-')
-                for part in date_parts:
-                    if part:
-                        redis_client.sadd(f'search:date:{part}', timestamp)
+                # Clear search caches when rebuilding index
+                clear_partial_search_cache()
+                clear_failed_search_cache()
+                
+                # Queue all index operations
+                indexed_count = 0
+                for metadata_json, timestamp in all_timestamps:
+                    # Get the full item to extract title and date
+                    item = get_history_item_by_timestamp(timestamp)
+                    if not item:
+                        continue
+                        
+                    title = item.get('title', '').lower().strip()
+                    date = item.get('date', '').lower().strip()
+                    
+                    if not timestamp:
+                        continue
+                    
+                    # Index by title words
+                    if title:
+                        for word in title.split():
+                            if word:  # Skip empty words
+                                search_key = history_key_manager.get_search_key('title', word)
+                                pipe.sadd(search_key, timestamp)
+                    
+                    # Index by date and date components
+                    if date:
+                        date_search_key = history_key_manager.get_search_key('date', date)
+                        pipe.sadd(date_search_key, timestamp)
+                        
+                        # Also index date components for partial matching
+                        date_parts = date.split('-')
+                        for part in date_parts:
+                            if part:
+                                part_search_key = history_key_manager.get_search_key('date', part)
+                                pipe.sadd(part_search_key, timestamp)
+                    
+                    indexed_count += 1
+                
+                # Execute all operations in single network round trip
+                pipe.execute()
+                
+                logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
         
-        logger.info(f"Search index created for {len(all_history)} entries")
-        
-    except Exception as e:
-        logger.error(f"Error creating search index: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error creating search index: {str(e)}")
+        finally:
+            # Always clear busy flag, even on error
+            searchhaus_index_busy = False
 
 def search_history_redis_optimized(search_term):
     """Hybrid search: Redis filtering + intelligent scoring with failed search cache"""
     try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return search_history_optimized_fallback(search_term)
         search_lower = search_term.lower().strip()
         
         if len(search_lower) < 1:
             return []
         
-
-        
         # Step 1: Use Redis for initial filtering (O(1))
-        title_matches = redis_client.smembers(f'search:title:{search_lower}')
-        date_matches = redis_client.smembers(f'search:date:{search_lower}')
+        title_search_key = history_key_manager.get_search_key('title', search_lower)
+        date_search_key = history_key_manager.get_search_key('date', search_lower)
+        title_matches = history_redis.smembers(title_search_key)
+        date_matches = history_redis.smembers(date_search_key)
         
         # Get all potential matches
         all_matches = title_matches.union(date_matches)
@@ -1708,15 +1991,12 @@ def search_history_redis_optimized(search_term):
         if not all_matches:
             # Try Redis-based partial matching (O(k) instead of O(n))
             partial_results = search_history_redis_partial(search_lower)
-            
-
-            
             return partial_results
         
-        # Step 2: Get full entries and apply intelligent scoring
+        # Step 2: Get only matching entries and apply intelligent scoring
         matching_entries = []
         for timestamp in all_matches:
-            entry = get_history_entry_by_timestamp(timestamp)
+            entry = get_history_item_by_timestamp(timestamp)
             if entry:
                 # Apply intelligent scoring
                 scored_entry = apply_search_scoring(entry, search_lower)
@@ -1804,17 +2084,7 @@ def apply_search_scoring(entry, search_lower):
     
     return None
 
-def get_history_entry_by_timestamp(timestamp):
-    """Get a single history entry by timestamp"""
-    try:
-        all_history = get_stored_history()
-        for entry in all_history:
-            if str(entry.get('timestamp')) == str(timestamp):
-                return entry
-        return None
-    except Exception as e:
-        logger.error(f"Error getting history entry: {str(e)}")
-        return None
+
 
 def search_history_optimized_fallback(search_term):
     """Fallback to original O(n) search if Redis search fails"""
@@ -1901,16 +2171,53 @@ def search_history_optimized_fallback(search_term):
     
     return matching_entries
 
+def is_search_index_busy():
+    """Check if search index rebuild is currently in progress"""
+    return searchhaus_index_busy
+
 def clear_failed_search_cache():
-    """Clear all failed search cache entries"""
+    """
+    Clear all failed search cache entries
+    
+    Cache Strategy:
+    - Failed search cache stores search terms that returned no results
+    - Used to avoid expensive searches for terms known to return nothing
+    - Cleared during index rebuild to ensure fresh results
+    - Pattern: {history}:cache:failed:{search_term}
+    """
     try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return
         # Get all failed search keys
-        failed_keys = redis_client.keys('failed_search:*')
+        failed_keys = history_redis.keys(f'{history_key_manager.history_prefix}:cache:failed:*')
         if failed_keys:
-            redis_client.delete(*failed_keys)
-            logger.info(f"Cleared {len(failed_keys)} failed search cache entries")
+            history_redis.delete(*failed_keys)
+            logger.debug(f"Cleared {len(failed_keys)} failed search cache entries")
     except Exception as e:
         logger.error(f"Error clearing failed search cache: {str(e)}")
+
+def clear_partial_search_cache():
+    """
+    Clear all partial search cache entries
+    
+    Cache Strategy:
+    - Partial search cache stores results from expensive pattern matching
+    - Used to avoid repeated expensive Redis SCAN operations
+    - Cleared during index rebuild to ensure fresh results
+    - Pattern: {history}:cache:partial:{search_term}
+    """
+    try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return
+        # Get all partial search cache keys
+        partial_keys = history_redis.keys(f'{history_key_manager.history_prefix}:cache:partial:*')
+        if partial_keys:
+            history_redis.delete(*partial_keys)
+            logger.debug(f"Cleared {len(partial_keys)} partial search cache entries")
+    except Exception as e:
+        logger.error(f"Error clearing partial search cache: {str(e)}")
 
 
 
@@ -1935,76 +2242,108 @@ def handle_global_exception(e):
         code = e.code
     return render_template('error.html', message="Something went wrong. Please try again later."), code
 
-# Initialize search index on startup (runs regardless of how app is started)
-try:
-    create_search_index()
-    logger.info("Search index initialized successfully")
-except Exception as e:
-    logger.error(f"Error initializing search index: {str(e)}")
-
 # Log rate limiting status (runs regardless of how app is started)
 if RATE_LIMIT_ENABLED:
     logger.info(f"Rate limiting ENABLED: {RATE_LIMIT} requests per {RATE_WINDOW} seconds")
 else:
     logger.info("Rate limiting DISABLED")
 
+# Initialize search index asynchronously after app starts
+def initialize_search_index_async():
+    """Initialize search index in a separate thread after app startup"""
+    import time
+    time.sleep(2)  # Wait 2 seconds for app to fully start
+    try:
+        create_search_index()
+        logger.info("Search index initialized successfully (async)")
+    except Exception as e:
+        logger.error(f"Error initializing search index (async): {str(e)}")
+
+# Start async initialization in a separate thread
+search_index_thread = threading.Thread(target=initialize_search_index_async, daemon=True)
+search_index_thread.start()
+
 def search_history_redis_partial(search_lower):
     """
-    Redis-based partial matching using pattern matching - O(k) instead of O(n)
+    Optimized Redis-based partial matching with caching and pipelining
     
-    Performance improvements:
-    - O(k) complexity where k = matching keys (usually < 10)
-    - No loading entire history into memory
-    - Uses Redis SCAN with pattern matching
-    - Limited to 50 keys per pattern to prevent performance issues
-    - Maintains same scoring and sorting as original
+    Improvements:
+    - Redis pipelining for batch operations
+    - Smart pattern generation (prefix, suffix, contains)
+    - Result caching to avoid repeated expensive scans
+    - Better result limiting and scoring
+    - Parallel title/date searches
     """
     try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return []
         if len(search_lower) < 1:
             return []
         
+        # Check cache first
+        cache_key = history_key_manager.get_cache_key('partial', search_lower)
+        cached_result = history_redis.get(cache_key)
+        if cached_result:
+            return json.loads(cached_result)
+        
         partial_matches = set()
-        max_keys_to_scan = 50  # Limit scanning to prevent performance issues
+        max_results = 100  # Limit total results
         
-        # Use Redis SCAN with pattern matching for partial matches
-        # Pattern 1: Search for titles containing the search term
-        title_pattern = f'search:title:*{search_lower}*'
-        cursor = 0
-        keys_scanned = 0
-        while True:
-            cursor, keys = redis_client.scan(cursor, match=title_pattern, count=20)
-            for key in keys:
-                # Extract timestamps from matching keys
-                timestamps = redis_client.smembers(key)
-                partial_matches.update(timestamps)
-                keys_scanned += 1
-                if keys_scanned >= max_keys_to_scan:
-                    break
-            if cursor == 0 or keys_scanned >= max_keys_to_scan:
-                break
+        # Generate smart patterns for better matching
+        patterns = generate_search_patterns(search_lower)
         
-        # Pattern 2: Search for dates containing the search term
-        date_pattern = f'search:date:*{search_lower}*'
-        cursor = 0
-        keys_scanned = 0
-        while True:
-            cursor, keys = redis_client.scan(cursor, match=date_pattern, count=20)
-            for key in keys:
-                timestamps = redis_client.smembers(key)
-                partial_matches.update(timestamps)
-                keys_scanned += 1
-                if keys_scanned >= max_keys_to_scan:
+        # Use pipelining for batch operations
+        pipe = history_redis.pipeline()
+        
+        # Search title patterns
+        for pattern in patterns['title']:
+            cursor = 0
+            while True:
+                cursor, keys = history_redis.scan(cursor, match=pattern, count=50)
+                if keys:
+                    # Batch get all sets for these keys
+                    for key in keys:
+                        pipe.smembers(key)
+                    # Execute batch
+                    results = pipe.execute()
+                    for timestamps in results:
+                        partial_matches.update(timestamps)
+                        if len(partial_matches) >= max_results:
+                            break
+                if cursor == 0 or len(partial_matches) >= max_results:
                     break
-            if cursor == 0 or keys_scanned >= max_keys_to_scan:
-                break
+                if len(partial_matches) >= max_results:
+                    break
+        
+        # Search date patterns (if we haven't hit limit)
+        if len(partial_matches) < max_results:
+            for pattern in patterns['date']:
+                cursor = 0
+                while True:
+                    cursor, keys = history_redis.scan(cursor, match=pattern, count=50)
+                    if keys:
+                        for key in keys:
+                            pipe.smembers(key)
+                        results = pipe.execute()
+                        for timestamps in results:
+                            partial_matches.update(timestamps)
+                            if len(partial_matches) >= max_results:
+                                break
+                    if cursor == 0 or len(partial_matches) >= max_results:
+                        break
+                    if len(partial_matches) >= max_results:
+                        break
         
         if not partial_matches:
+            # Cache empty result
+            history_redis.setex(cache_key, 300, json.dumps([]))  # 5 min cache
             return []
         
-        # Process and score the partial matches
+        # Process and score the partial matches (limit to top results)
         matching_entries = []
-        for timestamp in partial_matches:
-            entry = get_history_entry_by_timestamp(timestamp)
+        for timestamp in list(partial_matches)[:max_results]:
+            entry = get_history_item_by_timestamp(timestamp)
             if entry:
                 scored_entry = apply_search_scoring(entry, search_lower)
                 if scored_entry:
@@ -2013,15 +2352,151 @@ def search_history_redis_partial(search_lower):
         # Sort by relevance score (highest first), then by timestamp (newest first)
         matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
         
+        # Limit final results
+        matching_entries = matching_entries[:50]
+        
         # Remove the temporary score field
         for entry in matching_entries:
             entry.pop('_search_score', None)
+        
+        # Cache result for 5 minutes
+        history_redis.setex(cache_key, 300, json.dumps(matching_entries))
         
         return matching_entries
         
     except Exception as e:
         logger.error(f"Error in Redis partial search: {str(e)}")
         return []
+
+def generate_search_patterns(search_term):
+    """
+    Generate smart search patterns for better partial matching
+    
+    Patterns include:
+    - Prefix matching (starts with)
+    - Suffix matching (ends with) 
+    - Contains matching (anywhere)
+    - Word boundary matching
+    """
+    patterns = {
+        'title': [],
+        'date': []
+    }
+    
+    # Title patterns
+    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}*')  # Contains
+    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:{search_term}*')   # Starts with
+    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}')   # Ends with
+    
+    # Date patterns
+    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}*')    # Contains
+    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:{search_term}*')     # Starts with
+    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}')     # Ends with
+    
+    # Add word boundary patterns for multi-word searches
+    if ' ' in search_term:
+        words = search_term.split()
+        for word in words:
+            if len(word) > 2:  # Only index words longer than 2 chars
+                patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{word}*')
+                patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{word}*')
+    
+    return patterns
+
+def migrate_history_to_redis():
+    """Migrate all history-related keys from main Redis to history Redis with hash tags"""
+    try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return False
+        
+        # Get all keys from main Redis
+        all_keys = redis_client.keys('*')
+        history_keys = []
+        
+        # Find history-related keys
+        for key in all_keys:
+            if (key.startswith('history_') or 
+                key.startswith('search:') or 
+                key == 'change_management_history'):
+                history_keys.append(key)
+        
+        if not history_keys:
+            return True
+        
+        # Migrate each key with new hash tag format
+        for key in history_keys:
+            try:
+                # Get the value and type
+                key_type = redis_client.type(key)
+                new_key = None
+                
+                # Convert to new hash tag format
+                if key.startswith('history_item:'):
+                    timestamp = key.replace('history_item:', '')
+                    new_key = history_key_manager.get_history_item_key(timestamp)
+                elif key == 'history_metadata':
+                    new_key = history_key_manager.get_metadata_key()
+                elif key.startswith('search:title:'):
+                    term = key.replace('search:title:', '')
+                    new_key = history_key_manager.get_search_key('title', term)
+                elif key.startswith('search:date:'):
+                    term = key.replace('search:date:', '')
+                    new_key = history_key_manager.get_search_key('date', term)
+                elif key.startswith('partial_search:'):
+                    term = key.replace('partial_search:', '')
+                    new_key = history_key_manager.get_cache_key('partial', term)
+                elif key.startswith('failed_search:'):
+                    term = key.replace('failed_search:', '')
+                    new_key = history_key_manager.get_cache_key('failed', term)
+                else:
+                    # Keep original key for unknown types
+                    new_key = f"{history_key_manager.history_prefix}:{key}"
+                
+                if key_type == 'string':
+                    value = redis_client.get(key)
+                    if value:
+                        history_redis.set(new_key, value)
+                        redis_client.delete(key)
+                
+                elif key_type == 'set':
+                    members = redis_client.smembers(key)
+                    if members:
+                        history_redis.sadd(new_key, *members)
+                        redis_client.delete(key)
+                
+                elif key_type == 'zset':
+                    members = redis_client.zrange(key, 0, -1, withscores=True)
+                    if members:
+                        # Ensure scores are floats for proper sorting
+                        score_dict = {}
+                        for member, score in members:
+                            try:
+                                score_dict[member] = float(score)
+                            except (ValueError, TypeError):
+                                score_dict[member] = score
+                        history_redis.zadd(new_key, score_dict)
+                        redis_client.delete(key)
+                
+                elif key_type == 'hash':
+                    items = redis_client.hgetall(key)
+                    if items:
+                        history_redis.hset(new_key, mapping=items)
+                        redis_client.delete(key)
+                
+            except Exception as e:
+                logger.error(f"Error migrating key {key}: {str(e)}")
+                continue
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error migrating history: {str(e)}")
+        return False
+
+# Run migration on startup
+migrate_history_to_redis()
+
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
