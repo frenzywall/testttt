@@ -2298,7 +2298,7 @@ async function openHistoryModal(viewOnly = false, searchTerm = '', page = 1) {
             } else {
                 if (historySearch) historySearch.disabled = false;
                 if (searchBtn) searchBtn.disabled = false;
-                if (historySearch) historySearch.placeholder = 'Search history by title or date...';
+                if (historySearch) historySearch.placeholder = 'Search history by title, date or editor...';
             }
         }
         

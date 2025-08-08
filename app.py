@@ -1876,12 +1876,16 @@ def create_search_index():
                 # Clear existing search indexes
                 search_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:title:*')
                 date_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:date:*')
+                editor_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:editor:*')
                 if search_keys:
                     pipe.delete(*search_keys)
                     logger.debug(f"Cleared {len(search_keys)} title search keys")
                 if date_keys:
                     pipe.delete(*date_keys)
                     logger.debug(f"Cleared {len(date_keys)} date search keys")
+                if editor_keys:
+                    pipe.delete(*editor_keys)
+                    logger.debug(f"Cleared {len(editor_keys)} editor search keys")
                 
                 # Clear search caches when rebuilding index
                 clear_partial_search_cache()
@@ -1897,6 +1901,11 @@ def create_search_index():
                         
                     title = item.get('title', '').lower().strip()
                     date = item.get('date', '').lower().strip()
+                    
+                    # Get last_edited_by from the data field
+                    last_edited_by = ''
+                    if item.get('data') and item['data'].get('last_edited_by'):
+                        last_edited_by = item['data']['last_edited_by'].lower().strip()
                     
                     if not timestamp:
                         continue
@@ -1918,6 +1927,19 @@ def create_search_index():
                         for part in date_parts:
                             if part:
                                 part_search_key = history_key_manager.get_search_key('date', part)
+                                pipe.sadd(part_search_key, timestamp)
+                    
+                    # Index by last_edited_by
+                    if last_edited_by:
+                        # Index the full editor name
+                        editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
+                        pipe.sadd(editor_search_key, timestamp)
+                        
+                        # Also index editor name components for partial matching
+                        editor_parts = last_edited_by.split()
+                        for part in editor_parts:
+                            if part and len(part) > 2:  # Only index parts longer than 2 chars
+                                part_search_key = history_key_manager.get_search_key('editor', part)
                                 pipe.sadd(part_search_key, timestamp)
                     
                     indexed_count += 1
@@ -1944,11 +1966,17 @@ def search_history_redis_optimized(search_term):
         if len(search_lower) < 1:
             return []
         
-        # Step 1: Use Redis for initial filtering (O(1))
+        # Step 1: Use Redis for initial filtering (O(1)) with pipelining
         title_search_key = history_key_manager.get_search_key('title', search_lower)
         date_search_key = history_key_manager.get_search_key('date', search_lower)
-        title_matches = history_redis.smembers(title_search_key)
-        date_matches = history_redis.smembers(date_search_key)
+        
+        # Use pipelining to batch Redis operations
+        with history_redis.pipeline() as pipe:
+            pipe.smembers(title_search_key)
+            pipe.smembers(date_search_key)
+            results = pipe.execute()
+            title_matches = results[0]
+            date_matches = results[1]
         
         # Get all potential matches
         all_matches = title_matches.union(date_matches)
@@ -1985,62 +2013,107 @@ def search_history_redis_optimized(search_term):
 
 def apply_search_scoring(entry, search_lower):
     """Apply intelligent scoring to a single entry"""
+    
+    # Get field values
     title = entry.get('title', '').lower()
     date = entry.get('date', '').lower()
+    last_edited_by = ''
+    if entry.get('data') and entry['data'].get('last_edited_by'):
+        last_edited_by = entry['data']['last_edited_by'].lower()
+    
+    # Define search field configurations
+    search_fields = [
+        {
+            'name': 'title',
+            'value': title,
+            'priority': 'high',
+            'scores': {
+                'exact': 100,
+                'starts_with': 50,
+                'word_match': 30,
+                'contains': 20
+            },
+            'match_sources': {
+                'exact': 'exact title match',
+                'starts_with': 'title starts with',
+                'word_match': 'title word match',
+                'contains': 'title contains'
+            }
+        },
+        {
+            'name': 'date',
+            'value': date,
+            'priority': 'medium',
+            'scores': {
+                'exact': 40,
+                'contains': 15
+            },
+            'match_sources': {
+                'exact': 'exact date match',
+                'contains': 'date contains'
+            }
+        },
+        {
+            'name': 'editor',
+            'value': last_edited_by,
+            'priority': 'medium',
+            'scores': {
+                'exact': 35,
+                'starts_with': 25,
+                'word_match': 20,
+                'contains': 15
+            },
+            'match_sources': {
+                'exact': 'exact editor match',
+                'starts_with': 'editor starts with',
+                'word_match': 'editor word match',
+                'contains': 'editor contains'
+            }
+        }
+    ]
     
     # Initialize scoring
     score = 0
     match_found = False
+    match_sources = []
     
-    # 1. TITLE SEARCH (Highest Priority)
-    if search_lower in title:
-        match_found = True
-        # Exact title match (highest relevance)
-        if title == search_lower:
-            score += 100
-        # Title starts with search term
-        elif title.startswith(search_lower):
-            score += 50
-        # Title contains search term as a word
-        elif f' {search_lower} ' in f' {title} ':
-            score += 30
-        # Title contains search term anywhere
-        else:
-            score += 20
-    
-    # 2. DATE SEARCH (Medium Priority)
-    if search_lower in date:
-        match_found = True
-        # Exact date match
-        if date == search_lower:
-            score += 40
-        # Date contains search term
-        else:
-            score += 15
+    # Unified search field scoring
+    for field in search_fields:
+        field_value = field['value']
+        
+        # Skip empty fields
+        if not field_value:
+            continue
+        
+        # Check if search term is in this field
+        if search_lower in field_value:
+            match_found = True
+            
+            # Determine match type and score
+            if field_value == search_lower:
+                # Exact match
+                score += field['scores']['exact']
+                match_sources.append(field['match_sources']['exact'])
+            elif field_value.startswith(search_lower):
+                # Starts with match
+                if 'starts_with' in field['scores']:
+                    score += field['scores']['starts_with']
+                    match_sources.append(field['match_sources']['starts_with'])
+            elif f' {search_lower} ' in f' {field_value} ':
+                # Word match
+                if 'word_match' in field['scores']:
+                    score += field['scores']['word_match']
+                    match_sources.append(field['match_sources']['word_match'])
+            else:
+                # Contains match
+                score += field['scores']['contains']
+                match_sources.append(field['match_sources']['contains'])
     
     # Only include entries that have matches
     if match_found:
         # Add timestamp bonus (newer entries get slight preference)
         timestamp_bonus = min(entry.get('timestamp', 0) / 1000000, 5)  # Max 5 points for recency
         score += timestamp_bonus
-        
-        # Add match source information for display
-        match_sources = []
-        if search_lower in title:
-            if title == search_lower:
-                match_sources.append("exact title match")
-            elif title.startswith(search_lower):
-                match_sources.append("title starts with")
-            elif f' {search_lower} ' in f' {title} ':
-                match_sources.append("title word match")
-            else:
-                match_sources.append("title contains")
-        
-        if search_lower in date:
-            if date == search_lower:
-                match_sources.append("exact date match")
-            else:
-                match_sources.append("date contains")
         
         entry['_search_score'] = score
         entry['_match_sources'] = match_sources
@@ -2146,14 +2219,15 @@ search_index_thread.start()
 
 def search_history_redis_partial(search_lower):
     """
-    Optimized Redis-based partial matching with caching and pipelining
+    Hybrid approach: Pipelined collection + streaming processing
     
     Improvements:
-    - Redis pipelining for batch operations
+    - Redis pipelining for efficient batch collection
     - Smart pattern generation (prefix, suffix, contains)
     - Result caching to avoid repeated expensive scans
-    - Better result limiting and scoring
-    - Parallel title/date searches
+    - Streaming processing for immediate results and early termination
+    - Larger SCAN count for fewer network round trips
+    - Best of both worlds: network efficiency + user experience
     """
     try:
         if not history_redis or not history_key_manager:
@@ -2168,73 +2242,91 @@ def search_history_redis_partial(search_lower):
         if cached_result:
             return json.loads(cached_result)
         
-        partial_matches = set()
         max_results = 100  # Limit total results
+        max_final_results = 50  # Limit final displayed results
         
         # Generate smart patterns for better matching
         patterns = generate_search_patterns(search_lower)
         
-        # Use pipelining for batch operations
-        pipe = history_redis.pipeline()
+        # Use hybrid approach: pipelined collection + streaming processing
+        matching_entries = []
+        found_count = 0
         
-        # Search title patterns
-        for pattern in patterns['title']:
-            cursor = 0
-            while True:
-                cursor, keys = history_redis.scan(cursor, match=pattern, count=50)
-                if keys:
-                    # Batch get all sets for these keys
-                    for key in keys:
-                        pipe.smembers(key)
-                    # Execute batch
-                    results = pipe.execute()
-                    for timestamps in results:
-                        partial_matches.update(timestamps)
-                        if len(partial_matches) >= max_results:
-                            break
-                if cursor == 0 or len(partial_matches) >= max_results:
+        # Unified search function for all pattern types
+        def search_patterns(pattern_list, search_lower, found_count, matching_entries, max_results, max_final_results):
+            """Unified search function for title, date, and editor patterns"""
+            for pattern in pattern_list:
+                if found_count >= max_results or len(matching_entries) >= max_final_results:
                     break
-                if len(partial_matches) >= max_results:
-                    break
-        
-        # Search date patterns (if we haven't hit limit)
-        if len(partial_matches) < max_results:
-            for pattern in patterns['date']:
+                    
                 cursor = 0
                 while True:
-                    cursor, keys = history_redis.scan(cursor, match=pattern, count=50)
+                    cursor, keys = history_redis.scan(cursor, match=pattern, count=100)
                     if keys:
-                        for key in keys:
-                            pipe.smembers(key)
-                        results = pipe.execute()
-                        for timestamps in results:
-                            partial_matches.update(timestamps)
-                            if len(partial_matches) >= max_results:
+                        # Phase 1: Use pipelining to efficiently collect potential matches
+                        with history_redis.pipeline() as pipe:
+                            for key in keys:
+                                pipe.smembers(key)
+                            # Execute batch (single network round trip)
+                            results = pipe.execute()
+                            
+                            # Phase 2: Stream process results immediately
+                            for timestamps in results:
+                                if found_count >= max_results or len(matching_entries) >= max_final_results:
+                                    break
+                                    
+                                for timestamp in timestamps:
+                                    if found_count >= max_results or len(matching_entries) >= max_final_results:
+                                        break
+                                    
+                                    # Process and score immediately
+                                    entry = get_history_item_by_timestamp(timestamp)
+                                    if entry:
+                                        scored_entry = apply_search_scoring(entry, search_lower)
+                                        if scored_entry:
+                                            matching_entries.append(scored_entry)
+                                            found_count += 1
+                                            
+                                            # Early termination if we have enough good results
+                                            if len(matching_entries) >= max_final_results:
+                                                break
+                            
+                            # Early termination check
+                            if len(matching_entries) >= max_final_results:
                                 break
-                    if cursor == 0 or len(partial_matches) >= max_results:
+                    
+                    if cursor == 0 or found_count >= max_results or len(matching_entries) >= max_final_results:
                         break
-                    if len(partial_matches) >= max_results:
-                        break
+            
+            return found_count, matching_entries
         
-        if not partial_matches:
-            # Cache empty result
-            history_redis.setex(cache_key, 300, json.dumps([]))  # 5 min cache
+        # Search title patterns
+        found_count, matching_entries = search_patterns(
+            patterns['title'], search_lower, found_count, matching_entries, max_results, max_final_results
+        )
+        
+        # Search date patterns (if we haven't hit limit)
+        if found_count < max_results and len(matching_entries) < max_final_results:
+            found_count, matching_entries = search_patterns(
+                patterns['date'], search_lower, found_count, matching_entries, max_results, max_final_results
+            )
+        
+        # Search editor patterns (if we haven't hit limit)
+        if found_count < max_results and len(matching_entries) < max_final_results:
+            found_count, matching_entries = search_patterns(
+                patterns['editor'], search_lower, found_count, matching_entries, max_results, max_final_results
+            )
+        
+        if not matching_entries:
+            # Cache empty result for longer (failed searches are expensive to repeat)
+            history_redis.setex(cache_key, 600, json.dumps([]))  # 10 min cache for failed searches
             return []
-        
-        # Process and score the partial matches (limit to top results)
-        matching_entries = []
-        for timestamp in list(partial_matches)[:max_results]:
-            entry = get_history_item_by_timestamp(timestamp)
-            if entry:
-                scored_entry = apply_search_scoring(entry, search_lower)
-                if scored_entry:
-                    matching_entries.append(scored_entry)
         
         # Sort by relevance score (highest first), then by timestamp (newest first)
         matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
         
         # Limit final results
-        matching_entries = matching_entries[:50]
+        matching_entries = matching_entries[:max_final_results]
         
         # Remove the temporary score field
         for entry in matching_entries:
@@ -2251,28 +2343,35 @@ def search_history_redis_partial(search_lower):
 
 def generate_search_patterns(search_term):
     """
-    Generate smart search patterns for better partial matching
+    Generate optimized search patterns for better partial matching
     
-    Patterns include:
-    - Prefix matching (starts with)
-    - Suffix matching (ends with) 
-    - Contains matching (anywhere)
-    - Word boundary matching
+    Optimizations:
+    - Reduces redundant patterns for short search terms
+    - Uses contains pattern as primary (finds everything)
+    - Only adds prefix/suffix patterns for longer terms where they differ
+    - Maintains same accuracy with 50-66% fewer SCAN operations
+    - Includes last_edited_by field in search patterns
     """
     patterns = {
         'title': [],
-        'date': []
+        'date': [],
+        'editor': []  # New field for last_edited_by searches
     }
     
-    # Title patterns
-    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}*')  # Contains
-    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:{search_term}*')   # Starts with
-    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}')   # Ends with
+    # Always use contains pattern (finds everything)
+    patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}*')
+    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}*')
+    patterns['editor'].append(f'{history_key_manager.history_prefix}:search:editor:*{search_term}*')
     
-    # Date patterns
-    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}*')    # Contains
-    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:{search_term}*')     # Starts with
-    patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}')     # Ends with
+    # Only add prefix/suffix patterns for longer terms where they might be different
+    # For short terms like "weekend", prefix/suffix are usually the same as contains
+    if len(search_term) >= 8:  # Only for longer search terms
+        patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:{search_term}*')   # Starts with
+        patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{search_term}')   # Ends with
+        patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:{search_term}*')     # Starts with
+        patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{search_term}')     # Ends with
+        patterns['editor'].append(f'{history_key_manager.history_prefix}:search:editor:{search_term}*') # Starts with
+        patterns['editor'].append(f'{history_key_manager.history_prefix}:search:editor:*{search_term}') # Ends with
     
     # Add word boundary patterns for multi-word searches
     if ' ' in search_term:
@@ -2281,6 +2380,7 @@ def generate_search_patterns(search_term):
             if len(word) > 2:  # Only index words longer than 2 chars
                 patterns['title'].append(f'{history_key_manager.history_prefix}:search:title:*{word}*')
                 patterns['date'].append(f'{history_key_manager.history_prefix}:search:date:*{word}*')
+                patterns['editor'].append(f'{history_key_manager.history_prefix}:search:editor:*{word}*')
     
     return patterns
 
