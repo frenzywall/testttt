@@ -2101,9 +2101,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to clear search when modal closes
     function clearHistorySearch() {
         const historySearch = document.getElementById('historySearch');
+        const searchPlaceholder = document.getElementById('historySearchPlaceholder');
+        
         if (historySearch) {
             historySearch.value = '';
             currentHistorySearch = '';
+        }
+        
+        // Hide placeholder when clearing search
+        if (searchPlaceholder) {
+            searchPlaceholder.style.display = 'none';
         }
     }
     
@@ -2141,6 +2148,13 @@ document.addEventListener('DOMContentLoaded', function() {
             historyClearSearch.addEventListener('click', function() {
                 historySearch.value = '';
                 currentHistorySearch = ''; // Reset search state
+                
+                // Hide placeholder when clearing search
+                const searchPlaceholder = document.getElementById('historySearchPlaceholder');
+                if (searchPlaceholder) {
+                    searchPlaceholder.style.display = 'none';
+                }
+                
                 openHistoryModal(currentViewOnly, '', 1);
             });
         }
@@ -2309,6 +2323,7 @@ function displayHistoryData(data, searchTerm, page, viewOnly) {
     const historyList = document.getElementById('historyList');
     const paginationControls = document.getElementById('paginationControls');
     const resultsCounter = document.getElementById('resultsCounter');
+    const searchPlaceholder = document.getElementById('historySearchPlaceholder');
     
     // Ensure modal is shown
     if (historyModal) {
@@ -2317,6 +2332,15 @@ function displayHistoryData(data, searchTerm, page, viewOnly) {
     
     const history = data.items || data; // Handle both paginated and full list
     const pagination = data.pagination;
+    
+    // Show/hide search placeholder based on conditions
+    if (searchPlaceholder) {
+        const shouldShowPlaceholder = searchTerm && 
+            searchTerm.length >= 1 && 
+            searchTerm.length <= 6 &&
+            history.length > 0; // Don't show when no results
+        searchPlaceholder.style.display = shouldShowPlaceholder ? 'flex' : 'none';
+    }
     
     if (history.length === 0) {
         historyList.innerHTML = `
@@ -2523,6 +2547,12 @@ function handleHistorySearch(searchTerm) {
             // Clear search, return to paginated view with current view-only state
             currentHistorySearch = ''; // Reset search state
             openHistoryModal(currentViewOnly, '', 1);
+        } else {
+            // Show placeholder for short search terms (1-6 characters)
+            const searchPlaceholder = document.getElementById('historySearchPlaceholder');
+            if (searchPlaceholder) {
+                searchPlaceholder.style.display = 'flex';
+            }
         }
         // Clear single result tracking
         lastSingleResult = null;
@@ -2543,6 +2573,8 @@ function handleHistorySearch(searchTerm) {
                 // Still the same single result, display it immediately without API call
                 // console.log('[SingleResultOpt] Using cached single result for search:', searchTerm);
                 const historyList = document.getElementById('historyList');
+                const searchPlaceholder = document.getElementById('historySearchPlaceholder');
+                
                 if (historyList) {
                     // Update the single result tracking
                     lastSingleResultSearch = searchTerm;
@@ -2555,6 +2587,12 @@ function handleHistorySearch(searchTerm) {
                         paginationControls.style.display = 'none';
                     }
                 }
+                
+                // Hide placeholder for single result (not empty)
+                if (searchPlaceholder) {
+                    searchPlaceholder.style.display = 'none';
+                }
+                
                 return;
             }
         } else {
@@ -2570,6 +2608,8 @@ function handleHistorySearch(searchTerm) {
     if (historyCache.isFailedSearch(searchTerm) || historyCache.isFailedSearchPrefix(searchTerm)) {
         // Early exit - show no results immediately
         const historyList = document.getElementById('historyList');
+        const searchPlaceholder = document.getElementById('historySearchPlaceholder');
+        
         if (historyList) {
             historyList.innerHTML = `
                 <div class="empty-history">
@@ -2578,6 +2618,14 @@ function handleHistorySearch(searchTerm) {
                 </div>
             `;
         }
+        
+        // Show placeholder for failed searches only if search term is 1-6 characters AND there are results
+        if (searchPlaceholder && searchTerm.length >= 1 && searchTerm.length <= 6) {
+            searchPlaceholder.style.display = 'none'; // Hide for failed searches
+        } else if (searchPlaceholder) {
+            searchPlaceholder.style.display = 'none';
+        }
+        
         // Clear single result tracking
         lastSingleResult = null;
         lastSingleResultSearch = '';

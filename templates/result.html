@@ -341,7 +341,14 @@
         <div id="historyModal" class="modal">
             <div class="modal-content history-modal">
                 <span class="close">&times;</span>
-                <h2><i class="fas fa-history"></i> Sync History</h2>
+                <div class="history-header">
+                    <h2><i class="fas fa-history"></i> Sync History</h2>
+                    <!-- Search placeholder message (moved next to header) -->
+                    <div class="history-search-placeholder" id="historySearchPlaceholder" style="display: none;">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Broaden your search to get more results.</span>
+                    </div>
+                </div>
                 
                 <div class="history-search">
                     <input type="text" id="historySearch" placeholder="Search history by title or date..." autocomplete="off">

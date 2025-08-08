@@ -2884,6 +2884,28 @@ background-color: rgba(245, 158, 11, 0.4);
     white-space: nowrap;
   }
   
+  /* Header row with title and hint */
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .history-header .history-search-placeholder {
+    margin: 0; /* override default margin when in header */
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    max-width: 280px;
+    margin-top: -4px; /* Move up more to align with title text */
+  }
+  
+  .history-header .history-search-placeholder i {
+    font-size: 0.8rem;
+  }
+  
   /* Search input improvements */
   .history-search {
     position: relative;
@@ -4053,5 +4075,41 @@ background-color: rgba(245, 158, 11, 0.4);
   text-align: center;
   white-space: nowrap;
 }
+
+/* Search placeholder styling */
+.history-search-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .history-search-placeholder i {
+    color: #3b82f6;
+    font-size: 0.9rem;
+  }
+  
+  .history-search-placeholder span {
+    color: #94a3b8;
+  }
+  
+  [data-theme="dark"] .history-search-placeholder {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+  
+  [data-theme="dark"] .history-search-placeholder span {
+    color: #b0b8c9;
+  }
+  
+  /* Enhanced history items */
 
 
