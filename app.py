@@ -19,7 +19,6 @@ from google import genai
 from google.genai import types
 import bcrypt
 import threading
-import time
 from flask import g
 from flask_session import Session
 
@@ -100,7 +99,6 @@ if not app.secret_key:
 # --- Load config from environment variables ---
 SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
 REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # Default 5 minutes
-SESSION_TIMEOUT_HOURS = int(os.environ.get('SESSION_TIMEOUT_HOURS', 0))
 PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
@@ -115,6 +113,7 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'adminpass')
 PASSKEY = os.environ.get('PASSKEY')
 RATE_LIMIT = int(os.environ.get('RATE_LIMIT', 5))
 RATE_WINDOW = int(os.environ.get('RATE_WINDOW', 60))
+
 HISTORY_LIMIT = int(os.environ.get('HISTORY_LIMIT', 1000))
 TEMP_DIR = os.environ.get('TEMP_DIR', '/app/temp')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -236,25 +235,7 @@ Session(app)
 # --- Session Timeout and Forced Logout Enhancements ---
 LOGOUT_VERSION_HASH_KEY = 'logout_versions'  # Redis hash to store all user logout_versions
 
-# Helper: get logout version from Redis hash
-def get_logout_version(username):
-    try:
-        return redis_client.hget(LOGOUT_VERSION_HASH_KEY, username)
-    except Exception as e:
-        logger.error(f"Error getting logout version for {username}: {str(e)}")
-        return None
 
-def set_logout_version(username, version):
-    try:
-        redis_client.hset(LOGOUT_VERSION_HASH_KEY, username, version)
-    except Exception as e:
-        logger.error(f"Error setting logout version for {username}: {str(e)}")
-
-def clear_logout_version(username):
-    try:
-        redis_client.hdel(LOGOUT_VERSION_HASH_KEY, username)
-    except Exception as e:
-        logger.error(f"Error clearing logout version for {username}: {str(e)}")
 
 def is_session_expired():
     """Check if the current session has expired based on login time"""
@@ -293,8 +274,8 @@ static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 RATE_LIMIT = int(os.getenv('RATE_LIMIT', 5))  
 RATE_WINDOW = int(os.getenv('RATE_WINDOW', 60))  
 RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
-# Remove the in-memory ip_attempts dict
-# ip_attempts = {}
+
+
 
 def rate_limit(f):
     @wraps(f)
@@ -360,26 +341,7 @@ def get_history_item_by_timestamp(timestamp):
         logger.error(f"Error getting history item {timestamp}: {str(e)}")
         return None
 
-def get_stored_history():
-    """Get sync history from Redis - backward compatibility function"""
-    try:
-        if not history_redis or not history_key_manager:
-            logger.error("History Redis client not available")
-            return []
-        # Get all timestamps from metadata sorted set
-        metadata_key = history_key_manager.get_metadata_key()
-        all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
-        
-        history = []
-        for metadata_json, timestamp in all_timestamps:
-            item = get_history_item_by_timestamp(timestamp)
-            if item:
-                history.append(item)
-        
-        return history
-    except Exception as e:
-        logger.error(f"Error retrieving history from Redis: {str(e)}")
-        return []
+
 
 
 
@@ -440,7 +402,7 @@ def get_paginated_history_optimized(page, per_page):
     try:
         if not history_redis or not history_key_manager:
             logger.error("History Redis client not available")
-            return get_paginated_history_fallback(page, per_page)
+            return [], {'current_page': page, 'per_page': per_page, 'total_items': 0, 'total_pages': 0, 'has_next': False, 'has_prev': False}
         metadata_key = history_key_manager.get_metadata_key()
         total_count = history_redis.zcard(metadata_key)
         
@@ -474,25 +436,9 @@ def get_paginated_history_optimized(page, per_page):
         
     except Exception as e:
         logger.error(f"Error getting paginated history: {str(e)}")
-        # Fallback to original method
-        return get_paginated_history_fallback(page, per_page)
+        return [], {'current_page': page, 'per_page': per_page, 'total_items': 0, 'total_pages': 0, 'has_next': False, 'has_prev': False}
 
-def get_paginated_history_fallback(page, per_page):
-    """Fallback method for pagination"""
-    history = get_stored_history()
-    total_items = len(history)
-    total_pages = (total_items + per_page - 1) // per_page
-    start_idx = (page - 1) * per_page
-    end_idx = start_idx + per_page
-    
-    return history[start_idx:end_idx], {
-        'current_page': page,
-        'per_page': per_page,
-        'total_items': total_items,
-        'total_pages': total_pages,
-        'has_next': page < total_pages,
-        'has_prev': page > 1
-    }
+
 
 def extract_date_from_subject(subject):
     date_patterns = [
@@ -746,9 +692,16 @@ def login():
     session['login_time'] = datetime.now(timezone.utc).isoformat()
     session['last_activity'] = datetime.now(timezone.utc).isoformat()
     # Set logout_version for forced logout tracking
-    logout_version = get_logout_version(username) or secrets.token_hex(8)
+    try:
+        logout_version = redis_client.hget(LOGOUT_VERSION_HASH_KEY, username) or secrets.token_hex(8)
+    except Exception as e:
+        logger.error(f"Error getting logout version for {username}: {str(e)}")
+        logout_version = secrets.token_hex(8)
     session['logout_version'] = logout_version
-    set_logout_version(username, logout_version)
+    try:
+        redis_client.hset(LOGOUT_VERSION_HASH_KEY, username, logout_version)
+    except Exception as e:
+        logger.error(f"Error setting logout version for {username}: {str(e)}")
     
     # Note: PERMANENT_SESSION_LIFETIME is set to 1 year globally
     # Custom session timeout logic is handled in require_login() for non-admin users
@@ -770,7 +723,10 @@ def login():
 def logout():
     username = session.get('username')
     if username:
-        clear_logout_version(username)
+        try:
+            redis_client.hdel(LOGOUT_VERSION_HASH_KEY, username)
+        except Exception as e:
+            logger.error(f"Error clearing logout version for {username}: {str(e)}")
     session.clear()
     return jsonify({'status': 'success'})
 
@@ -914,7 +870,10 @@ def admin_logout_user():
         
         # Store new logout_version in Redis for server-side session invalidation
         new_version = secrets.token_hex(8)
-        set_logout_version(target_username, new_version)
+        try:
+            redis_client.hset(LOGOUT_VERSION_HASH_KEY, target_username, new_version)
+        except Exception as e:
+            logger.error(f"Error setting logout version for {target_username}: {str(e)}")
         
         # Send SSE logout event to the user
         publish_sse_event(target_username, 'logout', {'reason': 'Logged out by admin'})
@@ -971,7 +930,11 @@ def require_login():
     username = session.get('username')
     if username:
         session_version = session.get('logout_version')
-        redis_version = get_logout_version(username)
+        try:
+            redis_version = redis_client.hget(LOGOUT_VERSION_HASH_KEY, username)
+        except Exception as e:
+            logger.error(f"Error getting logout version for {username}: {str(e)}")
+            redis_version = None
         if redis_version and session_version != redis_version:
             session.clear()
             resp = redirect(url_for('login_page'))
@@ -1864,6 +1827,8 @@ def ai_chat_enabled():
 
 
 
+
+
 def create_search_index():
     """
     Create Redis search index for O(1) search performance with pipelining
@@ -1973,7 +1938,7 @@ def search_history_redis_optimized(search_term):
     try:
         if not history_redis or not history_key_manager:
             logger.error("History Redis client not available")
-            return search_history_optimized_fallback(search_term)
+            return []
         search_lower = search_term.lower().strip()
         
         if len(search_lower) < 1:
@@ -2014,8 +1979,7 @@ def search_history_redis_optimized(search_term):
         
     except Exception as e:
         logger.error(f"Error in Redis search: {str(e)}")
-        # Fallback to original search
-        return search_history_optimized_fallback(search_term)
+        return []
 
 
 
@@ -2086,90 +2050,7 @@ def apply_search_scoring(entry, search_lower):
 
 
 
-def search_history_optimized_fallback(search_term):
-    """Fallback to original O(n) search if Redis search fails"""
-    search_lower = search_term.lower().strip()
-    
-    if len(search_lower) < 1:
-        return []
-    
-    # Get all history entries
-    all_history = get_stored_history()
-    if not all_history:
-        return []
-    
-    matching_entries = []
-    
-    for entry in all_history:
-        title = entry.get('title', '').lower()
-        date = entry.get('date', '').lower()
-        
-        # Initialize scoring
-        score = 0
-        match_found = False
-        
-        # 1. TITLE SEARCH (Highest Priority)
-        if search_lower in title:
-            match_found = True
-            # Exact title match (highest relevance)
-            if title == search_lower:
-                score += 100
-            # Title starts with search term
-            elif title.startswith(search_lower):
-                score += 50
-            # Title contains search term as a word
-            elif f' {search_lower} ' in f' {title} ':
-                score += 30
-            # Title contains search term anywhere
-            else:
-                score += 20
-        
-        # 2. DATE SEARCH (Medium Priority)
-        if search_lower in date:
-            match_found = True
-            # Exact date match
-            if date == search_lower:
-                score += 40
-            # Date contains search term
-            else:
-                score += 15
-        
-        # Only include entries that have matches
-        if match_found:
-            # Add timestamp bonus (newer entries get slight preference)
-            timestamp_bonus = min(entry.get('timestamp', 0) / 1000000, 5)  # Max 5 points for recency
-            score += timestamp_bonus
-            
-            # Add match source information for display
-            match_sources = []
-            if search_lower in title:
-                if title == search_lower:
-                    match_sources.append("exact title match")
-                elif title.startswith(search_lower):
-                    match_sources.append("title starts with")
-                elif f' {search_lower} ' in f' {title} ':
-                    match_sources.append("title word match")
-                else:
-                    match_sources.append("title contains")
-            
-            if search_lower in date:
-                if date == search_lower:
-                    match_sources.append("exact date match")
-                else:
-                    match_sources.append("date contains")
-            
-            entry['_search_score'] = score
-            entry['_match_sources'] = match_sources
-            matching_entries.append(entry)
-    
-    # Sort by relevance score (highest first), then by timestamp (newest first)
-    matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
-    
-    # Remove the temporary score field
-    for entry in matching_entries:
-        entry.pop('_search_score', None)
-    
-    return matching_entries
+
 
 def is_search_index_busy():
     """Check if search index rebuild is currently in progress"""
@@ -2496,6 +2377,8 @@ def migrate_history_to_redis():
 
 # Run migration on startup
 migrate_history_to_redis()
+
+
 
 
 if __name__ == '__main__':
