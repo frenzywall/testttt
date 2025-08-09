@@ -262,8 +262,6 @@ if not PASSKEY:
 
 PASSKEY_HASH = hashlib.sha256(PASSKEY.encode()).hexdigest()
 
-HISTORY_LIMIT = 1000 
-
 temp_dir = os.getenv('TEMP_DIR', '/app/temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
