@@ -2430,6 +2430,9 @@ function populateHistoryItems(history, viewOnly) {
             `;
         }
         
+        // Get editor info
+        const editor = item.data?.last_edited_by || 'Unknown';
+        
         historyItem.innerHTML = `
             <div class="history-item-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1.2rem;">
                 <div class="history-item-title" style="flex:1;min-width:0;">
@@ -2444,14 +2447,21 @@ function populateHistoryItems(history, viewOnly) {
             <div class="history-item-summary">
                 ${serviceCount} service${serviceCount !== 1 ? 's' : ''} included
             </div>
-            ${matchSourceHtml}
-            <div class="history-item-actions">
-                <button class="history-item-btn load">
-                    <i class="fas fa-cloud-download-alt"></i> Load
-                </button>
-                <button class="history-item-btn delete">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
+            <div class="history-item-actions" style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <div class="history-item-editor" style="font-size:0.85em;color:#b0b8c9;margin-left:0;">
+                    <i class="fas fa-user-edit"></i> Editor: ${editor}
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.3rem;">
+                    ${matchSourceHtml}
+                    <div style="display:flex;gap:0.5rem;">
+                        <button class="history-item-btn load">
+                            <i class="fas fa-cloud-download-alt"></i> Load
+                        </button>
+                        <button class="history-item-btn delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
             </div>
         `;
         

@@ -1967,35 +1967,50 @@ def search_history_redis_optimized(search_term):
         # Step 1: Use Redis for initial filtering (O(1)) with pipelining
         title_search_key = history_key_manager.get_search_key('title', search_lower)
         date_search_key = history_key_manager.get_search_key('date', search_lower)
+        editor_search_key = history_key_manager.get_search_key('editor', search_lower)
         
         # Use pipelining to batch Redis operations
         with history_redis.pipeline() as pipe:
             pipe.smembers(title_search_key)
             pipe.smembers(date_search_key)
+            pipe.smembers(editor_search_key)
             results = pipe.execute()
             title_matches = results[0]
             date_matches = results[1]
+            editor_matches = results[2]
         
         # Get all potential matches
-        all_matches = title_matches.union(date_matches)
+        all_matches = title_matches.union(date_matches).union(editor_matches)
         
         if not all_matches:
             # Try Redis-based partial matching (O(k) instead of O(n))
             partial_results = search_history_redis_partial(search_lower)
             return partial_results
         
+        # NEW: Define limits for exact matches (mirroring partial path)
+        MAX_RESULTS = 50  # Final results to return
+        PROCESS_BUFFER = 100  # Process a few more for better scoring, then trim
+        
+        # NEW: Pre-sort matches by timestamp (newest first) and limit before loading
+        sorted_matches = sorted(list(all_matches), key=lambda ts: float(ts), reverse=True)[:PROCESS_BUFFER]
+        
         # Step 2: Get only matching entries and apply intelligent scoring
         matching_entries = []
-        for timestamp in all_matches:
+        for timestamp in sorted_matches:
             entry = get_history_item_by_timestamp(timestamp)
             if entry:
                 # Apply intelligent scoring
                 scored_entry = apply_search_scoring(entry, search_lower)
                 if scored_entry:
                     matching_entries.append(scored_entry)
+                    # NEW: Early termination if we have enough results
+                    if len(matching_entries) >= MAX_RESULTS:
+                        break
         
+        # NEW: If we have more than MAX_RESULTS after scoring, trim after final sort
         # Sort by relevance score (highest first), then by timestamp (newest first)
         matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
+        matching_entries = matching_entries[:MAX_RESULTS]
         
         # Remove the temporary score field
         for entry in matching_entries:
@@ -2422,6 +2437,9 @@ def migrate_history_to_redis():
                 elif key.startswith('search:date:'):
                     term = key.replace('search:date:', '')
                     new_key = history_key_manager.get_search_key('date', term)
+                elif key.startswith('search:editor:'):
+                    term = key.replace('search:editor:', '')
+                    new_key = history_key_manager.get_search_key('editor', term)
                 elif key.startswith('partial_search:'):
                     term = key.replace('partial_search:', '')
                     new_key = history_key_manager.get_cache_key('partial', term)
