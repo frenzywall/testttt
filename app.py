@@ -2059,10 +2059,12 @@ def apply_search_scoring(entry, search_lower):
             'priority': 'medium',
             'scores': {
                 'exact': 40,
+                'starts_with': 25,
                 'contains': 15
             },
             'match_sources': {
                 'exact': 'exact date match',
+                'starts_with': 'date starts with',
                 'contains': 'date contains'
             }
         },
@@ -2102,9 +2104,17 @@ def apply_search_scoring(entry, search_lower):
         if search_lower in field_value:
             match_found = True
             
+            # NEW: For date field, extract just the YYYY-MM-DD part for exact comparison
+            compare_value = field_value
+            if field['name'] == 'date':
+                # Extract date prefix (assuming format 'YYYY-MM-DD HH:MM:SS')
+                date_match = re.match(r'^\d{4}-\d{2}-\d{2}', field_value)
+                if date_match:
+                    compare_value = date_match.group(0)
+            
             # Determine match type and score
-            if field_value == search_lower:
-                # Exact match
+            if compare_value == search_lower:
+                # Exact match (using compare_value for dates)
                 score += field['scores']['exact']
                 match_sources.append(field['match_sources']['exact'])
             elif field_value.startswith(search_lower):
