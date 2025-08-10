@@ -671,6 +671,17 @@ def get_admin_usernames():
     users = get_users()
     return [u for u, uobj in users.items() if uobj.get('role') == 'admin']
 
+def validate_user_exists(username):
+    """Check if a user exists in the database"""
+    if not username:
+        return False
+    try:
+        users = get_users()
+        return users and username in users
+    except Exception as e:
+        logger.error(f"Error validating user existence for {username}: {str(e)}")
+        return False
+
 # Auth endpoints
 @app.route('/login', methods=['POST'])
 @rate_limit
@@ -712,6 +723,13 @@ def login():
     user['last_login'] = datetime.now(timezone.utc).isoformat()
     users[username] = user
     save_users(users)
+    
+    # Invalidate users cache when login timestamp changes
+    try:
+        redis_client.delete('users_list_cache')
+    except Exception as e:
+        logger.warning(f"Failed to invalidate users cache on login: {e}")
+    
     # Publish SSE login event to all admins
     for admin_username in get_admin_usernames():
         publish_sse_event(admin_username, 'login', {'username': username, 'last_login': user['last_login']})
@@ -751,11 +769,29 @@ def manage_users():
         if users is None:
             return jsonify({'status': 'error', 'message': 'Failed to load users'}), 500
         if request.method == 'GET':
-            # Return users with last_login, sorted by last_login descending (latest first)
+            # Check cache first
+            cache_key = 'users_list_cache'
+            cached_data = redis_client.get(cache_key)
+            
+            if cached_data:
+                try:
+                    return jsonify(json.loads(cached_data))
+                except (json.JSONDecodeError, TypeError):
+                    # Cache corrupted, continue to generate fresh data
+                    pass
+            
+            # Generate fresh user list
             user_list = [
-                {'username': u, 'last_login': users[u].get('last_login', '-'), 'created_by': users[u].get('created_by', 'admin')}
-                for u in users if users[u]['role'] != 'admin']
+                {'username': u, 'last_login': users[u].get('last_login', '-'), 'created_by': users[u].get('created_by', 'admin'), 'role': users[u].get('role', 'user')}
+                for u in users if u != ADMIN_USERNAME]
             user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
+            
+            # Cache the result for 5 minutes (300 seconds)
+            try:
+                redis_client.setex(cache_key, 300, json.dumps({'users': user_list}))
+            except Exception as e:
+                logger.warning(f"Failed to cache users list: {e}")
+            
             return jsonify({'users': user_list})
         elif request.method == 'POST':
             data = request.json
@@ -767,6 +803,13 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'User already exists'}), 400
             users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-', 'created_by': 'admin'}
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
             return jsonify({'status': 'success'})
         elif request.method == 'DELETE':
             data = request.json
@@ -775,8 +818,20 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'User not found'}), 404
             if users[username]['role'] == 'admin':
                 return jsonify({'status': 'error', 'message': 'Cannot delete admin'}), 400
+            # Prevent deletion of main admin
+            if username == ADMIN_USERNAME:
+                return jsonify({'status': 'error', 'message': 'Cannot delete main admin'}), 400
+            
             del users[username]
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
+            logger.info(f"Admin {session.get('username')} deleted user {username}")
             return jsonify({'status': 'success'})
         elif request.method == 'PUT':
             data = request.json
@@ -790,6 +845,13 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'Cannot update admin password here'}), 400
             users[username]['password'] = hash_password(password)
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
             return jsonify({'status': 'success'})
     except Exception as e:
         logger.error(f"/users route error: {e}")
@@ -811,6 +873,8 @@ def change_password():
     users[username] = user
     save_users(users)
     return jsonify({'status': 'success'})
+
+
 
 # --- SSE Pub/Sub Setup ---
 SSE_CHANNEL_PREFIX = 'sse_channel_'
@@ -889,6 +953,55 @@ def admin_logout_user():
 
 
 # Inject user info into templates
+@app.route('/update-user-role', methods=['POST'])
+def update_user_role():
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    try:
+        data = request.json
+        username = data.get('username', '').strip()
+        new_role = data.get('role', '').strip()
+        
+        if not username or not new_role:
+            return jsonify({'status': 'error', 'message': 'Username and role required'}), 400
+        
+        if new_role not in ['user', 'admin']:
+            return jsonify({'status': 'error', 'message': 'Invalid role. Must be "user" or "admin"'}), 400
+        
+        users = get_users()
+        if username not in users:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        
+        # Prevent admin from demoting themselves
+        if username == session.get('username') and new_role == 'user':
+            return jsonify({'status': 'error', 'message': 'Cannot demote yourself from admin'}), 400
+        
+        # Prevent role changes for main admin
+        if username == ADMIN_USERNAME:
+            return jsonify({'status': 'error', 'message': 'Cannot modify main admin privileges'}), 400
+        
+        users[username]['role'] = new_role
+        save_users(users)
+        
+        # Invalidate cache when user data changes
+        try:
+            redis_client.delete('users_list_cache')
+        except Exception as e:
+            logger.warning(f"Failed to invalidate users cache: {e}")
+        
+        # Send SSE notification to the user about role change (but don't force logout)
+        if new_role == 'user':
+            publish_sse_event(username, 'role-change', {'reason': 'Role changed to user - admin privileges revoked'})
+        else:
+            publish_sse_event(username, 'role-change', {'reason': f'Role changed to {new_role}'})
+        
+        logger.info(f"Admin {session.get('username')} changed user {username} role to {new_role}")
+        return jsonify({'status': 'success', 'message': f'User {username} role updated to {new_role}'})
+        
+    except Exception as e:
+        logger.error(f"Error updating user role: {e}")
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
 @app.context_processor
 def inject_user():
     return dict(current_user=session.get('username'), current_role=session.get('role'))
@@ -896,7 +1009,7 @@ def inject_user():
 @app.before_request
 def require_login():
     allowed = [
-        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events',
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
         '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
     ]
     if request.path.startswith('/static/') or request.path.startswith('/misc/'):
@@ -938,6 +1051,29 @@ def require_login():
             resp = redirect(url_for('login_page'))
             resp.set_cookie('session', '', expires=0)
             return resp
+        
+        # --- User Existence and Role Validation Check ---
+        # Verify that the user exists and their role in session matches their actual role in database
+        try:
+            users = get_users()
+            if users and username in users:
+                actual_role = users[username].get('role', 'user')
+                session_role = session.get('role', 'user')
+                if actual_role != session_role:
+                    logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
+                    # Update session with correct role
+                    session['role'] = actual_role
+            else:
+                # User doesn't exist in database - invalidate session
+                logger.warning(f"User {username} not found in database - invalidating session")
+                session.clear()
+                return jsonify({'status': 'error', 'message': 'User not found'}), 401
+        except Exception as e:
+            logger.error(f"Error validating user {username}: {str(e)}")
+            # On error, invalidate session for security
+            session.clear()
+            return jsonify({'status': 'error', 'message': 'Session validation failed'}), 401
+    
     # --- Update last_activity ---
     session['last_activity'] = datetime.now(timezone.utc).isoformat()
 
@@ -1033,6 +1169,12 @@ def signup():
             'created_by': 'signup'
         }
         save_users(users)
+        
+        # Invalidate users cache when new user is created
+        try:
+            redis_client.delete('users_list_cache')
+        except Exception as e:
+            logger.warning(f"Failed to invalidate users cache on signup: {e}")
         
         logger.info(f"New user signed up: {username}")
         return jsonify({'status': 'success', 'message': 'Account created successfully'})
@@ -1277,6 +1419,15 @@ def sync_to_history():
 @app.route('/check-updates', methods=['GET'])
 def check_updates():
     """Check if data has been updated since provided timestamp"""
+    username = session.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'status': 'error', 'message': 'User not found'}), 401
+    
     client_timestamp = request.args.get('since', 0, type=float)
     
     stored_data = get_stored_data() or {}
@@ -1537,6 +1688,15 @@ def set_reauth():
 @rate_limit
 def validate_passkey():
     """Validate the provided passkey against the stored hash and set reauth window"""
+    username = session.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'status': 'error', 'message': 'User not found'}), 401
+    
     data = request.json
     if not data or not isinstance(data, dict):
         return jsonify({'status': 'error', 'message': 'Invalid request format'}), 400
@@ -1572,8 +1732,15 @@ def is_reauth_valid():
 
 @app.route('/check-reauth', methods=['GET'])
 def check_reauth():
-    if not session.get('username'):
+    username = session.get('username')
+    if not username:
         return jsonify({'valid': False}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'valid': False}), 401
+    
     from datetime import datetime, timezone
     reauth_until = session.get('reauth_until')
     if not reauth_until:

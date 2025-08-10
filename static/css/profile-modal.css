@@ -294,6 +294,28 @@
     filter: brightness(1.1);
     background: linear-gradient(135deg, #dc2626, #f87171);
 }
+
+.user-admin-btn {
+    background: rgba(156, 163, 175, 0.2);
+    color: rgba(156, 163, 175, 0.8);
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: 1px solid rgba(156, 163, 175, 0.3);
+    box-shadow: 0 2px 8px rgba(156, 163, 175, 0.1);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-admin-btn:hover {
+    background: rgba(156, 163, 175, 0.3);
+    color: rgba(156, 163, 175, 1);
+    box-shadow: 0 4px 12px rgba(156, 163, 175, 0.2);
+}
 #adminSection input[type="text"], #adminSection input[type="password"] {
     width: 44%;
     min-width: 120px;
@@ -966,5 +988,27 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
+}
+
+.user-role-admin,
+.user-role-user {
+    margin-left: 0.3rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
+    transition: all 0.2s;
+}
+
+.user-role-admin {
+    color: rgba(156, 163, 175, 0.8);
+}
+
+.user-role-user {
+    color: rgba(156, 163, 175, 0.8);
+}
+
+.user-role-admin:hover,
+.user-role-user:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }
 

@@ -394,10 +394,12 @@ function checkEmptyTable() {
     }
 }
 
+// Restructure the main table click handler to check target before authentication
 document.querySelector('table').addEventListener('click', function(e) {
-    ensureAuthenticated(() => {
-        if (e.target.closest('.edit-btn')) {
-            const row = e.target.closest('tr');
+    const editBtn = e.target.closest('.edit-btn');
+    if (editBtn) {
+        ensureAuthenticated(() => {
+            const row = editBtn.closest('tr');
             const cells = row.getElementsByTagName('td');
             
             // First check if timezone conversion is active and turn it off
@@ -468,10 +470,14 @@ document.querySelector('table').addEventListener('click', function(e) {
                 });
                 row.dispatchEvent(escapeEvent);
             });
-        }
+        }, "Please enter the passkey to edit data");
+        return;
+    }
 
-        if (e.target.closest('.save-btn')) {
-            const row = e.target.closest('tr');
+    const saveBtn = e.target.closest('.save-btn');
+    if (saveBtn) {
+        ensureAuthenticated(() => {
+            const row = saveBtn.closest('tr');
             const cells = row.getElementsByTagName('td');
             
             const startTimeCell = cells[2];
@@ -515,10 +521,14 @@ document.querySelector('table').addEventListener('click', function(e) {
             } else {
                 createNotification('success', 'Data updated successfully!');
             }
-        }
+        }, "Please enter the passkey to save data");
+        return;
+    }
 
-        if (e.target.closest('.delete-btn')) {
-            rowToDelete = e.target.closest('tr');
+    const deleteBtn = e.target.closest('.delete-btn');
+    if (deleteBtn) {
+        ensureAuthenticated(() => {
+            rowToDelete = deleteBtn.closest('tr');
             
             // Show custom confirmation dialog
             createConfirmDialog({
@@ -569,8 +579,9 @@ document.querySelector('table').addEventListener('click', function(e) {
                     rowToDelete = null;
                 }
             });
-        }
-    }, "Please enter the passkey to edit or delete data");
+        }, "Please enter the passkey to delete data");
+        return;
+    }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -608,25 +619,27 @@ function initImpactSelector(row) {
     if (!impactOptions.length || !selector || !innerContainer) return;
     
     impactOptions.forEach(option => {
-    option.addEventListener('click', function() {
-        const tr = this.closest('tr');
-        if (!tr) return;
-        
-        const priority = this.getAttribute('data-value');
-        
-        impactOptions.forEach(opt => opt.classList.remove('selected'));
-        this.classList.add('selected');
-        
-        selector.setAttribute('data-value', priority);
-        tr.setAttribute('data-priority', priority);
-        
-        this.style.animation = 'none';
-        setTimeout(() => {
-        this.style.animation = 'impactPulse 0.8s ease-in-out';
-        }, 100);
-        
-        applyActiveFilter();
-    });
+        option.addEventListener('click', function() {
+            ensureAuthenticated(() => {
+                const tr = this.closest('tr');
+                if (!tr) return;
+                
+                const priority = this.getAttribute('data-value');
+                
+                impactOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                selector.setAttribute('data-value', priority);
+                tr.setAttribute('data-priority', priority);
+                
+                this.style.animation = 'none';
+                setTimeout(() => {
+                    this.style.animation = 'impactPulse 0.8s ease-in-out';
+                }, 100);
+                
+                applyActiveFilter();
+            }, "Please enter the passkey to change impact priority");
+        });
     });
 }
 
@@ -3305,16 +3318,13 @@ function promptForPasskey(customMessage = "Please enter the passkey to access sy
       .then(response => response.json())
       .then(data => {
         if (data.valid) {
-          // Set the server-side reauth window
-          fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
-            .then(() => {
-              dialogOverlay.classList.remove('active');
-              setTimeout(() => {
-                dialogOverlay.remove();
-                createNotification('success', 'Authentication successful!');
-                resolve(true);
-              }, 500);
-            });
+          // Close dialog and resolve - let the caller handle set-reauth
+          dialogOverlay.classList.remove('active');
+          setTimeout(() => {
+            dialogOverlay.remove();
+            createNotification('success', 'Authentication successful!');
+            resolve(true);
+          }, 500);
         } else {
           // Show error but keep dialog open
           const errorMessage = document.createElement('div');
@@ -3450,12 +3460,61 @@ function isAuthenticated() {
     return false;
 }
 
+// Cache for failed authentication responses to prevent redundant requests
+const authFailureCache = {
+    lastFailure: null,
+    failureTimestamp: 0,
+    cacheDuration: 30000 // 30 seconds cache for failed auth attempts
+};
+
+function isAuthFailureCached() {
+    const now = Date.now();
+    return authFailureCache.lastFailure && 
+           (now - authFailureCache.failureTimestamp) < authFailureCache.cacheDuration;
+}
+
+function cacheAuthFailure() {
+    authFailureCache.lastFailure = true;
+    authFailureCache.failureTimestamp = Date.now();
+}
+
+function clearAuthFailureCache() {
+    authFailureCache.lastFailure = null;
+    authFailureCache.failureTimestamp = 0;
+}
+
+// Helper function to handle successful authentication and set reauth
+function handleSuccessfulAuth(callback) {
+    fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(setData => {
+            if (setData.reauth_until) {
+                localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
+            }
+            enableRestrictedFeatures();
+            callback();
+        });
+}
+
 function ensureAuthenticated(callback, customMessage = "Please enter the passkey to perform this action") {
     const localReauthUntil = localStorage.getItem('reauthUntil');
     const now = Date.now();
     if (localReauthUntil && now < parseInt(localReauthUntil)) {
         enableRestrictedFeatures();
         callback();
+        return;
+    }
+    
+    // Check if we have a recent authentication failure cached
+    if (isAuthFailureCached()) {
+        // Skip redundant requests and go straight to passkey prompt
+        promptForPasskey(customMessage).then(valid => {
+            if (valid) {
+                clearAuthFailureCache(); // Clear cache on successful auth
+                handleSuccessfulAuth(callback);
+            }
+            // If passkey validation fails, do nothing - don't call callback
+        });
         return;
     }
     
@@ -3468,68 +3527,43 @@ function ensureAuthenticated(callback, customMessage = "Please enter the passkey
                     .then(res => res.json())
                     .then(data => {
                         if (data.valid) {
+                            clearAuthFailureCache(); // Clear cache on successful auth
                             // Optionally update local reauth window to match server
-                            fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
-                                .then(res => res.json())
-                                .then(setData => {
-                                    if (setData.reauth_until) {
-                                        localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
-                                    }
-                                    enableRestrictedFeatures();
-                                    callback();
-                                });
+                            handleSuccessfulAuth(callback);
                         } else {
+                            cacheAuthFailure(); // Cache the failure
                             promptForPasskey(customMessage).then(valid => {
                                 if (valid) {
-                                    fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
-                                        .then(res => res.json())
-                                        .then(setData => {
-                                            if (setData.reauth_until) {
-                                                localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
-                                            }
-                                            enableRestrictedFeatures();
-                                            callback();
-                                        });
+                                    clearAuthFailureCache(); // Clear cache on successful auth
+                                    handleSuccessfulAuth(callback);
                                 }
                                 // If passkey validation fails, do nothing - don't call callback
                             });
                         }
                     });
             } else {
+                cacheAuthFailure(); // Cache the failure
                 promptForPasskey(customMessage).then(valid => {
                     if (valid) {
-                        fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
-                            .then(res => res.json())
-                            .then(setData => {
-                                if (setData.reauth_until) {
-                                    localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
-                                }
-                                enableRestrictedFeatures();
-                                callback();
-                            });
+                        clearAuthFailureCache(); // Clear cache on successful auth
+                        handleSuccessfulAuth(callback);
                     }
                     // If passkey validation fails, do nothing - don't call callback
                 });
             }
         })
         .catch(() => {
+            cacheAuthFailure(); // Cache the failure
             // If server is unreachable, we MUST still validate the passkey
             // We should NEVER grant access without proper validation
             promptForPasskey(customMessage).then(valid => {
                 if (valid) {
+                    clearAuthFailureCache(); // Clear cache on successful auth
                     // Only if passkey is actually valid, then we can try to reconnect
                     // and follow the normal authentication flow
                     
                     // Try to re-establish connection and set proper reauth
-                    fetch('/set-reauth', { method: 'POST', credentials: 'same-origin' })
-                        .then(res => res.json())
-                        .then(setData => {
-                            if (setData.reauth_until) {
-                                localStorage.setItem('reauthUntil', new Date(setData.reauth_until).getTime());
-                            }
-                            enableRestrictedFeatures();
-                            callback();
-                        })
+                    handleSuccessfulAuth(callback)
                         .catch(() => {
                             // If we're still offline but passkey was valid,
                             // we could set a very short temporary window as a fallback
@@ -3599,6 +3633,9 @@ function enableRestrictedFeatures() {
     if (fileInput) {
         fileInput.disabled = false;
     }
+    
+    // Clear auth failure cache when features are enabled (user is authenticated)
+    clearAuthFailureCache();
 }
 
 // Add a global click listener for all auth-required elements
@@ -3647,6 +3684,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.historyCache) {
                     window.historyCache.invalidateCache();
                 }
+                // Clear auth failure cache on logout
+                clearAuthFailureCache();
+                
                 // User is being logged out (session expired or admin kickout)
                 showTopBarAnimation({
                     color: '#ef4444',
@@ -3655,10 +3695,51 @@ document.addEventListener('DOMContentLoaded', function() {
                     duration: 2.2,
                     gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
                 });
+                
                 createNotification('warning', 'You have been logged out by an administrator');
+                
                 setTimeout(() => {
                     window.location.reload(); // Force reload to trigger backend session check
                 }, 1000); // 1 second delay for user to see the notification
+            });
+            
+            sse.addEventListener('role-change', function(e) {
+                // Parse the event data
+                let data;
+                try {
+                    data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                } catch (err) {
+                    data = {};
+                }
+                
+                // Check if this is a role demotion
+                const isRoleDemotion = data && data.reason && data.reason.includes('Role changed to user');
+                
+                if (isRoleDemotion) {
+                    // Show offline notch to notify user to refresh
+                    showOfflineNotch();
+                    
+                    // Update the offline notch message for role change
+                    const offlineNotch = document.getElementById('offline-notch');
+                    if (offlineNotch) {
+                        const textSpan = offlineNotch.querySelector('.offline-notch-text');
+                        if (textSpan) {
+                            textSpan.innerHTML = 'Refresh to update permissions';
+                        }
+                        
+                        // Update the WiFi icon to a sync icon
+                        const wifiIcon = offlineNotch.querySelector('.offline-notch-wifi');
+                        if (wifiIcon) {
+                            wifiIcon.innerHTML = '<i class="fas fa-sync-alt" style="color: rgba(255,255,255,0.8); font-size: 18px;"></i>';
+                            wifiIcon.classList.remove('offline-notch-wifi-pulse');
+                        }
+                    }
+                    
+                    createNotification('info', 'Your admin privileges have been revoked. Please refresh the page to continue.');
+                } else {
+                    // Role promotion or other role change
+                    createNotification('success', 'Your role has been updated. Please refresh the page to see the changes.');
+                }
             });
             
 

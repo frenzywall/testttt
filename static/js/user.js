@@ -370,7 +370,10 @@ function showProfileModal(user) {
                         const indicator = createdBy === 'signup' ? 
                             '<span class="user-signup-indicator" title="Self-signed up"><i class="fas fa-user-plus"></i></span>' : 
                             '<span class="user-admin-indicator" title="Added by admin"><i class="fas fa-user-cog"></i></span>';
-                        info.innerHTML = `<div class="user-name-row"><span class="user-name">${u}</span>${indicator}</div>${lastLoginHtml}`;
+                        const roleIndicator = uobj.role === 'admin' ? 
+                            '<span class="user-role-admin" title="Admin User"><i class="fas fa-shield-alt"></i></span>' : 
+                            '<span class="user-role-user" title="Regular User"><i class="fas fa-user"></i></span>';
+                        info.innerHTML = `<div class="user-name-row"><span class="user-name">${u}</span>${indicator}${roleIndicator}</div>${lastLoginHtml}`;
                         card.appendChild(info);
                         // Actions
                         const actions = document.createElement('div');
@@ -385,6 +388,14 @@ function showProfileModal(user) {
                         logout.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
                         logout.className = 'btn user-logout-btn';
                         logout.title = 'Logout User';
+                        
+                        // Make Admin button (show for all users except the current admin)
+                        const makeAdmin = document.createElement('button');
+                        makeAdmin.innerHTML = uobj.role === 'admin' ? '<i class="fas fa-user-minus"></i>' : '<i class="fas fa-user-shield"></i>';
+                        makeAdmin.className = 'btn user-admin-btn';
+                        makeAdmin.title = uobj.role === 'admin' ? 'Remove Admin' : 'Make Admin';
+                        // Don't show the button for the current user (prevent self-demotion)
+                        makeAdmin.style.display = (u === user.username) ? 'none' : 'inline-block';
                         
                         // Delete button
                         const del = document.createElement('button');
@@ -527,6 +538,7 @@ function showProfileModal(user) {
                         };
                         actions.appendChild(edit);
                         actions.appendChild(logout);
+                        actions.appendChild(makeAdmin);
                         actions.appendChild(del);
                         
                         // Logout button functionality
@@ -554,6 +566,39 @@ function showProfileModal(user) {
                             });
                         };
                         
+                        // Make Admin button functionality
+                        makeAdmin.onclick = function(){
+                            const isCurrentlyAdmin = uobj.role === 'admin';
+                            const action = isCurrentlyAdmin ? 'remove admin privileges from' : 'grant admin privileges to';
+                            
+                            createConfirmDialog({
+                                type: 'warning',
+                                icon: 'fa-user-shield',
+                                title: isCurrentlyAdmin ? 'Remove Admin Privileges' : 'Grant Admin Privileges',
+                                message: `Are you sure you want to ${action} user <b>${u}</b>? This will ${isCurrentlyAdmin ? 'restrict' : 'grant'} their access to admin features.`,
+                                confirmText: isCurrentlyAdmin ? 'Remove Admin' : 'Make Admin',
+                                cancelText: 'Cancel'
+                            }).then(confirmed => {
+                                if (!confirmed) return;
+                                
+                                const newRole = isCurrentlyAdmin ? 'user' : 'admin';
+                                fetch('/update-user-role',{
+                                    method:'POST',
+                                    headers:{'Content-Type':'application/json'},
+                                    body:JSON.stringify({username:u, role:newRole})
+                                }).then(r=>r.json()).then(data=>{
+                                    if(data.status==='success') {
+                                        createNotification('success', data.message || `User ${u} role updated successfully!`);
+                                        refreshUsers(); // Refresh the user list to update the UI
+                                    } else {
+                                        createNotification('error', data.message || 'Failed to update user role');
+                                    }
+                                }).catch(() => {
+                                    createNotification('error', 'Network error while updating user role');
+                                });
+                            });
+                        };
+                        
                         del.onclick = function(){
                             createConfirmDialog({
                                 type: 'danger',
@@ -568,9 +613,15 @@ function showProfileModal(user) {
                                     method:'DELETE',
                                     headers:{'Content-Type':'application/json'},
                                     body:JSON.stringify({username:u})
-                                }).then(()=>{
-                                    refreshUsers();
-                                    createNotification('success', 'User deleted successfully!');
+                                }).then(r=>r.json()).then(data=>{
+                                    if(data.status==='success') {
+                                        refreshUsers();
+                                        createNotification('success', 'User deleted successfully!');
+                                    } else {
+                                        createNotification('error', data.message || 'Failed to delete user');
+                                    }
+                                }).catch(() => {
+                                    createNotification('error', 'Network error while deleting user');
                                 });
                             });
                         };
