@@ -530,12 +530,12 @@
         var icon = document.getElementById('profileIcon');
         if (icon) {
             icon.addEventListener('click', function() {
-                fetch('/current-user').then(r=>r.json()).then(u=>{
-                    if(u.logged_in) showProfileModal(u);
-                });
+                // open modal immediately (placeholders), then fetch user in background
+                showProfileModal();
             });
         }
     });
 </script>
 </body>
+</html>
 </html>

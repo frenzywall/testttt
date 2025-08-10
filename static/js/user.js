@@ -1,129 +1,172 @@
 // User/profile modal logic
 // To be used with a modal in result.html
 function showProfileModal(user) {
-    // Create modal if not exists
+    // ensure we have a reference to the modal element for both branches
     let modal = document.getElementById('profileModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'profileModal';
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content profile-modal-content split-modal larger-modal">
-                <div class="profile-left">
-                    <div class="modal-header">
-                        <h2><span class="profile-glow"><i class="fas fa-user-circle"></i></span> Profile</h2>
-                        <span class="close" id="closeProfileModal">&times;</span>
-                    </div>
-                    <div class="profile-status">
-                        <span>Status: <b id="profileStatus"></b></span>
-                        <span>Username: <b id="profileUsername"></b></span>
-                    </div>
-                    <div class="profile-actions">
-                        <button id="logoutBtn" class="btn danger-btn">Log Out</button>
-                        <button id="changePwBtn" class="btn secondary-btn">Change Password</button>
-                    </div>
-                    <div id="changePwSection" style="display:none; margin-top:1rem;">
-                        <button id="closePwBtn" class="btn close-btn" style="background:none;color:#fff;font-size:1.3rem;line-height:1;margin-right:0.7rem;">&times;</button>
-                        <input type="text" id="oldPw" placeholder="Old Password">
-                        <input type="text" id="newPw" placeholder="New Password">
-                        <button id="submitPwBtn" class="btn success-btn">Update Password</button>
-                    </div>
-                    <div class="add-user-card">
-                      <div class="add-user-card-inner">
-                        <div class="add-user-header" style="display:flex;align-items:center;justify-content:space-between;">
-                          <h4 style="margin:0;"><i class="fas fa-user-plus"></i> Add New User</h4>
-                        </div>
-                        <div class="add-user-fields">
-                          <div class="input-icon-group">
-                            <i class="fas fa-user"></i>
-                            <input type="text" id="newUser" placeholder="New Username" autocomplete="off">
-                          </div>
-                          <div class="input-icon-group">
-                            <i class="fas fa-lock"></i>
-                            <input type="text" id="newUserPw" placeholder="New User Password" autocomplete="off">
-                          </div>
-                          <button id="addUserBtn" class="btn primary-btn add-user-btn">
-                            <i class="fas fa-plus"></i> Add User
-                          </button>
-                          <div id="addUserMsg" class="profile-msg" style="display:none;"></div>
-                        </div>
-                      </div>
-                    </div>
 
-                </div>
-                <div class="profile-right">
-                    <div id="adminSection" style="margin:0;">
-                        <h3>User Management</h3>
-                        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.3rem;">
-                            <input type="text" id="userSearch" class="user-search" placeholder="Search users..." autocomplete="off">
-                            <span id="userSortIcon" class="user-sort-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;" title="Sort by Last Login">
-                                <i class="fas fa-sort-amount-down-alt"></i>
-                            </span>
-                            <span id="userRefreshIcon" class="user-refresh-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;" title="Refresh User List">
-                                <i class="fas fa-sync-alt"></i>
-                            </span>
-                            <span id="signupToggleIcon" class="signup-toggle-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;color:#94a3b8;transition:color 0.2s;" title="Sign Up Settings" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">
-                                <i class="fas fa-user-plus"></i>
-                            </span>
+    if (!user) {
+        // 1) ensure modal exists (runs the existing creation code)
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'profileModal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content profile-modal-content split-modal larger-modal">
+                    <div class="profile-left">
+                        <div class="modal-header">
+                            <h2><span class="profile-glow"><i class="fas fa-user-circle"></i></span> Profile</h2>
+                            <span class="close" id="closeProfileModal">&times;</span>
                         </div>
-                        <div class="user-mgmt-card">
-                            <div id="userList"></div>
+                        <div class="profile-status">
+                            <span>Status: <b id="profileStatus"></b></span>
+                            <span>Username: <b id="profileUsername"></b></span>
+                        </div>
+                        <div class="profile-actions">
+                            <button id="logoutBtn" class="btn danger-btn">Log Out</button>
+                            <button id="changePwBtn" class="btn secondary-btn">Change Password</button>
+                        </div>
+                        <div id="changePwSection" style="display:none; margin-top:1rem;">
+                            <button id="closePwBtn" class="btn close-btn" style="background:none;color:#fff;font-size:1.3rem;line-height:1;margin-right:0.7rem;">&times;</button>
+                            <input type="text" id="oldPw" placeholder="Old Password">
+                            <input type="text" id="newPw" placeholder="New Password">
+                            <button id="submitPwBtn" class="btn success-btn">Update Password</button>
+                        </div>
+                        <div class="add-user-card">
+                          <div class="add-user-card-inner">
+                            <div class="add-user-header" style="display:flex;align-items:center;justify-content:space-between;">
+                              <h4 style="margin:0;"><i class="fas fa-user-plus"></i> Add New User</h4>
+                            </div>
+                            <div class="add-user-fields">
+                              <div class="input-icon-group">
+                                <i class="fas fa-user"></i>
+                                <input type="text" id="newUser" placeholder="New Username" autocomplete="off">
+                              </div>
+                              <div class="input-icon-group">
+                                <i class="fas fa-lock"></i>
+                                <input type="text" id="newUserPw" placeholder="New User Password" autocomplete="off">
+                              </div>
+                              <button id="addUserBtn" class="btn primary-btn add-user-btn">
+                                <i class="fas fa-plus"></i> Add User
+                              </button>
+                              <div id="addUserMsg" class="profile-msg" style="display:none;"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                    </div>
+                    <div class="profile-right">
+                        <div id="adminSection" style="margin:0;">
+                            <h3>User Management</h3>
+                            <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.3rem;">
+                                <input type="text" id="userSearch" class="user-search" placeholder="Search users..." autocomplete="off">
+                                <span id="userSortIcon" class="user-sort-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;" title="Sort by Last Login">
+                                    <i class="fas fa-sort-amount-down-alt"></i>
+                                </span>
+                                <span id="userRefreshIcon" class="user-refresh-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;" title="Refresh User List">
+                                    <i class="fas fa-sync-alt"></i>
+                                </span>
+                                <span id="signupToggleIcon" class="signup-toggle-icon" style="cursor:pointer;font-size:1.3rem;display:flex;align-items:center;margin-left:0.5rem;color:#94a3b8;transition:color 0.2s;" title="Sign Up Settings" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">
+                                    <i class="fas fa-user-plus"></i>
+                                </span>
+                            </div>
+                            <div class="user-mgmt-card">
+                                <div id="userList"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Add iPhone notch for admin settings
-        const settingsNotch = document.createElement('div');
-        settingsNotch.className = 'settings-notch';
-        settingsNotch.id = 'adminSettingsNotch';
-        settingsNotch.style.cssText = `
-            position: fixed;
-            top: -60px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10001;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 320px;
-            min-height: 120px;
-            border-radius: 0 0 20px 20px;
-            background: rgba(60, 60, 67, 0.78);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            color: rgba(255, 255, 255, 0.87);
-            font-weight: 500;
-            font-size: 15px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            letter-spacing: -0.24px;
-            text-align: center;
-            user-select: none;
-            pointer-events: none;
-            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            padding: 1rem;
-            opacity: 0;
-            visibility: hidden;
-        `;
-        settingsNotch.innerHTML = `
-            <div class="settings-title" style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff;">Sign Up Settings</div>
-            <div class="setting-option" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 0.5rem;">
-                <div class="setting-label" style="color: #e2e8f0; font-size: 0.9rem;">Enable Public Sign Up</div>
-                <div class="toggle-switch" id="signupToggle" style="position: relative; width: 44px; height: 24px; background: #475569; border-radius: 12px; cursor: pointer; transition: background 0.3s;">
-                    <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; transition: transform 0.3s;"></div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Add iPhone notch for admin settings
+            const settingsNotch = document.createElement('div');
+            settingsNotch.className = 'settings-notch';
+            settingsNotch.id = 'adminSettingsNotch';
+            settingsNotch.style.cssText = `
+                position: fixed;
+                top: -60px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 10001;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 320px;
+                min-height: 120px;
+                border-radius: 0 0 20px 20px;
+                background: rgba(60, 60, 67, 0.78);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+                color: rgba(255, 255, 255, 0.87);
+                font-weight: 500;
+                font-size: 15px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                letter-spacing: -0.24px;
+                text-align: center;
+                user-select: none;
+                pointer-events: none;
+                transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                padding: 1rem;
+                opacity: 0;
+                visibility: hidden;
+            `;
+            settingsNotch.innerHTML = `
+                <div class="settings-title" style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff;">Sign Up Settings</div>
+                <div class="setting-option" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 0.5rem;">
+                    <div class="setting-label" style="color: #e2e8f0; font-size: 0.9rem;">Enable Public Sign Up</div>
+                    <div class="toggle-switch" id="signupToggle" style="position: relative; width: 44px; height: 24px; background: #475569; border-radius: 12px; cursor: pointer; transition: background 0.3s;">
+                        <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; transition: transform 0.3s;"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="setting-description" style="color: #94a3b8; font-size: 0.8rem; line-height: 1.4; text-align: left;">
-                When enabled, new users can create accounts on the login page
-            </div>
-            <div id="signupToggleMsg" class="profile-msg" style="display: none; margin-top: 0.5rem;"></div>
-        `;
-        document.body.appendChild(settingsNotch);
+                <div class="setting-description" style="color: #94a3b8; font-size: 0.8rem; line-height: 1.4; text-align: left;">
+                    When enabled, new users can create accounts on the login page
+                </div>
+                <div id="signupToggleMsg" class="profile-msg" style="display: none; margin-top: 0.5rem;"></div>
+            `;
+            document.body.appendChild(settingsNotch);
+        }
+        // 2) insert loading placeholders
+        const statusEl   = document.getElementById('profileStatus');
+        const nameEl     = document.getElementById('profileUsername');
+        const listEl     = document.getElementById('userList');
+        if (statusEl) statusEl.textContent   = 'Loading...';
+        if (nameEl)   nameEl.textContent     = 'Loading...';
+        if (listEl)   listEl.innerHTML       = `
+          <div class="user-list-loading">
+            <div class="skeleton avatar"></div>
+            <div class="skeleton line"></div>
+            <div class="skeleton line short"></div>
+            <div class="skeleton line"></div>
+          </div>`;
+        // 3) show modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        // 4) fetch real user and re-invoke
+        fetch('/current-user')
+          .then(r => r.json())
+          .then(u => {
+            if (u.logged_in) showProfileModal(u);
+            else {
+              modal.style.display = 'none';
+              document.body.style.overflow = '';
+            }
+          })
+          .catch(err => {
+            // close modal on fetch failure
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            // optional: notify user
+            if (window.createNotification) {
+              createNotification('error', 'Failed to load profile');
+            }
+         });
+        return;
     }
+    // at this point `modal` must exist
+    if (!modal) return; // safeguard
+
     // Fill info
     document.getElementById('profileStatus').textContent = user.role === 'admin' ? 'Admin' : 'User';
     document.getElementById('profileUsername').textContent = user.username;
@@ -851,4 +894,4 @@ function showProfileModal(user) {
     }
 }
 
-// Usage: fetch('/current-user').then(r=>r.json()).then(u=>showProfileModal(u)); 
+// Usage: fetch('/current-user').then(r=>r.json()).then(u=>showProfileModal(u));
