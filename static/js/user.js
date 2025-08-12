@@ -341,6 +341,45 @@ function showProfileModal(user) {
     // Admin user management
     if(user.role==='admin'){
         let userSortOrder = 'desc'; // 'desc' for newest first, 'asc' for oldest first
+        // Load actions visibility preference from localStorage, default to true
+        let actionsVisible = localStorage.getItem('userActionsVisible') !== 'false'; // Default to true if not set
+        // Format a Date into a human friendly relative string
+        function formatRelativeTime(dateInput){
+            try {
+                const now = new Date();
+                const then = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+                const diffMs = now - then;
+                if (isNaN(diffMs)) return '-';
+                
+                const diffSec = Math.floor(diffMs / 1000);
+                const diffMin = Math.floor(diffSec / 60);
+                const diffHour = Math.floor(diffMin / 60);
+                const diffDay = Math.floor(diffHour / 24);
+                const diffWeek = Math.floor(diffDay / 7);
+                const diffMonth = Math.floor(diffDay / 30);
+                const diffYear = Math.floor(diffDay / 365);
+                
+                if (diffYear > 0) {
+                    return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
+                } else if (diffMonth > 0) {
+                    return `${diffMonth} month${diffMonth !== 1 ? 's' : ''} ago`;
+                } else if (diffWeek > 0) {
+                    return `${diffWeek} week${diffWeek !== 1 ? 's' : ''} ago`;
+                } else if (diffDay > 0) {
+                    return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
+                } else if (diffHour > 0) {
+                    return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
+                } else if (diffMin > 0) {
+                    return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+                } else if (diffSec > 0) {
+                    return `${diffSec} second${diffSec !== 1 ? 's' : ''} ago`;
+                } else {
+                    return 'just now';
+                }
+            } catch (e) {
+                return '-';
+            }
+        }
         function refreshUsers(){
             fetch('/users')
                 .then(r => r.json())
@@ -368,8 +407,36 @@ function showProfileModal(user) {
                     // User count and divider
                     const countDiv = document.createElement('div');
                     countDiv.className = 'user-count';
-                    countDiv.innerHTML = `<span><b>${filteredUsers.length}</b> User${filteredUsers.length!==1?'s':''}</span>`;
+                    countDiv.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;';
+                    countDiv.innerHTML = `
+                        <span><b>${filteredUsers.length}</b> User${filteredUsers.length!==1?'s':''}</span>
+                        <span id="actionsToggleIcon" class="actions-toggle-icon" style="cursor:pointer;font-size:1rem;color:#94a3b8;transition:color 0.2s;" title="Toggle Action Buttons" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">
+                            <i class="fas fa-${actionsVisible ? 'eye' : 'eye-slash'}"></i>
+                        </span>
+                    `;
                     list.appendChild(countDiv);
+                    
+                    // Set up actions toggle event handler
+                    const actionsToggleIcon = countDiv.querySelector('#actionsToggleIcon');
+                    if(actionsToggleIcon) {
+                        actionsToggleIcon.onclick = function() {
+                            actionsVisible = !actionsVisible;
+                            // Save preference to localStorage
+                            localStorage.setItem('userActionsVisible', actionsVisible.toString());
+                            // Change icon based on state
+                            const icon = actionsToggleIcon.querySelector('i');
+                            if(actionsVisible) {
+                                icon.className = 'fas fa-eye';
+                                actionsToggleIcon.title = 'Hide Action Buttons';
+                            } else {
+                                icon.className = 'fas fa-eye-slash';
+                                actionsToggleIcon.title = 'Show Action Buttons';
+                            }
+                            refreshUsers();
+                        };
+                        // Set initial title
+                        actionsToggleIcon.title = actionsVisible ? 'Hide Action Buttons' : 'Show Action Buttons';
+                    }
                     if(filteredUsers.length>0){
                         const divider = document.createElement('div');
                         divider.className = 'user-divider';
@@ -388,19 +455,28 @@ function showProfileModal(user) {
                     scrollWrap.className = 'user-list-scroll';
                     filteredUsers.forEach(uobj=>{
                         const u = uobj.username;
-                        let lastLogin = uobj.last_login || '-';
-                        if (lastLogin && lastLogin !== '-') {
+                        const rawLastLogin = uobj.last_login || '-';
+                        let absoluteLastLogin = rawLastLogin;
+                        let relativeLastLogin = rawLastLogin;
+                        if (rawLastLogin && rawLastLogin !== '-') {
                             try {
-                                const d = new Date(lastLogin);
+                                const d = new Date(rawLastLogin);
                                 if (!isNaN(d)) {
-                                    lastLogin = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                    absoluteLastLogin = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                    relativeLastLogin = formatRelativeTime(d);
                                 }
                             } catch (e) {}
                         }
-                        // Add refresh icon for animation
-                        const lastLoginHtml = `<span class="user-last-login">Last login: <b>${lastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i></span>`;
+                        // Choose absolute vs relative time based on toggle
+                        const lastLoginHtml = actionsVisible
+                          ? `<span class="user-last-login">Last login: <b>${absoluteLastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i></span>`
+                          : `<span class="user-last-login" style="opacity:0.9;margin-top:2px;">Last login: <b>${relativeLastLogin}</b></span>`;
                         const card = document.createElement('div');
                         card.className = 'user-card';
+                        // Improve card layout when actions are hidden
+                        if (!actionsVisible) {
+                            card.style.cssText = 'display:flex;align-items:center;gap:1rem;padding:1rem;background:rgba(30,41,59,0.8);border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-bottom:0.5rem;transition:all 0.2s;';
+                        }
                         // Avatar/initials
                         const avatar = document.createElement('div');
                         avatar.className = 'user-avatar';
@@ -409,6 +485,10 @@ function showProfileModal(user) {
                         // Username and last login
                         const info = document.createElement('div');
                         info.className = 'user-info';
+                        // Improve info layout when actions are hidden
+                        if (!actionsVisible) {
+                            info.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:0.3rem;';
+                        }
                         const createdBy = uobj.created_by || 'admin';
                         const indicator = createdBy === 'signup' ? 
                             '<span class="user-signup-indicator" title="Self-signed up"><i class="fas fa-user-plus"></i></span>' : 
@@ -511,7 +591,7 @@ function showProfileModal(user) {
                             const restoreLayout = () => {
                                 if (avatar) avatar.style.display = 'flex';
                                 if (userInfo) userInfo.style.display = 'flex';
-                                if (userActions) userActions.style.display = 'flex';
+                                if (userActions) userActions.style.display = actionsVisible ? 'flex' : 'none';
                                 editForm.remove();
                                 editing = false;
                             };
@@ -583,6 +663,11 @@ function showProfileModal(user) {
                         actions.appendChild(logout);
                         actions.appendChild(makeAdmin);
                         actions.appendChild(del);
+                        
+                        // Apply toggle state to actions visibility
+                        if (!actionsVisible) {
+                            actions.style.display = 'none';
+                        }
                         
                         // Logout button functionality
                         logout.onclick = function(){
@@ -717,6 +802,7 @@ function showProfileModal(user) {
                 });
             };
         }
+
         document.getElementById('addUserBtn').onclick = function(){
             const nu = document.getElementById('newUser').value.trim();
             const npw = document.getElementById('newUserPw').value;
