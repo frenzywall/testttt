@@ -29,6 +29,7 @@ services:
       # --- Redis configuration ---
       - REDIS_HOST=redis                  # Redis server hostname. 'redis' if using the default service name in docker-compose.
       - REDIS_PORT=6379                   # Redis server port. Default: 6379.
+      - REDIS_PASSWORD=your-redis-password # Redis password for authentication. CHANGE for production!
       - REDIS_DB=0                        # Redis DB index for app data. Default: 0. Change if you want to separate data.
       - REDIS_SESSION_DB=1                # Redis DB index for session data. Default: 1. Change if you want to separate sessions.
       - REDIS_HISTORY_DB=2                # Redis DB index for history data. Default: 2. Change if you want to separate history.
@@ -66,7 +67,7 @@ services:
       - redis
     restart: unless-stopped
     networks:
-      - change_management 
+      - change_management
     volumes:
       - /etc/timezone:/etc/timezone:ro    # Mounts host timezone into container. Optional, for correct time display/logs.
       - /etc/localtime:/etc/localtime:ro
@@ -74,6 +75,7 @@ services:
 
   redis:
     image: redis:8.0.3-bookworm
+    command: --requirepass ${REDIS_PASSWORD:-your-redis-password}
     volumes:
       - redis_data:/data
       - /etc/timezone:/etc/timezone:ro

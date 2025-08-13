@@ -102,6 +102,7 @@ REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # D
 PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', 'your-redis-password')
 REDIS_DB = int(os.environ.get('REDIS_DB', 0))
 REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
 REDIS_HISTORY_DB = int(os.environ.get('REDIS_HISTORY_DB', 2))
@@ -166,6 +167,7 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_DB,
+        password=REDIS_PASSWORD,
         decode_responses=True,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
@@ -174,7 +176,7 @@ try:
     )
     redis_client = redis.Redis(connection_pool=redis_pool)
     redis_client.ping()
-    logger.info("Successfully connected to Redis (app data) with connection pooling")
+    logger.info(f"Successfully connected to Redis (app data) with connection pooling and password authentication. Pool size: {REDIS_MAX_CONNECTIONS}")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (app data): {str(e)}")
     raise  # Remove MockRedis fallback, fail hard if Redis is unavailable
@@ -186,6 +188,7 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_SESSION_DB,  # Use a different DB for sessions
+        password=REDIS_PASSWORD,
         decode_responses=False,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
@@ -194,7 +197,7 @@ try:
     )
     session_redis = redis.Redis(connection_pool=session_redis_pool)
     session_redis.ping()
-    logger.info("Successfully connected to Redis (session data) with connection pooling")
+    logger.info("Successfully connected to Redis (session data) with connection pooling and password authentication")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (session data): {str(e)}")
     session_redis = None
@@ -205,6 +208,7 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_HISTORY_DB,  # Use a different DB for history data
+        password=REDIS_PASSWORD,
         decode_responses=True,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
@@ -213,7 +217,7 @@ try:
     )
     history_redis = redis.Redis(connection_pool=history_redis_pool)
     history_redis.ping()
-    logger.info("Successfully connected to Redis (history data) with connection pooling")
+    logger.info("Successfully connected to Redis (history data) with connection pooling and password authentication")
     
     # Initialize key managers
     history_key_manager = OptimizedKeyManager(history_redis)
