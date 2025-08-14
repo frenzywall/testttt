@@ -2690,7 +2690,7 @@ function deleteHistoryItem(timestamp, itemElement) {
         })
         .then(response => response.json())
         .then(result => {
-            // Add artificial delay of 1.5 seconds
+            // Add artificial delay of 0.8 seconds
             setTimeout(() => {
                 document.body.removeChild(loadingEl);
                 if (result.status === 'success') {
@@ -2726,7 +2726,7 @@ function deleteHistoryItem(timestamp, itemElement) {
                 } else {
                     createNotification('error', 'Error deleting history item: ' + (result.message || 'Unknown error'));
                 }
-            }, 1200); 
+            }, 600); 
         })
         .catch(error => {
             document.body.removeChild(loadingEl);

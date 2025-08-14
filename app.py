@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, make_response, redirect, url_for, Response, stream_with_context
 from datetime import datetime, timezone, timedelta
 from dateutil import parser
-import pytz
 import extract_msg
 import requests
 import os
@@ -24,7 +23,6 @@ from flask_session import Session
 
 # Thread synchronization for search index operations
 search_index_lock = threading.Lock()
-searchhaus_index_busy = False
 search_index_last_rebuild = 0
 
 
@@ -238,6 +236,14 @@ Session(app)
 
 # --- Session Timeout and Forced Logout Enhancements ---
 LOGOUT_VERSION_HASH_KEY = 'logout_versions'  # Redis hash to store all user logout_versions
+
+
+# Clear any stale search index busy flag on startup
+try:
+    redis_client.delete('search_index_busy')
+    logger.info("Cleared stale search index busy flag on startup")
+except Exception as e:
+    logger.warning(f"Could not clear stale search index busy flag on startup: {str(e)}")
 
 
 
@@ -2003,49 +2009,75 @@ def create_search_index():
     Create Redis search index for O(1) search performance with pipelining
     
     Thread Safety:
-    - Uses threading.Lock() to prevent concurrent index rebuilds
+    - Uses Redis to coordinate between worker processes
+    - Uses threading.Lock() to prevent concurrent index rebuilds within same process
     - Tracks rebuild status to avoid unnecessary operations
-    - Implements debouncing (minimum 5 seconds between rebuilds)
+    - No debouncing: rebuilds are allowed immediately when not busy
     """
-    global searchhaus_index_busy, search_index_last_rebuild
+    global search_index_last_rebuild
     
-    # Thread safety: Check if another rebuild is in progress
-    if searchhaus_index_busy:
-        logger.info("Search index rebuild already in progress, skipping...")
-        return
+    # Use Redis to coordinate between worker processes
+    search_busy_key = 'search_index_busy'
+    search_last_rebuild_key = 'search_index_last_rebuild'
     
-    # Debouncing: Prevent too frequent rebuilds (minimum 5 seconds apart)
-    current_time = time.time()
-    if current_time - search_index_last_rebuild < 5:
-        logger.info("Search index rebuild too recent, skipping...")
-        return
+    # Check if another process is already rebuilding
+    try:
+        if redis_client.get(search_busy_key):
+            logger.info("Search index rebuild already in progress (by another process), skipping...")
+            return
+    except Exception as e:
+        logger.warning(f"Could not check Redis for search index status: {str(e)}")
     
-    # Acquire lock to prevent concurrent rebuilds
+    # Acquire lock to prevent concurrent rebuilds within this process
     with search_index_lock:
+        # Double-check Redis after acquiring lock
         try:
-            # Set busy flag
-            searchhaus_index_busy = True
+            if redis_client.get(search_busy_key):
+                logger.info("Search index rebuild already in progress (by another process), skipping...")
+                return
+        except Exception as e:
+            logger.warning(f"Could not check Redis for search index status: {str(e)}")
+        
+        # No debouncing: proceed if not busy
+        current_time = time.time()
+        
+        # Set busy flag in Redis (with 10 minute expiry to prevent stuck locks)
+        try:
+            redis_client.setex(search_busy_key, 600, '1')
+            redis_client.set(search_last_rebuild_key, str(current_time))
             search_index_last_rebuild = current_time
-            
+        except Exception as e:
+            logger.error(f"Could not set Redis search index status: {str(e)}")
+            return
+        try:
             logger.info("Starting search index rebuild...")
             
             if not history_redis or not history_key_manager:
                 logger.error("History Redis client not available")
                 return
             
-            # Get all timestamps from metadata sorted set
+            # Get metadata key and total count
             metadata_key = history_key_manager.get_metadata_key()
-            all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
-            if not all_timestamps:
+            total_count = history_redis.zcard(metadata_key)
+            if total_count == 0:
                 logger.info("No history data found for indexing")
                 return
-            
-            # Use pipelining for bulk operations
+
+            # First, clear existing search indexes and caches
+            def clear_search_keys_with_scan(pattern):
+                keys_to_delete = []
+                cursor = 0
+                while True:
+                    cursor, keys = history_redis.scan(cursor, match=pattern, count=100)
+                    keys_to_delete.extend(keys)
+                    if cursor == 0:
+                        break
+                return keys_to_delete
+
             with history_redis.pipeline() as pipe:
-                # Clear existing search indexes
-                search_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:title:*')
-                date_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:date:*')
-                editor_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:editor:*')
+                search_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:title:*')
+                date_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:date:*')
+                editor_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:editor:*')
                 if search_keys:
                     pipe.delete(*search_keys)
                     logger.debug(f"Cleared {len(search_keys)} title search keys")
@@ -2055,74 +2087,78 @@ def create_search_index():
                 if editor_keys:
                     pipe.delete(*editor_keys)
                     logger.debug(f"Cleared {len(editor_keys)} editor search keys")
-                
                 # Clear search caches when rebuilding index
                 clear_partial_search_cache()
                 clear_failed_search_cache()
-                
-                # Queue all index operations
-                indexed_count = 0
-                for metadata_json, timestamp in all_timestamps:
-                    # Get the full item to extract title and date
-                    item = get_history_item_by_timestamp(timestamp)
-                    if not item:
-                        continue
-                        
-                    title = item.get('title', '').lower().strip()
-                    date = item.get('date', '').lower().strip()
-                    
-                    # Get last_edited_by from the data field
-                    last_edited_by = ''
-                    if item.get('data') and item['data'].get('last_edited_by'):
-                        last_edited_by = item['data']['last_edited_by'].lower().strip()
-                    
-                    if not timestamp:
-                        continue
-                    
-                    # Index by title words
-                    if title:
-                        for word in title.split():
-                            if word:  # Skip empty words
-                                search_key = history_key_manager.get_search_key('title', word)
-                                pipe.sadd(search_key, timestamp)
-                    
-                    # Index by date and date components
-                    if date:
-                        date_search_key = history_key_manager.get_search_key('date', date)
-                        pipe.sadd(date_search_key, timestamp)
-                        
-                        # Also index date components for partial matching
-                        date_parts = date.split('-')
-                        for part in date_parts:
-                            if part:
-                                part_search_key = history_key_manager.get_search_key('date', part)
-                                pipe.sadd(part_search_key, timestamp)
-                    
-                    # Index by last_edited_by
-                    if last_edited_by:
-                        # Index the full editor name
-                        editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
-                        pipe.sadd(editor_search_key, timestamp)
-                        
-                        # Also index editor name components for partial matching
-                        editor_parts = last_edited_by.split()
-                        for part in editor_parts:
-                            if part and len(part) > 2:  # Only index parts longer than 2 chars
-                                part_search_key = history_key_manager.get_search_key('editor', part)
-                                pipe.sadd(part_search_key, timestamp)
-                    
-                    indexed_count += 1
-                
-                # Execute all operations in single network round trip
                 pipe.execute()
-                
-                logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
+
+            # Page through ZSET to avoid loading everything into memory at once
+            indexed_count = 0
+            page_size = 500
+            for start in range(0, total_count, page_size):
+                end = min(start + page_size - 1, total_count - 1)
+                page = history_redis.zrevrange(metadata_key, start, end, withscores=True)
+                if not page:
+                    continue
+
+                with history_redis.pipeline() as pipe:
+                    for metadata_json, score in page:
+                        # Use score as the timestamp
+                        timestamp = score
+                        # Get the full item to extract title and date
+                        item = get_history_item_by_timestamp(timestamp)
+                        if not item:
+                            continue
+
+                        title = item.get('title', '').lower().strip()
+                        date = item.get('date', '').lower().strip()
+
+                        last_edited_by = ''
+                        if item.get('data') and item['data'].get('last_edited_by'):
+                            last_edited_by = item['data']['last_edited_by'].lower().strip()
+
+                        if not timestamp:
+                            continue
+
+                        if title:
+                            for word in title.split():
+                                if word:
+                                    search_key = history_key_manager.get_search_key('title', word)
+                                    pipe.sadd(search_key, timestamp)
+
+                        if date:
+                            date_search_key = history_key_manager.get_search_key('date', date)
+                            pipe.sadd(date_search_key, timestamp)
+
+                            date_parts = date.split('-')
+                            for part in date_parts:
+                                if part:
+                                    part_search_key = history_key_manager.get_search_key('date', part)
+                                    pipe.sadd(part_search_key, timestamp)
+
+                        if last_edited_by:
+                            editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
+                            pipe.sadd(editor_search_key, timestamp)
+
+                            editor_parts = last_edited_by.split()
+                            for part in editor_parts:
+                                if part and len(part) > 2:
+                                    part_search_key = history_key_manager.get_search_key('editor', part)
+                                    pipe.sadd(part_search_key, timestamp)
+
+                        indexed_count += 1
+                    pipe.execute()
+
+            logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
         
         except Exception as e:
             logger.error(f"Error creating search index: {str(e)}")
         finally:
-            # Always clear busy flag, even on error
-            searchhaus_index_busy = False
+            # Always clear busy flag in Redis, even on error
+            try:
+                redis_client.delete('search_index_busy')
+            except Exception as e:
+                logger.warning(f"Could not clear Redis search index busy flag: {str(e)}")
 
 def search_history_redis_optimized(search_term):
     """Hybrid search: Redis filtering + intelligent scoring with failed search cache"""
@@ -2321,7 +2357,13 @@ def apply_search_scoring(entry, search_lower):
 
 def is_search_index_busy():
     """Check if search index rebuild is currently in progress"""
-    return searchhaus_index_busy
+    try:
+        return bool(redis_client.get('search_index_busy'))
+    except Exception as e:
+        logger.warning(f"Could not check Redis for search index status: {str(e)}")
+        return False
+
+ 
 
 def clear_failed_search_cache():
     """
