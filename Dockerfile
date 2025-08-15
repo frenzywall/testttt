@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-FROM python:3.13-alpine
+FROM python:3.13-alpine AS final
 ENV PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
     FLASK_APP=app.py \

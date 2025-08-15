@@ -2002,7 +2002,12 @@ function setupUpdateChecker() {
             method: 'GET',
             cache: 'no-store'
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (wasOffline) {
                 showOfflineNotch(true); // Show back online message
@@ -2042,7 +2047,18 @@ function setupUpdateChecker() {
             // Remove offline notch if present (let the back online message handle removal)
         })
         .catch(error => {
-            console.error('Error checking for updates:', error);
+            // Handle different types of errors gracefully
+            if (error.message && error.message.includes('HTTP')) {
+                // HTTP error (like 401, 404, etc.)
+                console.log('Update check failed:', error.message);
+            } else if (error.message && error.message.includes('Unexpected token')) {
+                // JSON parsing error (session expired, redirected to login)
+                console.log('Session expired or redirected to login page');
+            } else {
+                // Other errors (network, etc.)
+                console.error('Error checking for updates:', error);
+            }
+            
             failedChecks++;
             if (failedChecks >= maxFails && !wasOffline) {
                 showOfflineNotch(false);
@@ -3704,7 +3720,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             sse.addEventListener('role-change', function(e) {
-                // Parse the event data
+                    // Parse the event data
                 let data;
                 try {
                     data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
@@ -3964,10 +3980,7 @@ window.sseSource.addEventListener('user-logout', function(e) {
         duration: 4.6,
         gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
     });
-    // Optionally, show a notification to the admin
-    if (window.createNotification) {
-        createNotification(`User <b>${data.username}</b> was logged out by <b>${data.by}</b>.`, 'info', 3500);
-    }
+    // Removed notification to avoid double notifications - the green success notification is sufficient
 });
 // ... existing code ...
 

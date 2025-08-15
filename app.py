@@ -20,6 +20,8 @@ import bcrypt
 import threading
 from flask import g
 from flask_session import Session
+from collections import defaultdict
+import queue
 
 # Thread synchronization for search index operations
 search_index_lock = threading.Lock()
@@ -170,7 +172,9 @@ try:
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     redis_client = redis.Redis(connection_pool=redis_pool)
     redis_client.ping()
@@ -191,7 +195,9 @@ try:
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     session_redis = redis.Redis(connection_pool=session_redis_pool)
     session_redis.ping()
@@ -211,7 +217,9 @@ try:
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     history_redis = redis.Redis(connection_pool=history_redis_pool)
     history_redis.ping()
@@ -894,34 +902,171 @@ def publish_sse_event(username, event_type, data=None):
     channel = f'{SSE_CHANNEL_PREFIX}{username}'
     payload = {'event': event_type, 'data': data or {}}
     logger.info(f"Publishing SSE event '{event_type}' to {channel}: {payload}")
-    redis_client.publish(channel, json.dumps(payload))
+    try:
+        redis_client.publish(channel, json.dumps(payload))
+        logger.debug(f"Successfully published SSE event to {channel}")
+    except Exception as e:
+        logger.error(f"Failed to publish SSE event to {channel}: {str(e)}")
 
-# SSE endpoint for logged-in user
+# --- Centralized SSE Management ---
+import threading
+import queue
+from collections import defaultdict
+
+# Global SSE manager - shared across all workers via Redis
+SSE_QUEUE_PREFIX = 'sse_queue_'
+sse_queues = defaultdict(queue.Queue)  # Local user-specific queues for events
+sse_lock = threading.Lock()  # For thread-safe access
+sse_listener_running = True
+sse_connection_counter = 0  # Counter for unique connection IDs
+
+def sse_background_listener():
+    """Background thread to listen for Redis Pub/Sub messages and route them to user queues"""
+    global sse_listener_running
+    pubsub = None
+    try:
+        pubsub = redis_client.pubsub()
+        pubsub.psubscribe(f'{SSE_CHANNEL_PREFIX}*')  # Subscribe to all user channels
+        logger.info("SSE background listener started successfully")
+        
+        for message in pubsub.listen():
+            if not sse_listener_running:
+                break
+            try:
+                if message['type'] == 'pmessage':
+                    channel = message['channel']
+                    username = channel.split(SSE_CHANNEL_PREFIX)[1]
+                    payload = json.loads(message['data'])
+                    
+                    # Store message in Redis for cross-worker access (ephemeral - 15 seconds max)
+                    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+                    try:
+                        # Use pipeline for atomic operations
+                        with redis_client.pipeline() as pipe:
+                            pipe.lpush(queue_key, json.dumps(payload))
+                            pipe.expire(queue_key, 15)  # Expire after 15 seconds
+                            pipe.llen(queue_key)
+                            results = pipe.execute()
+                            
+                            # Limit queue size to prevent memory buildup (keep only last 5 messages)
+                            if results[2] > 5:  # llen result
+                                redis_client.ltrim(queue_key, 0, 4)  # Keep only first 5 elements
+                    except Exception as e:
+                        logger.error(f"Error storing SSE message in Redis: {str(e)}")
+                    
+                    # Store in all local queues for this user (multiple browser connections)
+                    with sse_lock:
+                        # Find all queues for this user
+                        for queue_name, user_queue in sse_queues.items():
+                            if queue_name.startswith(f"{username}_"):
+                                user_queue.put(payload)
+            except Exception as e:
+                logger.error(f"Error processing SSE message: {str(e)}")
+                continue
+    except Exception as e:
+        logger.error(f"SSE background listener error: {str(e)}")
+    finally:
+        if pubsub:
+            try:
+                pubsub.close()
+            except:
+                pass
+        logger.info("SSE background listener stopped")
+
+# Start the background listener thread on app startup
+sse_thread = threading.Thread(target=sse_background_listener, daemon=True)
+sse_thread.start()
+
+# Clear any stale SSE data on startup
+try:
+    pattern = f'{SSE_QUEUE_PREFIX}*'
+    keys = redis_client.keys(pattern)
+    if keys:
+        redis_client.delete(*keys)
+        logger.info(f"Cleared {len(keys)} stale SSE queue keys on startup")
+except Exception as e:
+    logger.warning(f"Failed to clear stale SSE data: {str(e)}")
+
+# Graceful shutdown handler
+import atexit
+def cleanup_sse():
+    global sse_listener_running
+    sse_listener_running = False
+    logger.info("SSE cleanup initiated")
+
+atexit.register(cleanup_sse)
+
+# --- SSE Endpoint Update ---
 @app.route('/events')
 def sse_events():
     username = session.get('username')
     if not username:
         return Response('Unauthorized', status=401)
     
-    channel = f'{SSE_CHANNEL_PREFIX}{username}'
-    pubsub = redis_client.pubsub()
-    pubsub.subscribe(channel)
-
+    # Create unique connection ID for this SSE connection
+    global sse_connection_counter
+    with sse_lock:
+        sse_connection_counter += 1
+        connection_id = f"{username}_{sse_connection_counter}"
+        sse_queues[connection_id] = queue.Queue()
+    
+    # Check for any pending messages in Redis for this user
+    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+    try:
+        # Get any pending messages from Redis (up to 10 to avoid blocking)
+        for _ in range(10):
+            redis_payload = redis_client.rpop(queue_key)
+            if redis_payload:
+                payload = json.loads(redis_payload)
+                sse_queues[connection_id].put(payload)
+            else:
+                break
+    except Exception as e:
+        logger.warning(f"Error checking Redis queue for {username}: {str(e)}")
+    
     def event_stream():
+        last_heartbeat = time.time()
         try:
             while True:
-                message = pubsub.get_message(timeout=1.0)
-                if message and message['type'] == 'message':
-                    payload = json.loads(message['data'])
+                current_time = time.time()
+                # Send heartbeat every 15 seconds to keep connection alive
+                if current_time - last_heartbeat > 15:
+                    yield ': heartbeat\n\n'  # Keep-alive comment
+                    last_heartbeat = current_time
+                
+                try:
+                    # First try local queue (fastest)
+                    payload = sse_queues[connection_id].get(timeout=0.1)
                     event = payload.get('event')
                     data = payload.get('data', {})
                     yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
-                time.sleep(0.5)
+                except queue.Empty:
+                    # If local queue is empty, check Redis queue (cross-worker)
+                    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+                    try:
+                        redis_payload = redis_client.rpop(queue_key)
+                        if redis_payload:
+                            payload = json.loads(redis_payload)
+                            event = payload.get('event')
+                            data = payload.get('data', {})
+                            yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
+                    except Exception as e:
+                        # Redis error, continue with heartbeat
+                        pass
+                except Exception as e:
+                    logger.error(f"SSE queue error for {connection_id}: {str(e)}")
+                    break  # Exit on error to prevent hanging
         finally:
-            pubsub.close()
+            # Cleanup queue on disconnect
+            with sse_lock:
+                if connection_id in sse_queues:
+                    # Double-check if queue is empty after lock
+                    if sse_queues[connection_id].empty():
+                        del sse_queues[connection_id]
     
-    headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-    return Response(stream_with_context(event_stream()), headers=headers)
+    return Response(stream_with_context(event_stream()), 
+                   mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 # --- Update admin logout to use SSE ---
 @app.route('/admin-logout-user', methods=['POST'])
