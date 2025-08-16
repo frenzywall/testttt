@@ -938,28 +938,31 @@ def sse_background_listener():
                     username = channel.split(SSE_CHANNEL_PREFIX)[1]
                     payload = json.loads(message['data'])
                     
-                    # Store message in Redis for cross-worker access (ephemeral - 15 seconds max)
-                    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
-                    try:
-                        # Use pipeline for atomic operations
-                        with redis_client.pipeline() as pipe:
-                            pipe.lpush(queue_key, json.dumps(payload))
-                            pipe.expire(queue_key, 15)  # Expire after 15 seconds
-                            pipe.llen(queue_key)
-                            results = pipe.execute()
-                            
-                            # Limit queue size to prevent memory buildup (keep only last 5 messages)
-                            if results[2] > 5:  # llen result
-                                redis_client.ltrim(queue_key, 0, 4)  # Keep only first 5 elements
-                    except Exception as e:
-                        logger.error(f"Error storing SSE message in Redis: {str(e)}")
-                    
                     # Store in all local queues for this user (multiple browser connections)
                     with sse_lock:
                         # Find all queues for this user
+                        user_queues_found = False
                         for queue_name, user_queue in sse_queues.items():
                             if queue_name.startswith(f"{username}_"):
                                 user_queue.put(payload)
+                                user_queues_found = True
+                        
+                        # Only store in Redis if no local queues exist (cross-worker fallback)
+                        if not user_queues_found:
+                            queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+                            try:
+                                # Use pipeline for atomic operations
+                                with redis_client.pipeline() as pipe:
+                                    pipe.lpush(queue_key, json.dumps(payload))
+                                    pipe.expire(queue_key, 15)  # Expire after 15 seconds
+                                    pipe.llen(queue_key)
+                                    results = pipe.execute()
+                                    
+                                    # Limit queue size to prevent memory buildup (keep only last 5 messages)
+                                    if results[2] > 5:  # llen result
+                                        redis_client.ltrim(queue_key, 0, 4)  # Keep only first 5 elements
+                            except Exception as e:
+                                logger.error(f"Error storing SSE message in Redis: {str(e)}")
             except Exception as e:
                 logger.error(f"Error processing SSE message: {str(e)}")
                 continue

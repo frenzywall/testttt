@@ -3689,9 +3689,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ... SSE for logout and login updates ---
-    if (window.EventSource) {
+    if (window.EventSource && !window.mainSSE) {
         try {
-            const sse = new EventSource('/events');
+            window.mainSSE = new EventSource('/events');
+            const sse = window.mainSSE;
             sse.addEventListener('logout', function(e) {
                 // Clear local reauth cache on SSE logout
                 localStorage.removeItem('reauthUntil');
@@ -3767,7 +3768,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (err) {
                     data = e.data;
                 }
-                // --- removed debug logs ---
+
                 if (data && data.username && data.last_login) {
                     // Find the user card/info for this username
                     document.querySelectorAll('.user-card').forEach(function(card) {
@@ -3849,6 +3850,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (data && data.timestamp && data.title) {
+                    // Create unique ID for this history notification to prevent duplicates
+                    const historyNotificationId = `history-${data.timestamp}`;
+                    
+                    // Check if this specific history notification already exists
+                    const existingHistoryNotification = document.getElementById(historyNotificationId);
+                    if (existingHistoryNotification) {
+                        return; // Already showing this history notification
+                    }
+                    
                     // Wait 3 seconds before showing the history notification
                     setTimeout(() => {
                         // Clear existing notifications before creating new ones
@@ -3862,6 +3872,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 `You are viewing a history item: <strong>${data.title}</strong>`, 
                                 true // persistent
                             );
+                            
+                            // Add unique ID to prevent duplicates
+                            notification.id = historyNotificationId;
                             
                             // Add refresh button to the notification
                             const refreshBtn = document.createElement('button');
@@ -3889,6 +3902,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         }, 500); // Wait 500ms for any existing notifications to complete
                     }, 3000); // Wait 3 seconds before showing the history notification
                 }
+            });
+            
+            // Add user-logout event listener (merged from duplicate EventSource)
+            sse.addEventListener('user-logout', function(e) {
+                // Admin sees when any user is logged out
+                const data = JSON.parse(e.data || '{}');
+                showTopBarAnimation({
+                    color: '#ef4444',
+                    glow: true,
+                    id: 'logout-bar',
+                    duration: 4.6,
+                    gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
+                });
+                // Removed notification to avoid double notifications - the green success notification is sufficient
             });
         } catch (e) {
             // SSE not supported or failed
@@ -3949,39 +3976,6 @@ function showTopBarAnimation({color, glow, id, duration, gradient}) {
     setTimeout(() => { bar.remove(); styleSheet.remove(); }, (duration || 2.2) * 1000);
 }
 
-// ... existing code ...
-if (window.sseSource) window.sseSource.close();
-window.sseSource = new EventSource('/events');
-window.sseSource.addEventListener('logout', function(e) {
-    // Clear local reauth cache on SSE logout
-    localStorage.removeItem('reauthUntil');
-    localStorage.removeItem('reauthUser');
-    // Clear all local caches on logout
-    if (window.historyCache) {
-        window.historyCache.invalidateCache();
-    }
-    // User is being logged out (session expired or admin kickout)
-    showTopBarAnimation({
-        color: '#ef4444',
-        glow: true,
-        id: 'logout-bar',
-        duration: 4.6,
-        gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
-    });
-    setTimeout(function() { window.location.href = '/login'; }, 1200);
-});
-window.sseSource.addEventListener('user-logout', function(e) {
-    // Admin sees when any user is logged out
-    const data = JSON.parse(e.data || '{}');
-    showTopBarAnimation({
-        color: '#ef4444',
-        glow: true,
-        id: 'logout-bar',
-        duration: 4.6,
-        gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'
-    });
-    // Removed notification to avoid double notifications - the green success notification is sufficient
-});
 // ... existing code ...
 
 document.addEventListener('DOMContentLoaded', function() {
