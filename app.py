@@ -1425,7 +1425,11 @@ def index():
             msg = extract_msg.Message(temp_path)
             maintenance_date = extract_date_from_subject(msg.subject)
             if not maintenance_date:
-                msg_date = parser.parse(msg.date)
+                # Check if msg.date is already a datetime object or a string
+                if isinstance(msg.date, datetime):
+                    msg_date = msg.date
+                else:
+                    msg_date = parser.parse(msg.date)
                 maintenance_date = msg_date.strftime("%Y-%m-%d")
 
             email_data = {

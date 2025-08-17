@@ -31,7 +31,7 @@ function showProfileModal(user) {
                             <input type="text" id="newPw" placeholder="New Password">
                             <button id="submitPwBtn" class="btn success-btn">Update Password</button>
                         </div>
-                        <div class="add-user-card">
+                        <div class="add-user-card" style="display:none;">
                           <div class="add-user-card-inner">
                             <div class="add-user-header" style="display:flex;align-items:center;justify-content:space-between;">
                               <h4 style="margin:0;"><i class="fas fa-user-plus"></i> Add New User</h4>
@@ -54,7 +54,7 @@ function showProfileModal(user) {
                         </div>
 
                     </div>
-                    <div class="profile-right">
+                    <div class="profile-right" style="display:none;">
                         <div id="adminSection" style="margin:0;">
                             <h3>User Management</h3>
                             <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.3rem;">
@@ -343,6 +343,8 @@ function showProfileModal(user) {
         let userSortOrder = 'desc'; // 'desc' for newest first, 'asc' for oldest first
         // Load actions visibility preference from localStorage, default to true
         let actionsVisible = localStorage.getItem('userActionsVisible') !== 'false'; // Default to true if not set
+        let cachedUsers = []; // Cache users client-side to avoid repeated API calls
+        let searchDebounceTimer = null; // Debounce timer for search input
         // Format a Date into a human friendly relative string
         function formatRelativeTime(dateInput){
             try {
@@ -380,15 +382,35 @@ function showProfileModal(user) {
                 return '-';
             }
         }
-        function refreshUsers(){
-            fetch('/users')
-                .then(r => r.json())
-                .then(data => {
-                    const list = document.getElementById('userList');
-                    list.innerHTML = '';
-                    const users = (data.users||[]);
-                    const searchVal = (document.getElementById('userSearch')?.value||'').toLowerCase();
-                    let filteredUsers = users.filter(uobj => uobj.username.toLowerCase().includes(searchVal));
+        function refreshUsers(forceRefresh = false){
+            if (forceRefresh || cachedUsers.length === 0) {
+                // Only fetch from server if forced refresh or no cached data
+                fetch('/users')
+                    .then(r => r.json())
+                    .then(data => {
+                        cachedUsers = data.users || []; // Cache the users data
+                        renderUserList();
+                    })
+                    .catch(err => {
+                        const list = document.getElementById('userList');
+                        list.innerHTML = '';
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'user-list-empty';
+                        errorMsg.style.cssText = 'padding:2.5rem 0;text-align:center;color:#ef4444;font-size:1.13rem;opacity:0.95;';
+                        errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size:1.5rem;margin-bottom:0.5rem;display:block;"></i>Failed to load users';
+                        list.appendChild(errorMsg);
+                    });
+            } else {
+                // Use cached data for client-side filtering
+                renderUserList();
+            }
+        }
+
+        function renderUserList(){
+            const list = document.getElementById('userList');
+            list.innerHTML = '';
+            const searchVal = (document.getElementById('userSearch')?.value||'').toLowerCase();
+            let filteredUsers = cachedUsers.filter(uobj => uobj.username.toLowerCase().includes(searchVal));
                     if(userSortOrder==='desc') {
                         filteredUsers = filteredUsers.slice().sort((a,b)=>{
                             if(a.last_login==='-' && b.last_login==='-') return 0;
@@ -423,7 +445,7 @@ function showProfileModal(user) {
                             actionsVisible = !actionsVisible;
                             // Save preference to localStorage
                             localStorage.setItem('userActionsVisible', actionsVisible.toString());
-                            // Change icon based on state
+                            // Change icon based on state immediately without re-rendering everything
                             const icon = actionsToggleIcon.querySelector('i');
                             if(actionsVisible) {
                                 icon.className = 'fas fa-eye';
@@ -432,7 +454,43 @@ function showProfileModal(user) {
                                 icon.className = 'fas fa-eye-slash';
                                 actionsToggleIcon.title = 'Show Action Buttons';
                             }
-                            refreshUsers();
+                            // Only update the visibility of action buttons without full re-render
+                            const allActionElements = document.querySelectorAll('.user-actions');
+                            allActionElements.forEach(actionEl => {
+                                actionEl.style.display = actionsVisible ? 'flex' : 'none';
+                            });
+                            
+                            // Update login time display format (absolute vs relative)
+                            const allLoginElements = document.querySelectorAll('.user-last-login');
+                            allLoginElements.forEach((loginEl, index) => {
+                                const userObj = cachedUsers.filter(uobj => uobj.username.toLowerCase().includes((document.getElementById('userSearch')?.value||'').toLowerCase()))[index];
+                                if (userObj) {
+                                    const rawLastLogin = userObj.last_login || '-';
+                                    let absoluteLastLogin = rawLastLogin;
+                                    let relativeLastLogin = rawLastLogin;
+                                    
+                                    if (rawLastLogin && rawLastLogin !== '-') {
+                                        try {
+                                            const d = new Date(rawLastLogin);
+                                            if (!isNaN(d)) {
+                                                absoluteLastLogin = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                                relativeLastLogin = formatRelativeTime(d);
+                                            }
+                                        } catch (e) {}
+                                    }
+                                    
+                                    // Update the display based on actionsVisible state
+                                    if (actionsVisible) {
+                                        loginEl.innerHTML = `Last login: <b>${absoluteLastLogin}</b> <i class="fas fa-sync-alt last-login-refresh" style="margin-left:6px;"></i>`;
+                                        loginEl.style.opacity = '';
+                                        loginEl.style.marginTop = '';
+                                    } else {
+                                        loginEl.innerHTML = `Last login: <b>${relativeLastLogin}</b>`;
+                                        loginEl.style.opacity = '0.9';
+                                        loginEl.style.marginTop = '2px';
+                                    }
+                                }
+                            });
                         };
                         // Set initial title
                         actionsToggleIcon.title = actionsVisible ? 'Hide Action Buttons' : 'Show Action Buttons';
@@ -632,6 +690,8 @@ function showProfileModal(user) {
                                 }).then(r=>r.json()).then(data=>{
                                     if(data.status==='success') {
                                         createNotification('success', 'Password updated successfully!');
+                                        // Update cached users after password change
+                                        refreshUsers(true);
                                         setTimeout(()=>{
                                             restoreLayout();
                                         }, 500);
@@ -717,7 +777,7 @@ function showProfileModal(user) {
                                 }).then(r=>r.json()).then(data=>{
                                     if(data.status==='success') {
                                         createNotification('success', data.message || `User ${u} role updated successfully!`);
-                                        refreshUsers(); // Refresh the user list to update the UI
+                                        refreshUsers(true); // Force server refresh after role change
                                     } else {
                                         createNotification('error', data.message || 'Failed to update user role');
                                     }
@@ -743,7 +803,7 @@ function showProfileModal(user) {
                                     body:JSON.stringify({username:u})
                                 }).then(r=>r.json()).then(data=>{
                                     if(data.status==='success') {
-                                        refreshUsers();
+                                        refreshUsers(true); // Force server refresh after user deletion
                                         createNotification('success', 'User deleted successfully!');
                                     } else {
                                         createNotification('error', data.message || 'Failed to delete user');
@@ -757,21 +817,20 @@ function showProfileModal(user) {
                         scrollWrap.appendChild(card);
                     });
                     list.appendChild(scrollWrap);
-                })
-                .catch(err => {
-                    const list = document.getElementById('userList');
-                    list.innerHTML = '';
-                    const errorMsg = document.createElement('div');
-                    errorMsg.className = 'user-list-empty';
-                    errorMsg.style.cssText = 'padding:2.5rem 0;text-align:center;color:#ef4444;font-size:1.13rem;opacity:0.95;';
-                    errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size:1.5rem;margin-bottom:0.5rem;display:block;"></i>Failed to load users';
-                    list.appendChild(errorMsg);
-                });
         }
-        refreshUsers();
+        refreshUsers(true); // Initial load with server fetch
         const userSearch = document.getElementById('userSearch');
         if(userSearch) {
-            userSearch.oninput = refreshUsers;
+            userSearch.oninput = function() {
+                // Clear previous timer
+                if (searchDebounceTimer) {
+                    clearTimeout(searchDebounceTimer);
+                }
+                // Set new timer for debounced search (client-side filtering only)
+                searchDebounceTimer = setTimeout(() => {
+                    refreshUsers(false); // Use cached data for filtering
+                }, 150); // 150ms debounce
+            };
         }
         // Sort icon logic
         const userSortIcon = document.getElementById('userSortIcon');
@@ -787,7 +846,7 @@ function showProfileModal(user) {
                     icon.className = 'fas fa-sort-amount-up-alt';
                     userSortIcon.title = 'Sort by Last Login (Oldest First)';
                 }
-                refreshUsers();
+                renderUserList(); // Just re-render with new sort order, no server fetch needed
             };
             // Set initial icon
             userSortIcon.title = 'Sort by Last Login (Newest First)';
@@ -797,7 +856,7 @@ function showProfileModal(user) {
         if(userRefreshIcon) {
             userRefreshIcon.onclick = function() {
                 userRefreshIcon.classList.add('spinning');
-                Promise.resolve(refreshUsers()).finally(() => {
+                Promise.resolve(refreshUsers(true)).finally(() => { // Force refresh from server
                     setTimeout(() => userRefreshIcon.classList.remove('spinning'), 600);
                 });
             };
@@ -837,7 +896,7 @@ function showProfileModal(user) {
                     msgDiv.textContent = '';
                     msgDiv.className = 'profile-msg';
                 }, 2500);
-                refreshUsers();
+                refreshUsers(true); // Force server refresh to get new user
             }).catch(()=>{
                 msgDiv.textContent = 'Unable to add user';
                 msgDiv.className = 'profile-msg error-msg';
