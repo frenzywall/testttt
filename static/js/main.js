@@ -335,8 +335,8 @@ document.getElementById('addRow').addEventListener('click', function() {
                 <div class="impact-option impact-option-low selected" data-value="low">
                 <span class="impact-dot"></span> Low
                 </div>
-                <div class="impact-option impact-option-medium" data-value="medium">
-                <span class="impact-dot"></span> Medium
+                                <div class="impact-option impact-option-medium" data-value="medium">
+                    <span class="impact-dot"></span> Med
                 </div>
                 <div class="impact-option impact-option-high" data-value="high">
                 <span class="impact-dot"></span> High
@@ -1518,8 +1518,8 @@ newRow.innerHTML = `
     <div class="impact-option impact-option-low ${priority === 'low' ? 'selected' : ''}" data-value="low">
       <span class="impact-dot"></span> Low
     </div>
-    <div class="impact-option impact-option-medium ${priority === 'medium' ? 'selected' : ''}" data-value="medium">
-      <span class="impact-dot"></span> Medium
+                    <div class="impact-option impact-option-medium ${priority === 'medium' ? 'selected' : ''}" data-value="medium">
+                    <span class="impact-dot"></span> Med
     </div>
     <div class="impact-option impact-option-high ${priority === 'high' ? 'selected' : ''}" data-value="high">
       <span class="impact-dot"></span> High
@@ -2900,7 +2900,7 @@ function loadHistoryItem(timestamp, viewOnly = false) {
                     <span class="impact-dot"></span> Low
                   </div>
                   <div class="impact-option impact-option-medium ${service.priority === 'medium' ? 'selected' : ''}" data-value="medium">
-                    <span class="impact-dot"></span> Medium
+                    <span class="impact-dot"></span> Med
                   </div>
                   <div class="impact-option impact-option-high ${service.priority === 'high' ? 'selected' : ''}" data-value="high">
                     <span class="impact-dot"></span> High
