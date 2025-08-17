@@ -65,6 +65,15 @@ class OptimizedKeyManager:
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
+# Configure proxy trust for reverse proxy support
+trust_proxy = os.environ.get('TRUST_PROXY', 'false').lower() == 'true'
+if trust_proxy:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    logger.info("Proxy trust enabled - will use X-Forwarded headers for client IP detection")
+else:
+    logger.info("Proxy trust disabled - using direct connection IPs")
+
 app.secret_key = os.environ.get('SECRET_KEY')
 if not app.secret_key:
     app.secret_key = secrets.token_hex(16)
@@ -75,6 +84,7 @@ if not app.secret_key:
 # SECRET_KEY: Flask secret key
 # FLASK_DEBUG: Enable Flask debug mode (0/1)
 # PORT: Flask app port
+# TRUST_PROXY: Enable proxy trust for reverse proxy support (true/false)
 # SESSION_TIMEOUT_SECONDS: Session timeout for users (seconds)
 # SESSION_TIMEOUT_HOURS: Session timeout for users (hours)
 # PERMANENT_SESSION_LIFETIME_DAYS: Session lifetime for admin users (days)
