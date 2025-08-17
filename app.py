@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, make_response, redirect, url_for, Response, stream_with_context
 from datetime import datetime, timezone, timedelta
 from dateutil import parser
-import pytz
 import extract_msg
 import requests
 import os
@@ -21,10 +20,11 @@ import bcrypt
 import threading
 from flask import g
 from flask_session import Session
+from collections import defaultdict
+import queue
 
 # Thread synchronization for search index operations
 search_index_lock = threading.Lock()
-searchhaus_index_busy = False
 search_index_last_rebuild = 0
 
 
@@ -102,6 +102,7 @@ REAUTH_TIMEOUT_SECONDS = int(os.environ.get('REAUTH_TIMEOUT_SECONDS', 300))  # D
 PERMANENT_SESSION_LIFETIME_DAYS = int(os.environ.get('PERMANENT_SESSION_LIFETIME_DAYS', 365))
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', 'your-redis-password')
 REDIS_DB = int(os.environ.get('REDIS_DB', 0))
 REDIS_SESSION_DB = int(os.environ.get('REDIS_SESSION_DB', 1))
 REDIS_HISTORY_DB = int(os.environ.get('REDIS_HISTORY_DB', 2))
@@ -166,15 +167,18 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_DB,
+        password=REDIS_PASSWORD,
         decode_responses=True,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     redis_client = redis.Redis(connection_pool=redis_pool)
     redis_client.ping()
-    logger.info("Successfully connected to Redis (app data) with connection pooling")
+    logger.info(f"Successfully connected to Redis (app data) with connection pooling and password authentication. Pool size: {REDIS_MAX_CONNECTIONS}")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (app data): {str(e)}")
     raise  # Remove MockRedis fallback, fail hard if Redis is unavailable
@@ -186,15 +190,18 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_SESSION_DB,  # Use a different DB for sessions
+        password=REDIS_PASSWORD,
         decode_responses=False,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     session_redis = redis.Redis(connection_pool=session_redis_pool)
     session_redis.ping()
-    logger.info("Successfully connected to Redis (session data) with connection pooling")
+    logger.info("Successfully connected to Redis (session data) with connection pooling and password authentication")
 except redis.RedisError as e:
     logger.error(f"Redis connection error (session data): {str(e)}")
     session_redis = None
@@ -205,15 +212,18 @@ try:
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_HISTORY_DB,  # Use a different DB for history data
+        password=REDIS_PASSWORD,
         decode_responses=True,
         max_connections=REDIS_MAX_CONNECTIONS,
         socket_timeout=REDIS_SOCKET_TIMEOUT,
         socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+        retry_on_timeout=True,
+        retry_on_error=[redis.ConnectionError, redis.TimeoutError]
     )
     history_redis = redis.Redis(connection_pool=history_redis_pool)
     history_redis.ping()
-    logger.info("Successfully connected to Redis (history data) with connection pooling")
+    logger.info("Successfully connected to Redis (history data) with connection pooling and password authentication")
     
     # Initialize key managers
     history_key_manager = OptimizedKeyManager(history_redis)
@@ -234,6 +244,14 @@ Session(app)
 
 # --- Session Timeout and Forced Logout Enhancements ---
 LOGOUT_VERSION_HASH_KEY = 'logout_versions'  # Redis hash to store all user logout_versions
+
+
+# Clear any stale search index busy flag on startup
+try:
+    redis_client.delete('search_index_busy')
+    logger.info("Cleared stale search index busy flag on startup")
+except Exception as e:
+    logger.warning(f"Could not clear stale search index busy flag on startup: {str(e)}")
 
 
 
@@ -671,6 +689,17 @@ def get_admin_usernames():
     users = get_users()
     return [u for u, uobj in users.items() if uobj.get('role') == 'admin']
 
+def validate_user_exists(username):
+    """Check if a user exists in the database"""
+    if not username:
+        return False
+    try:
+        users = get_users()
+        return users and username in users
+    except Exception as e:
+        logger.error(f"Error validating user existence for {username}: {str(e)}")
+        return False
+
 # Auth endpoints
 @app.route('/login', methods=['POST'])
 @rate_limit
@@ -712,6 +741,13 @@ def login():
     user['last_login'] = datetime.now(timezone.utc).isoformat()
     users[username] = user
     save_users(users)
+    
+    # Invalidate users cache when login timestamp changes
+    try:
+        redis_client.delete('users_list_cache')
+    except Exception as e:
+        logger.warning(f"Failed to invalidate users cache on login: {e}")
+    
     # Publish SSE login event to all admins
     for admin_username in get_admin_usernames():
         publish_sse_event(admin_username, 'login', {'username': username, 'last_login': user['last_login']})
@@ -751,11 +787,29 @@ def manage_users():
         if users is None:
             return jsonify({'status': 'error', 'message': 'Failed to load users'}), 500
         if request.method == 'GET':
-            # Return users with last_login, sorted by last_login descending (latest first)
+            # Check cache first
+            cache_key = 'users_list_cache'
+            cached_data = redis_client.get(cache_key)
+            
+            if cached_data:
+                try:
+                    return jsonify(json.loads(cached_data))
+                except (json.JSONDecodeError, TypeError):
+                    # Cache corrupted, continue to generate fresh data
+                    pass
+            
+            # Generate fresh user list
             user_list = [
-                {'username': u, 'last_login': users[u].get('last_login', '-'), 'created_by': users[u].get('created_by', 'admin')}
-                for u in users if users[u]['role'] != 'admin']
+                {'username': u, 'last_login': users[u].get('last_login', '-'), 'created_by': users[u].get('created_by', 'admin'), 'role': users[u].get('role', 'user')}
+                for u in users if u != ADMIN_USERNAME]
             user_list.sort(key=lambda x: parse_last_login(x['last_login']), reverse=True)
+            
+            # Cache the result for 5 minutes (300 seconds)
+            try:
+                redis_client.setex(cache_key, 300, json.dumps({'users': user_list}))
+            except Exception as e:
+                logger.warning(f"Failed to cache users list: {e}")
+            
             return jsonify({'users': user_list})
         elif request.method == 'POST':
             data = request.json
@@ -767,6 +821,13 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'User already exists'}), 400
             users[username] = {'username': username, 'password': hash_password(password), 'role': 'user', 'last_login': '-', 'created_by': 'admin'}
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
             return jsonify({'status': 'success'})
         elif request.method == 'DELETE':
             data = request.json
@@ -775,8 +836,20 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'User not found'}), 404
             if users[username]['role'] == 'admin':
                 return jsonify({'status': 'error', 'message': 'Cannot delete admin'}), 400
+            # Prevent deletion of main admin
+            if username == ADMIN_USERNAME:
+                return jsonify({'status': 'error', 'message': 'Cannot delete main admin'}), 400
+            
             del users[username]
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
+            logger.info(f"Admin {session.get('username')} deleted user {username}")
             return jsonify({'status': 'success'})
         elif request.method == 'PUT':
             data = request.json
@@ -790,6 +863,13 @@ def manage_users():
                 return jsonify({'status': 'error', 'message': 'Cannot update admin password here'}), 400
             users[username]['password'] = hash_password(password)
             save_users(users)
+            
+            # Invalidate cache when user data changes
+            try:
+                redis_client.delete('users_list_cache')
+            except Exception as e:
+                logger.warning(f"Failed to invalidate users cache: {e}")
+            
             return jsonify({'status': 'success'})
     except Exception as e:
         logger.error(f"/users route error: {e}")
@@ -812,6 +892,8 @@ def change_password():
     save_users(users)
     return jsonify({'status': 'success'})
 
+
+
 # --- SSE Pub/Sub Setup ---
 SSE_CHANNEL_PREFIX = 'sse_channel_'
 
@@ -820,34 +902,174 @@ def publish_sse_event(username, event_type, data=None):
     channel = f'{SSE_CHANNEL_PREFIX}{username}'
     payload = {'event': event_type, 'data': data or {}}
     logger.info(f"Publishing SSE event '{event_type}' to {channel}: {payload}")
-    redis_client.publish(channel, json.dumps(payload))
+    try:
+        redis_client.publish(channel, json.dumps(payload))
+        logger.debug(f"Successfully published SSE event to {channel}")
+    except Exception as e:
+        logger.error(f"Failed to publish SSE event to {channel}: {str(e)}")
 
-# SSE endpoint for logged-in user
+# --- Centralized SSE Management ---
+import threading
+import queue
+from collections import defaultdict
+
+# Global SSE manager - shared across all workers via Redis
+SSE_QUEUE_PREFIX = 'sse_queue_'
+sse_queues = defaultdict(queue.Queue)  # Local user-specific queues for events
+sse_lock = threading.Lock()  # For thread-safe access
+sse_listener_running = True
+sse_connection_counter = 0  # Counter for unique connection IDs
+
+def sse_background_listener():
+    """Background thread to listen for Redis Pub/Sub messages and route them to user queues"""
+    global sse_listener_running
+    pubsub = None
+    try:
+        pubsub = redis_client.pubsub()
+        pubsub.psubscribe(f'{SSE_CHANNEL_PREFIX}*')  # Subscribe to all user channels
+        logger.info("SSE background listener started successfully")
+        
+        for message in pubsub.listen():
+            if not sse_listener_running:
+                break
+            try:
+                if message['type'] == 'pmessage':
+                    channel = message['channel']
+                    username = channel.split(SSE_CHANNEL_PREFIX)[1]
+                    payload = json.loads(message['data'])
+                    
+                    # Store in all local queues for this user (multiple browser connections)
+                    with sse_lock:
+                        # Find all queues for this user
+                        user_queues_found = False
+                        for queue_name, user_queue in sse_queues.items():
+                            if queue_name.startswith(f"{username}_"):
+                                user_queue.put(payload)
+                                user_queues_found = True
+                        
+                        # Only store in Redis if no local queues exist (cross-worker fallback)
+                        if not user_queues_found:
+                            queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+                            try:
+                                # Use pipeline for atomic operations
+                                with redis_client.pipeline() as pipe:
+                                    pipe.lpush(queue_key, json.dumps(payload))
+                                    pipe.expire(queue_key, 15)  # Expire after 15 seconds
+                                    pipe.llen(queue_key)
+                                    results = pipe.execute()
+                                    
+                                    # Limit queue size to prevent memory buildup (keep only last 5 messages)
+                                    if results[2] > 5:  # llen result
+                                        redis_client.ltrim(queue_key, 0, 4)  # Keep only first 5 elements
+                            except Exception as e:
+                                logger.error(f"Error storing SSE message in Redis: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error processing SSE message: {str(e)}")
+                continue
+    except Exception as e:
+        logger.error(f"SSE background listener error: {str(e)}")
+    finally:
+        if pubsub:
+            try:
+                pubsub.close()
+            except:
+                pass
+        logger.info("SSE background listener stopped")
+
+# Start the background listener thread on app startup
+sse_thread = threading.Thread(target=sse_background_listener, daemon=True)
+sse_thread.start()
+
+# Clear any stale SSE data on startup
+try:
+    pattern = f'{SSE_QUEUE_PREFIX}*'
+    keys = redis_client.keys(pattern)
+    if keys:
+        redis_client.delete(*keys)
+        logger.info(f"Cleared {len(keys)} stale SSE queue keys on startup")
+except Exception as e:
+    logger.warning(f"Failed to clear stale SSE data: {str(e)}")
+
+# Graceful shutdown handler
+import atexit
+def cleanup_sse():
+    global sse_listener_running
+    sse_listener_running = False
+    logger.info("SSE cleanup initiated")
+
+atexit.register(cleanup_sse)
+
+# --- SSE Endpoint Update ---
 @app.route('/events')
 def sse_events():
     username = session.get('username')
     if not username:
         return Response('Unauthorized', status=401)
     
-    channel = f'{SSE_CHANNEL_PREFIX}{username}'
-    pubsub = redis_client.pubsub()
-    pubsub.subscribe(channel)
-
+    # Create unique connection ID for this SSE connection
+    global sse_connection_counter
+    with sse_lock:
+        sse_connection_counter += 1
+        connection_id = f"{username}_{sse_connection_counter}"
+        sse_queues[connection_id] = queue.Queue()
+    
+    # Check for any pending messages in Redis for this user
+    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+    try:
+        # Get any pending messages from Redis (up to 10 to avoid blocking)
+        for _ in range(10):
+            redis_payload = redis_client.rpop(queue_key)
+            if redis_payload:
+                payload = json.loads(redis_payload)
+                sse_queues[connection_id].put(payload)
+            else:
+                break
+    except Exception as e:
+        logger.warning(f"Error checking Redis queue for {username}: {str(e)}")
+    
     def event_stream():
+        last_heartbeat = time.time()
         try:
             while True:
-                message = pubsub.get_message(timeout=1.0)
-                if message and message['type'] == 'message':
-                    payload = json.loads(message['data'])
+                current_time = time.time()
+                # Send heartbeat every 15 seconds to keep connection alive
+                if current_time - last_heartbeat > 15:
+                    yield ': heartbeat\n\n'  # Keep-alive comment
+                    last_heartbeat = current_time
+                
+                try:
+                    # First try local queue (fastest)
+                    payload = sse_queues[connection_id].get(timeout=0.1)
                     event = payload.get('event')
                     data = payload.get('data', {})
                     yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
-                time.sleep(0.5)
+                except queue.Empty:
+                    # If local queue is empty, check Redis queue (cross-worker)
+                    queue_key = f'{SSE_QUEUE_PREFIX}{username}'
+                    try:
+                        redis_payload = redis_client.rpop(queue_key)
+                        if redis_payload:
+                            payload = json.loads(redis_payload)
+                            event = payload.get('event')
+                            data = payload.get('data', {})
+                            yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
+                    except Exception as e:
+                        # Redis error, continue with heartbeat
+                        pass
+                except Exception as e:
+                    logger.error(f"SSE queue error for {connection_id}: {str(e)}")
+                    break  # Exit on error to prevent hanging
         finally:
-            pubsub.close()
+            # Cleanup queue on disconnect
+            with sse_lock:
+                if connection_id in sse_queues:
+                    # Double-check if queue is empty after lock
+                    if sse_queues[connection_id].empty():
+                        del sse_queues[connection_id]
     
-    headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-    return Response(stream_with_context(event_stream()), headers=headers)
+    return Response(stream_with_context(event_stream()), 
+                   mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 # --- Update admin logout to use SSE ---
 @app.route('/admin-logout-user', methods=['POST'])
@@ -889,6 +1111,55 @@ def admin_logout_user():
 
 
 # Inject user info into templates
+@app.route('/update-user-role', methods=['POST'])
+def update_user_role():
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    try:
+        data = request.json
+        username = data.get('username', '').strip()
+        new_role = data.get('role', '').strip()
+        
+        if not username or not new_role:
+            return jsonify({'status': 'error', 'message': 'Username and role required'}), 400
+        
+        if new_role not in ['user', 'admin']:
+            return jsonify({'status': 'error', 'message': 'Invalid role. Must be "user" or "admin"'}), 400
+        
+        users = get_users()
+        if username not in users:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        
+        # Prevent admin from demoting themselves
+        if username == session.get('username') and new_role == 'user':
+            return jsonify({'status': 'error', 'message': 'Cannot demote yourself from admin'}), 400
+        
+        # Prevent role changes for main admin
+        if username == ADMIN_USERNAME:
+            return jsonify({'status': 'error', 'message': 'Cannot modify main admin privileges'}), 400
+        
+        users[username]['role'] = new_role
+        save_users(users)
+        
+        # Invalidate cache when user data changes
+        try:
+            redis_client.delete('users_list_cache')
+        except Exception as e:
+            logger.warning(f"Failed to invalidate users cache: {e}")
+        
+        # Send SSE notification to the user about role change (but don't force logout)
+        if new_role == 'user':
+            publish_sse_event(username, 'role-change', {'reason': 'Role changed to user - admin privileges revoked'})
+        else:
+            publish_sse_event(username, 'role-change', {'reason': f'Role changed to {new_role}'})
+        
+        logger.info(f"Admin {session.get('username')} changed user {username} role to {new_role}")
+        return jsonify({'status': 'success', 'message': f'User {username} role updated to {new_role}'})
+        
+    except Exception as e:
+        logger.error(f"Error updating user role: {e}")
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
 @app.context_processor
 def inject_user():
     return dict(current_user=session.get('username'), current_role=session.get('role'))
@@ -896,7 +1167,7 @@ def inject_user():
 @app.before_request
 def require_login():
     allowed = [
-        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/events',
+        '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
         '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
     ]
     if request.path.startswith('/static/') or request.path.startswith('/misc/'):
@@ -938,6 +1209,29 @@ def require_login():
             resp = redirect(url_for('login_page'))
             resp.set_cookie('session', '', expires=0)
             return resp
+        
+        # --- User Existence and Role Validation Check ---
+        # Verify that the user exists and their role in session matches their actual role in database
+        try:
+            users = get_users()
+            if users and username in users:
+                actual_role = users[username].get('role', 'user')
+                session_role = session.get('role', 'user')
+                if actual_role != session_role:
+                    logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
+                    # Update session with correct role
+                    session['role'] = actual_role
+            else:
+                # User doesn't exist in database - invalidate session
+                logger.warning(f"User {username} not found in database - invalidating session")
+                session.clear()
+                return jsonify({'status': 'error', 'message': 'User not found'}), 401
+        except Exception as e:
+            logger.error(f"Error validating user {username}: {str(e)}")
+            # On error, invalidate session for security
+            session.clear()
+            return jsonify({'status': 'error', 'message': 'Session validation failed'}), 401
+    
     # --- Update last_activity ---
     session['last_activity'] = datetime.now(timezone.utc).isoformat()
 
@@ -1034,6 +1328,12 @@ def signup():
         }
         save_users(users)
         
+        # Invalidate users cache when new user is created
+        try:
+            redis_client.delete('users_list_cache')
+        except Exception as e:
+            logger.warning(f"Failed to invalidate users cache on signup: {e}")
+        
         logger.info(f"New user signed up: {username}")
         return jsonify({'status': 'success', 'message': 'Account created successfully'})
         
@@ -1125,7 +1425,11 @@ def index():
             msg = extract_msg.Message(temp_path)
             maintenance_date = extract_date_from_subject(msg.subject)
             if not maintenance_date:
-                msg_date = parser.parse(msg.date)
+                # Check if msg.date is already a datetime object or a string
+                if isinstance(msg.date, datetime):
+                    msg_date = msg.date
+                else:
+                    msg_date = parser.parse(msg.date)
                 maintenance_date = msg_date.strftime("%Y-%m-%d")
 
             email_data = {
@@ -1277,6 +1581,15 @@ def sync_to_history():
 @app.route('/check-updates', methods=['GET'])
 def check_updates():
     """Check if data has been updated since provided timestamp"""
+    username = session.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'status': 'error', 'message': 'User not found'}), 401
+    
     client_timestamp = request.args.get('since', 0, type=float)
     
     stored_data = get_stored_data() or {}
@@ -1537,6 +1850,15 @@ def set_reauth():
 @rate_limit
 def validate_passkey():
     """Validate the provided passkey against the stored hash and set reauth window"""
+    username = session.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'status': 'error', 'message': 'User not found'}), 401
+    
     data = request.json
     if not data or not isinstance(data, dict):
         return jsonify({'status': 'error', 'message': 'Invalid request format'}), 400
@@ -1572,8 +1894,15 @@ def is_reauth_valid():
 
 @app.route('/check-reauth', methods=['GET'])
 def check_reauth():
-    if not session.get('username'):
+    username = session.get('username')
+    if not username:
         return jsonify({'valid': False}), 401
+    
+    # Check if user still exists in database
+    if not validate_user_exists(username):
+        session.clear()
+        return jsonify({'valid': False}), 401
+    
     from datetime import datetime, timezone
     reauth_until = session.get('reauth_until')
     if not reauth_until:
@@ -1832,49 +2161,75 @@ def create_search_index():
     Create Redis search index for O(1) search performance with pipelining
     
     Thread Safety:
-    - Uses threading.Lock() to prevent concurrent index rebuilds
+    - Uses Redis to coordinate between worker processes
+    - Uses threading.Lock() to prevent concurrent index rebuilds within same process
     - Tracks rebuild status to avoid unnecessary operations
-    - Implements debouncing (minimum 5 seconds between rebuilds)
+    - No debouncing: rebuilds are allowed immediately when not busy
     """
-    global searchhaus_index_busy, search_index_last_rebuild
+    global search_index_last_rebuild
     
-    # Thread safety: Check if another rebuild is in progress
-    if searchhaus_index_busy:
-        logger.info("Search index rebuild already in progress, skipping...")
-        return
+    # Use Redis to coordinate between worker processes
+    search_busy_key = 'search_index_busy'
+    search_last_rebuild_key = 'search_index_last_rebuild'
     
-    # Debouncing: Prevent too frequent rebuilds (minimum 5 seconds apart)
-    current_time = time.time()
-    if current_time - search_index_last_rebuild < 5:
-        logger.info("Search index rebuild too recent, skipping...")
-        return
+    # Check if another process is already rebuilding
+    try:
+        if redis_client.get(search_busy_key):
+            logger.info("Search index rebuild already in progress (by another process), skipping...")
+            return
+    except Exception as e:
+        logger.warning(f"Could not check Redis for search index status: {str(e)}")
     
-    # Acquire lock to prevent concurrent rebuilds
+    # Acquire lock to prevent concurrent rebuilds within this process
     with search_index_lock:
+        # Double-check Redis after acquiring lock
         try:
-            # Set busy flag
-            searchhaus_index_busy = True
+            if redis_client.get(search_busy_key):
+                logger.info("Search index rebuild already in progress (by another process), skipping...")
+                return
+        except Exception as e:
+            logger.warning(f"Could not check Redis for search index status: {str(e)}")
+        
+        # No debouncing: proceed if not busy
+        current_time = time.time()
+        
+        # Set busy flag in Redis (with 10 minute expiry to prevent stuck locks)
+        try:
+            redis_client.setex(search_busy_key, 600, '1')
+            redis_client.set(search_last_rebuild_key, str(current_time))
             search_index_last_rebuild = current_time
-            
+        except Exception as e:
+            logger.error(f"Could not set Redis search index status: {str(e)}")
+            return
+        try:
             logger.info("Starting search index rebuild...")
             
             if not history_redis or not history_key_manager:
                 logger.error("History Redis client not available")
                 return
             
-            # Get all timestamps from metadata sorted set
+            # Get metadata key and total count
             metadata_key = history_key_manager.get_metadata_key()
-            all_timestamps = history_redis.zrevrange(metadata_key, 0, -1, withscores=True)
-            if not all_timestamps:
+            total_count = history_redis.zcard(metadata_key)
+            if total_count == 0:
                 logger.info("No history data found for indexing")
                 return
-            
-            # Use pipelining for bulk operations
+
+            # First, clear existing search indexes and caches
+            def clear_search_keys_with_scan(pattern):
+                keys_to_delete = []
+                cursor = 0
+                while True:
+                    cursor, keys = history_redis.scan(cursor, match=pattern, count=100)
+                    keys_to_delete.extend(keys)
+                    if cursor == 0:
+                        break
+                return keys_to_delete
+
             with history_redis.pipeline() as pipe:
-                # Clear existing search indexes
-                search_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:title:*')
-                date_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:date:*')
-                editor_keys = history_redis.keys(f'{history_key_manager.history_prefix}:search:editor:*')
+                search_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:title:*')
+                date_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:date:*')
+                editor_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:editor:*')
                 if search_keys:
                     pipe.delete(*search_keys)
                     logger.debug(f"Cleared {len(search_keys)} title search keys")
@@ -1884,74 +2239,78 @@ def create_search_index():
                 if editor_keys:
                     pipe.delete(*editor_keys)
                     logger.debug(f"Cleared {len(editor_keys)} editor search keys")
-                
                 # Clear search caches when rebuilding index
                 clear_partial_search_cache()
                 clear_failed_search_cache()
-                
-                # Queue all index operations
-                indexed_count = 0
-                for metadata_json, timestamp in all_timestamps:
-                    # Get the full item to extract title and date
-                    item = get_history_item_by_timestamp(timestamp)
-                    if not item:
-                        continue
-                        
-                    title = item.get('title', '').lower().strip()
-                    date = item.get('date', '').lower().strip()
-                    
-                    # Get last_edited_by from the data field
-                    last_edited_by = ''
-                    if item.get('data') and item['data'].get('last_edited_by'):
-                        last_edited_by = item['data']['last_edited_by'].lower().strip()
-                    
-                    if not timestamp:
-                        continue
-                    
-                    # Index by title words
-                    if title:
-                        for word in title.split():
-                            if word:  # Skip empty words
-                                search_key = history_key_manager.get_search_key('title', word)
-                                pipe.sadd(search_key, timestamp)
-                    
-                    # Index by date and date components
-                    if date:
-                        date_search_key = history_key_manager.get_search_key('date', date)
-                        pipe.sadd(date_search_key, timestamp)
-                        
-                        # Also index date components for partial matching
-                        date_parts = date.split('-')
-                        for part in date_parts:
-                            if part:
-                                part_search_key = history_key_manager.get_search_key('date', part)
-                                pipe.sadd(part_search_key, timestamp)
-                    
-                    # Index by last_edited_by
-                    if last_edited_by:
-                        # Index the full editor name
-                        editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
-                        pipe.sadd(editor_search_key, timestamp)
-                        
-                        # Also index editor name components for partial matching
-                        editor_parts = last_edited_by.split()
-                        for part in editor_parts:
-                            if part and len(part) > 2:  # Only index parts longer than 2 chars
-                                part_search_key = history_key_manager.get_search_key('editor', part)
-                                pipe.sadd(part_search_key, timestamp)
-                    
-                    indexed_count += 1
-                
-                # Execute all operations in single network round trip
                 pipe.execute()
-                
-                logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
+
+            # Page through ZSET to avoid loading everything into memory at once
+            indexed_count = 0
+            page_size = 500
+            for start in range(0, total_count, page_size):
+                end = min(start + page_size - 1, total_count - 1)
+                page = history_redis.zrevrange(metadata_key, start, end, withscores=True)
+                if not page:
+                    continue
+
+                with history_redis.pipeline() as pipe:
+                    for metadata_json, score in page:
+                        # Use score as the timestamp
+                        timestamp = score
+                        # Get the full item to extract title and date
+                        item = get_history_item_by_timestamp(timestamp)
+                        if not item:
+                            continue
+
+                        title = item.get('title', '').lower().strip()
+                        date = item.get('date', '').lower().strip()
+
+                        last_edited_by = ''
+                        if item.get('data') and item['data'].get('last_edited_by'):
+                            last_edited_by = item['data']['last_edited_by'].lower().strip()
+
+                        if not timestamp:
+                            continue
+
+                        if title:
+                            for word in title.split():
+                                if word:
+                                    search_key = history_key_manager.get_search_key('title', word)
+                                    pipe.sadd(search_key, timestamp)
+
+                        if date:
+                            date_search_key = history_key_manager.get_search_key('date', date)
+                            pipe.sadd(date_search_key, timestamp)
+
+                            date_parts = date.split('-')
+                            for part in date_parts:
+                                if part:
+                                    part_search_key = history_key_manager.get_search_key('date', part)
+                                    pipe.sadd(part_search_key, timestamp)
+
+                        if last_edited_by:
+                            editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
+                            pipe.sadd(editor_search_key, timestamp)
+
+                            editor_parts = last_edited_by.split()
+                            for part in editor_parts:
+                                if part and len(part) > 2:
+                                    part_search_key = history_key_manager.get_search_key('editor', part)
+                                    pipe.sadd(part_search_key, timestamp)
+
+                        indexed_count += 1
+                    pipe.execute()
+
+            logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
         
         except Exception as e:
             logger.error(f"Error creating search index: {str(e)}")
         finally:
-            # Always clear busy flag, even on error
-            searchhaus_index_busy = False
+            # Always clear busy flag in Redis, even on error
+            try:
+                redis_client.delete('search_index_busy')
+            except Exception as e:
+                logger.warning(f"Could not clear Redis search index busy flag: {str(e)}")
 
 def search_history_redis_optimized(search_term):
     """Hybrid search: Redis filtering + intelligent scoring with failed search cache"""
@@ -2150,7 +2509,13 @@ def apply_search_scoring(entry, search_lower):
 
 def is_search_index_busy():
     """Check if search index rebuild is currently in progress"""
-    return searchhaus_index_busy
+    try:
+        return bool(redis_client.get('search_index_busy'))
+    except Exception as e:
+        logger.warning(f"Could not check Redis for search index status: {str(e)}")
+        return False
+
+ 
 
 def clear_failed_search_cache():
     """

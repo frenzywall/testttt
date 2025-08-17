@@ -191,8 +191,8 @@
                     <div class="impact-option impact-option-low {% if service.priority == 'low' or service.priority is not defined %}selected{% endif %}" data-value="low">
                         <span class="impact-dot"></span> Low
                     </div>
-                    <div class="impact-option impact-option-medium {% if service.priority == 'medium' %}selected{% endif %}" data-value="medium">
-                        <span class="impact-dot"></span> Medium
+                                    <div class="impact-option impact-option-medium {% if service.priority == 'medium' %}selected{% endif %}" data-value="medium">
+                    <span class="impact-dot"></span> Med
                     </div>
                     <div class="impact-option impact-option-high {% if service.priority == 'high' %}selected{% endif %}" data-value="high">
                         <span class="impact-dot"></span> High
@@ -530,12 +530,12 @@
         var icon = document.getElementById('profileIcon');
         if (icon) {
             icon.addEventListener('click', function() {
-                fetch('/current-user').then(r=>r.json()).then(u=>{
-                    if(u.logged_in) showProfileModal(u);
-                });
+                // open modal immediately (placeholders), then fetch user in background
+                showProfileModal();
             });
         }
     });
 </script>
 </body>
+</html>
 </html>
