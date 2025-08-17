@@ -61,6 +61,11 @@ services:
       - /etc/timezone:/etc/timezone:ro    # Mounts host timezone into container. Optional, for correct time display/logs.
       - /etc/localtime:/etc/localtime:ro  # Mounts host localtime into container. Optional.
 
+      # --- Proxy Settings (set when behind reverse proxy) ---
+      - TRUST_PROXY=false                 # Set to 'true' if running behind Nginx/Apache/Cloudflare proxy. 
+                                          # This ensures rate limiting and logging show real client IPs instead of proxy IPs.
+                                          # Set to 'false' if running directly (no proxy in front).
+
       
 
     depends_on:
@@ -99,7 +104,7 @@ services:
 volumes:
   redis_data:
     name: ChangeData  # ← your chosen volume name
-    #external: true  # ← uncomment if volume already exists outside this compose
+    external: true  # ← uncomment if volume already exists outside this compose
 
 networks:
   change_management:
