@@ -73,8 +73,17 @@
                 <button class="edit-header-btn save-header-btn" id="saveHeaderBtn" title="Save Title">
                     <i class="fas fa-save"></i>
                 </button>
+                <!-- Subtle actions toggle switch -->
+                <label class="actions-toggle" title="Toggle actions">
+                    <input type="checkbox" id="actionsToggle" aria-controls="actionsBar" aria-checked="false" role="switch" aria-label="Toggle actions">
+                    <span class="toggle-track">
+                        <span class="toggle-icon off" aria-hidden="true"><i class="fas fa-bars"></i></span>
+                        <span class="toggle-icon on" aria-hidden="true"><i class="fas fa-minus"></i></span>
+                        <span class="toggle-thumb"></span>
+                    </span>
+                </label>
             </div>
-            <div class="actions">
+            <div class="actions collapsed" id="actionsBar" aria-hidden="true">
                 <button class="btn primary-btn" id="uploadBtn">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <span>Upload MSG</span>
@@ -498,7 +507,6 @@
             </div>
         </div>
 
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
         
         <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/2.3.1/luxon.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
@@ -537,5 +545,4 @@
     });
 </script>
 </body>
-</html>
 </html>

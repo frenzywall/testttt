@@ -3218,6 +3218,56 @@ function clearAllNotifications() {
 
 // Update the resetForm event listener to use our custom dialog
 document.addEventListener('DOMContentLoaded', function() {
+  // Subtle actions toggle with authentication
+  try {
+    const actions = document.getElementById('actionsBar');
+    const toggle = document.getElementById('actionsToggle');
+    if (actions && toggle) {
+      const setExpandedState = (expanded) => {
+        if (toggle.tagName === 'INPUT') {
+          toggle.checked = expanded;
+        }
+        // A11y sync
+        toggle.setAttribute('aria-checked', String(expanded));
+        const actionsHidden = !expanded;
+        actions.setAttribute('aria-hidden', String(actionsHidden));
+        actions.classList.toggle('expanded', expanded);
+        actions.classList.toggle('collapsed', !expanded);
+      };
+
+      // Start hidden by default
+      setExpandedState(false);
+
+      if (toggle.tagName === 'INPUT') {
+        // Native switch: collapse freely; require auth only when expanding
+        toggle.addEventListener('change', function() {
+          const wantsExpand = toggle.checked === true;
+          if (!wantsExpand) {
+            setExpandedState(false);
+            return;
+          }
+          // Revert until authenticated
+          setExpandedState(false);
+          ensureAuthenticated(() => {
+            setExpandedState(true);
+          }, 'Please enter the passkey to access actions');
+        });
+      } else {
+        // Fallback button: collapse freely; require auth when expanding
+        toggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+          if (isOpen) {
+            setExpandedState(false);
+            return;
+          }
+          ensureAuthenticated(() => setExpandedState(true), 'Please enter the passkey to access actions');
+        });
+      }
+    }
+  } catch (err) { console.warn('Actions toggle setup failed:', err); }
+
   const resetFormBtn = document.getElementById('resetForm');
   if (resetFormBtn) {
     // Remove any existing event listeners
