@@ -2290,6 +2290,27 @@ color: var(--text-color);
 background: rgba(255, 255, 255, 0.05);
 }
 
+/* Light mode impact option visibility */
+[data-theme="light"] .impact-option-low {
+color: #166534;
+}
+
+[data-theme="light"] .impact-option-medium {
+color: #854d0e;
+}
+
+[data-theme="light"] .impact-option-high {
+color: #9f1239;
+}
+
+[data-theme="light"] .impact-option:not(.selected) {
+color: var(--text-color);
+}
+
+[data-theme="light"] .impact-option:hover:not(.selected) {
+background: rgba(0, 0, 0, 0.05);
+}
+
 .container,
 .nav-container,
 .tz-toggle,
