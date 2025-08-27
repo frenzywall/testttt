@@ -3223,6 +3223,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const actions = document.getElementById('actionsBar');
     const toggle = document.getElementById('actionsToggle');
     if (actions && toggle) {
+      const ACTIONS_STATE_KEY = 'actionsExpanded';
       const setExpandedState = (expanded) => {
         if (toggle.tagName === 'INPUT') {
           toggle.checked = expanded;
@@ -3233,10 +3234,17 @@ document.addEventListener('DOMContentLoaded', function() {
         actions.setAttribute('aria-hidden', String(actionsHidden));
         actions.classList.toggle('expanded', expanded);
         actions.classList.toggle('collapsed', !expanded);
+        // Persist state to respect user choice across refreshes
+        try { localStorage.setItem(ACTIONS_STATE_KEY, String(expanded)); } catch (_) {}
       };
 
-      // Start hidden by default
-      setExpandedState(false);
+      // Initialize from saved state if authenticated; otherwise keep collapsed
+      let initialExpanded = false;
+      try {
+        const saved = localStorage.getItem(ACTIONS_STATE_KEY);
+        initialExpanded = isAuthenticated() && saved === 'true';
+      } catch (_) { initialExpanded = false; }
+      setExpandedState(initialExpanded);
 
       if (toggle.tagName === 'INPUT') {
         // Native switch: collapse freely; require auth only when expanding
