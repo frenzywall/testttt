@@ -56,7 +56,7 @@
     </header>
 
     <form id="uploadForm" action="/" method="post" enctype="multipart/form-data" style="display: none;">
-        <input type="file" name="file" id="fileInput" accept=".msg">
+        <input type="file" name="file" id="fileInput" accept=".msg,.txt,.eml,.html,.htm">
     </form>
 
         <div class="header">
@@ -86,7 +86,6 @@
             <div class="actions collapsed" id="actionsBar" aria-hidden="true">
                 <button class="btn primary-btn" id="uploadBtn">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Upload MSG</span>
                 </button>
                 <button class="btn primary-btn" id="downloadHtml">
                     <i class="fas fa-download"></i> Download HTML
@@ -189,7 +188,7 @@
             {% for service in data.services %}
             <tr data-priority="{{ service.priority|default('low') }}">
                 <td>{{ service.name }}</td>
-                <td>{{ data.date }}</td>
+                <td>{{ service.start_date }}</td>
                 <td>{{ service.start_time }}</td>
                 <td>{{ service.end_time }}</td>
                 <td>{{ service.end_date }}</td>
@@ -292,7 +291,7 @@
               {% for service in data.services %}
               <tr data-service="{{ service.name }}">
                 <td>{{ service.name }}</td>
-                <td>{{ data.date }}</td>
+                <td>{{ service.start_date }}</td>
                 <td>{{ service.start_time }} - {{ service.end_time }}</td>
                 <td>{{ service.comments }}</td>
               </tr>
@@ -326,7 +325,7 @@
             <div class="upload-zone" id="uploadZone">
             <i class="fas fa-file-upload"></i>
             <div class="upload-text">
-                Drag and drop your .msg file here<br>
+                Drag and drop your file here<br>
                 or <strong>click to browse</strong>
             </div>
             <div class="upload-preview" id="uploadPreview">

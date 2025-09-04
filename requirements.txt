@@ -10,3 +10,4 @@ google-genai==1.30.0
 bcrypt==4.3.0
 gevent==25.5.1
 Flask-Session==0.8.0
+beautifulsoup4==4.13.5

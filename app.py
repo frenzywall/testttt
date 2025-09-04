@@ -27,6 +27,156 @@ import queue
 search_index_lock = threading.Lock()
 search_index_last_rebuild = 0
 
+# --- File Processing Abstraction ---
+class FileProcessor:
+    """Abstract file processor to support multiple file formats"""
+    
+    @staticmethod
+    def get_supported_extensions():
+        """Return list of supported file extensions"""
+        return ['.msg', '.txt', '.eml', '.html', '.htm']
+    
+    @staticmethod
+    def can_process_file(filename):
+        """Check if file can be processed"""
+        if not filename:
+            return False
+        ext = os.path.splitext(filename.lower())[1]
+        return ext in FileProcessor.get_supported_extensions()
+    
+    @staticmethod
+    def process_file(file_path, filename):
+        """Process file and extract email-like data"""
+        ext = os.path.splitext(filename.lower())[1]
+        
+        if ext == '.msg':
+            return FileProcessor._process_msg(file_path)
+        elif ext == '.txt':
+            return FileProcessor._process_txt(file_path)
+        elif ext == '.eml':
+            return FileProcessor._process_eml(file_path)
+        elif ext in ['.html', '.htm']:
+            return FileProcessor._process_html(file_path)
+        else:
+            raise ValueError(f"Unsupported file format: {ext}")
+    
+    @staticmethod
+    def _process_msg(file_path):
+        """Process Outlook .msg file"""
+        msg = extract_msg.Message(file_path)
+        maintenance_date = extract_date_from_subject(msg.subject)
+        if not maintenance_date:
+            if isinstance(msg.date, datetime):
+                msg_date = msg.date
+            else:
+                msg_date = parser.parse(msg.date)
+            maintenance_date = msg_date.strftime("%Y-%m-%d")
+        
+        return {
+            'subject': msg.subject,
+            'sender': msg.sender,
+            'date': maintenance_date,
+            'body': msg.body
+        }
+    
+    @staticmethod
+    def _process_txt(file_path):
+        """Process plain text file - minimal processing, let AI do the work"""
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Simple extraction - just get first line as potential subject
+            lines = content.split('\n')
+            subject = lines[0].strip() if lines and lines[0].strip() else "Content"
+            
+            # Use current date as default - AI will extract actual dates
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            
+            return {
+                'subject': subject,
+                'sender': 'Unknown',
+                'date': date_str,
+                'body': content
+            }
+        except Exception as e:
+            # Return minimal data on any error
+            return {
+                'subject': 'Content',
+                'sender': 'Unknown',
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'body': 'Error reading file content'
+            }
+    
+    @staticmethod
+    def _process_eml(file_path):
+        """Process .eml file - minimal processing, let AI do the work"""
+        try:
+            import email
+            from email import policy
+            
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                msg = email.message_from_file(f, policy=policy.default)
+            
+            subject = msg.get('subject', 'Email Content')
+            sender = msg.get('from', 'Unknown')
+            
+            # Extract body
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        body = part.get_content()
+                        break
+            else:
+                body = msg.get_content()
+            
+            return {
+                'subject': subject,
+                'sender': sender,
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'body': body
+            }
+        except Exception as e:
+            return {
+                'subject': 'Email Content',
+                'sender': 'Unknown',
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'body': 'Error reading email content'
+            }
+    
+    @staticmethod
+    def _process_html(file_path):
+        """Process HTML file - minimal processing, let AI do the work"""
+        try:
+            from bs4 import BeautifulSoup
+            
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # Extract title/subject
+            title = soup.find('title')
+            subject = title.get_text() if title else "HTML Content"
+            
+            # Extract body text
+            body = soup.get_text()
+            
+            return {
+                'subject': subject,
+                'sender': 'Unknown',
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'body': body
+            }
+        except Exception as e:
+            return {
+                'subject': 'HTML Content',
+                'sender': 'Unknown',
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'body': 'Error reading HTML content'
+            }
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1413,10 +1563,11 @@ def index():
         }, header_title='Change Weekend')
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.endswith('.msg'):
+    if file.filename == '' or not FileProcessor.can_process_file(file.filename):
+        supported_formats = ', '.join(FileProcessor.get_supported_extensions())
         return render_template('result.html', data={
             'services': [],
-            'error': 'Invalid file or no file selected',
+            'error': f'Invalid file or no file selected. Supported formats: {supported_formats}',
             'date': datetime.now().strftime('%Y-%m-%d'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'original_subject': '',
@@ -1425,29 +1576,17 @@ def index():
 
     temp_path = None
     try:
-        with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.msg', delete=False) as temp_file:
+        # Get file extension for proper temp file naming
+        file_ext = os.path.splitext(file.filename.lower())[1]
+        with tempfile.NamedTemporaryFile(dir=temp_dir, suffix=file_ext, delete=False) as temp_file:
             temp_path = temp_file.name
             file.save(temp_path)
             
             if not os.path.exists(temp_path):
                 raise FileNotFoundError(f"Failed to save temporary file at {temp_path}")
             
-            msg = extract_msg.Message(temp_path)
-            maintenance_date = extract_date_from_subject(msg.subject)
-            if not maintenance_date:
-                # Check if msg.date is already a datetime object or a string
-                if isinstance(msg.date, datetime):
-                    msg_date = msg.date
-                else:
-                    msg_date = parser.parse(msg.date)
-                maintenance_date = msg_date.strftime("%Y-%m-%d")
-
-            email_data = {
-                'subject': msg.subject,
-                'sender': msg.sender,
-                'date': maintenance_date,
-                'body': msg.body
-            }
+            # Use the new FileProcessor to handle multiple formats
+            email_data = FileProcessor.process_file(temp_path, file.filename)
 
             # Use only AI processing with performance tracking
             import ai_processor
@@ -1752,6 +1891,7 @@ def save_changes():
     for service in stored_data['services']:
         if service['name'] == data['service'] or (not service['name'] and not data['service']):
             service['name'] = data['service']
+            service['start_date'] = data.get('start_date', stored_data['date'])
             service['start_time'] = data['startTime']
             service['end_time'] = data['endTime']
             service['comments'] = data.get('comments', '')
@@ -1763,6 +1903,7 @@ def save_changes():
     if not found:
         stored_data['services'].append({
             'name': data['service'],
+            'start_date': data.get('start_date', stored_data['date']),
             'start_time': data['startTime'],
             'end_time': data['endTime'],
             'end_date': data.get('endDate', stored_data['date']),

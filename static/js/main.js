@@ -1,6 +1,17 @@
 // Import Luxon library for DateTime operations
 const { DateTime } = luxon || window.luxon;
 
+// File validation helper functions
+function isValidFileType(filename) {
+    const supportedExtensions = ['.msg', '.txt', '.eml', '.html', '.htm'];
+    const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+    return supportedExtensions.includes(ext);
+}
+
+function getSupportedExtensionsText() {
+    return '.msg, .txt, .eml, .html, .htm';
+}
+
 // Smart History Caching System
 class SmartHistoryCache {
     constructor() {
@@ -1151,8 +1162,8 @@ function initializeFileUpload() {
         fileInput.addEventListener('change', function(e) {
             if (this.files.length > 0) {
                 const file = this.files[0];
-                if (!file.name.toLowerCase().endsWith('.msg')) {
-                    showError('Please upload a .MSG file');
+                if (!isValidFileType(file.name)) {
+                    showError(`Please upload a supported file type: ${getSupportedExtensionsText()}`);
                     return;
                 }
                 createNotification('info', 'Your file is being processed, please wait...', true); // Use persistent notification
@@ -1224,8 +1235,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (files.length > 0) {
             const file = files[0];
             
-            if (!file.name.toLowerCase().endsWith('.msg')) {
-                alert('Please upload a .MSG file');
+            if (!isValidFileType(file.name)) {
+                alert(`Please upload a supported file type: ${getSupportedExtensionsText()}`);
                 return;
             }
             
@@ -1261,8 +1272,8 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInput.addEventListener('change', (e) => {
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
-            if (!file.name.toLowerCase().endsWith('.msg')) {
-                alert('Please upload a .MSG file');
+            if (!isValidFileType(file.name)) {
+                alert(`Please upload a supported file type: ${getSupportedExtensionsText()}`);
                 return;
             }
 
@@ -1791,6 +1802,7 @@ function syncAllDataToRedis(saveToHistory = false) {
         
         services.push({
             name: serviceName,
+            start_date: date,
             start_time: startTime,
             end_time: endTime,
             end_date: endDate || date,
@@ -2888,10 +2900,10 @@ function loadHistoryItem(timestamp, viewOnly = false) {
           newRow.setAttribute('data-priority', service.priority || 'low');
           newRow.innerHTML = `
             <td>${service.name || ''}</td>
-            <td>${service.end_date || data.date || ''}</td>
+            <td>${service.start_date || ''}</td>
             <td data-original="${service.start_time || ''}">${service.start_time || ''}</td>
             <td data-original="${service.end_time || ''}">${service.end_time || ''}</td>
-            <td>${service.end_date || data.date || ''}</td>
+            <td>${service.end_date || ''}</td>
             <td>${service.comments || ''}</td>
             <td class="impact-cell">
               <div class="impact-selector" data-value="${service.priority || 'low'}">
@@ -2934,7 +2946,7 @@ function loadHistoryItem(timestamp, viewOnly = false) {
               tr.setAttribute('data-service', svc.name || '');
               tr.innerHTML = `
                   <td>${svc.name || ''}</td>
-                  <td>${data.date || ''}</td>
+                  <td>${data.start_date || ''}</td>
                   <td>${svc.start_time || ''}${svc.end_time ? ' - ' + svc.end_time : ''}</td>
                   <td>${svc.comments || ''}</td>
               `;

@@ -342,21 +342,21 @@ class AIStatusManager {
                         <div class="message ai-message">
                             <div class="message-content default-ai-message">
                                 <i class="fas fa-robot"></i>
-                                <p>Hello! I can help you understand this page. Ask me anything about the change management data, services, or any other information you see here.</p>
+                                <p>Hi there! 👋 I'm here to help you understand anything on this page. Feel free to ask me any questions!</p>
                             </div>
                         </div>
                     </div>
                     <div class="chat-input-container">
                         <div class="chat-input-wrapper">
-                            <input type="text" id="chatInput" placeholder="Ask me about this page..." maxlength="500">
+                            <input type="text" id="chatInput" placeholder="What would you like to know?" maxlength="500">
                             <button id="sendMessage" class="send-btn">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
                         <div class="chat-suggestions">
-                            <button class="suggestion-btn" data-question="What services are affected?">What services are affected?</button>
-                            <button class="suggestion-btn" data-question="What is the maintenance schedule?">What is the maintenance schedule?</button>
-                            <button class="suggestion-btn" data-question="Which services have high priority?">Which services have high priority?</button>
+                            <button class="suggestion-btn" data-question="Can you explain what I'm looking at?">Can you explain what I'm looking at?</button>
+                            <button class="suggestion-btn" data-question="What's happening today?">What's happening today?</button>
+                            <button class="suggestion-btn" data-question="Help me understand this page">Help me understand this page</button>
                         </div>
                     </div>
                 </div>
@@ -568,7 +568,7 @@ class AIStatusManager {
             if (cells.length >= 6) {
                 context.services.push({
                     name: cells[0].textContent,
-                    date: cells[1].textContent,
+                    start_date: cells[1].textContent,
                     startTime: cells[2].textContent,
                     endTime: cells[3].textContent,
                     endDate: cells[4].textContent,
@@ -580,7 +580,7 @@ class AIStatusManager {
         
         // Get date
         if (context.services.length > 0) {
-            context.date = context.services[0].date;
+            context.date = context.services[0].start_date;
         }
         
         // Get original email content
