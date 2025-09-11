@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/frenzywall/testttt:ai
+    build: .
     ports:
       - "5000:5000"
     environment:
@@ -11,7 +11,7 @@ services:
       # For production, always set strong, unique values for all secrets and disable debug mode.
 
       # --- Core Flask settings ---
-      - FLASK_APP=app.py                  # Main Flask app file. Usually 'app.py' or 'wsgi.py'.
+      - FLASK_APP=run_app.py              # Main Flask app file. Updated to use modular structure entry point.
       - FLASK_DEBUG=0                     # 1=debug mode (shows errors, auto-reloads; use for development), 0=production (recommended for prod).
       - PORT=5000                         # Port Flask runs on inside the container. Default: 5000. Change if you want to run on a different port.
       - SECRET_KEY=changeme               # Secret key for session security. Set to a long, random string in production. If omitted, a random key is generated (not persistent).
