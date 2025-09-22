@@ -418,52 +418,79 @@ def apply_search_scoring(entry, search_lower):
     if total_score > 0:
         entry_copy = entry.copy()
         entry_copy['_search_score'] = total_score
+        # Maintain backward compatibility with frontend expecting `_match_sources`
         entry_copy['_match_details'] = match_details
+        entry_copy['_match_sources'] = match_details
         return entry_copy
     
     return None
 
 def search_history_redis_partial(search_lower):
-    """Redis-based partial matching for when exact matches fail"""
+    """Redis-based partial matching for when exact matches fail (title/date/editor) using SCAN."""
     try:
         if not history_redis or not history_key_manager:
             logger.error("History Redis client not available")
             return []
-        
+
         # Check failed search cache first
         failed_cache_key = f'{history_key_manager.history_prefix}:cache:failed:{search_lower}'
         if history_redis.exists(failed_cache_key):
             logger.debug(f"Returning cached failed search result for: {search_lower}")
             return []
-        
+
         # Check partial search cache
         partial_cache_key = f'{history_key_manager.history_prefix}:cache:partial:{search_lower}'
         cached_result = history_redis.get(partial_cache_key)
         if cached_result:
             logger.debug(f"Returning cached partial search result for: {search_lower}")
             return json.loads(cached_result)
-        
-        # Generate search patterns
+
+        # Generate search patterns for title/date/editor (FULL KEY PATTERNS)
         patterns = generate_search_patterns(search_lower)
-        
-        # Search using patterns
+
+        # Search using SCAN across all fields to resolve wildcards
+        def scan_keys(match_pattern: str):
+            found_keys = []
+            cursor = 0
+            while True:
+                cursor, keys = history_redis.scan(cursor, match=match_pattern, count=200)
+                if keys:
+                    found_keys.extend(keys)
+                if cursor == 0:
+                    break
+            return found_keys
+
         all_matches = set()
-        for pattern in patterns:
-            pattern_key = history_key_manager.get_search_key('title', pattern)
-            matches = history_redis.smembers(pattern_key)
-            all_matches.update(matches)
-        
+
+        # Collect matching set keys for each field
+        matching_keys = []
+        for pattern in patterns['title']:
+            matching_keys.extend(scan_keys(pattern))
+        for pattern in patterns['date']:
+            matching_keys.extend(scan_keys(pattern))
+        for pattern in patterns['editor']:
+            matching_keys.extend(scan_keys(pattern))
+
+        # Union timestamps from all matched keys
+        if matching_keys:
+            with history_redis.pipeline() as pipe:
+                for k in matching_keys:
+                    pipe.smembers(k)
+                results = pipe.execute()
+            for members in results:
+                all_matches.update(members)
+
         if not all_matches:
             # Cache failed search
             history_redis.setex(failed_cache_key, 300, '1')  # 5 minute cache
             return []
-        
+
         # Process matches (limit to avoid memory issues)
         MAX_RESULTS = 50
         PROCESS_BUFFER = 100
-        
+
         sorted_matches = sorted(list(all_matches), key=lambda ts: float(ts), reverse=True)[:PROCESS_BUFFER]
-        
+
         matching_entries = []
         for timestamp in sorted_matches:
             from ..routes.history import get_history_item_by_timestamp
@@ -474,41 +501,53 @@ def search_history_redis_partial(search_lower):
                     matching_entries.append(scored_entry)
                     if len(matching_entries) >= MAX_RESULTS:
                         break
-        
+
         # Sort by relevance score
         matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)
         matching_entries = matching_entries[:MAX_RESULTS]
-        
+
         # Remove temporary score field
         for entry in matching_entries:
             entry.pop('_search_score', None)
-        
+
         # Cache the result
         if matching_entries:
             history_redis.setex(partial_cache_key, 300, json.dumps(matching_entries))  # 5 minute cache
-        
+
         return matching_entries
-        
+
     except Exception as e:
         logger.error(f"Error in partial Redis search: {str(e)}")
         return []
 
 def generate_search_patterns(search_term):
-    """Generate search patterns for partial matching"""
-    patterns = []
-    
-    # Add the full search term
-    patterns.append(search_term)
-    
-    # Add individual words
-    words = search_term.split()
-    for word in words:
-        if len(word) > 2:  # Only add words longer than 2 characters
-            patterns.append(word)
-    
-    # Add prefixes (first 3+ characters)
-    if len(search_term) >= 3:
-        for i in range(3, len(search_term) + 1):
-            patterns.append(search_term[:i])
-    
+    """Generate FULL Redis key patterns for partial matching (title/date/editor)."""
+    patterns = {
+        'title': [],
+        'date': [],
+        'editor': []
+    }
+
+    # Base (contains) patterns
+    patterns['title'].append(f"{history_key_manager.history_prefix}:search:title:*{search_term}*")
+    patterns['date'].append(f"{history_key_manager.history_prefix}:search:date:*{search_term}*")
+    patterns['editor'].append(f"{history_key_manager.history_prefix}:search:editor:*{search_term}*")
+
+    # Prefix/suffix variants only for longer terms
+    if len(search_term) >= 8:
+        patterns['title'].append(f"{history_key_manager.history_prefix}:search:title:{search_term}*")
+        patterns['title'].append(f"{history_key_manager.history_prefix}:search:title:*{search_term}")
+        patterns['date'].append(f"{history_key_manager.history_prefix}:search:date:{search_term}*")
+        patterns['date'].append(f"{history_key_manager.history_prefix}:search:date:*{search_term}")
+        patterns['editor'].append(f"{history_key_manager.history_prefix}:search:editor:{search_term}*")
+        patterns['editor'].append(f"{history_key_manager.history_prefix}:search:editor:*{search_term}")
+
+    # Word-level contains for multi-word searches
+    if ' ' in search_term:
+        for word in search_term.split():
+            if len(word) > 2:
+                patterns['title'].append(f"{history_key_manager.history_prefix}:search:title:*{word}*")
+                patterns['date'].append(f"{history_key_manager.history_prefix}:search:date:*{word}*")
+                patterns['editor'].append(f"{history_key_manager.history_prefix}:search:editor:*{word}*")
+
     return patterns
