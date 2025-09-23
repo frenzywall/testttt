@@ -51,8 +51,8 @@ def clear_partial_search_cache():
     Clear all partial search cache entries
     
     Cache Strategy:
-    - Partial search cache stores results from expensive pattern matching
-    - Used to avoid repeated expensive Redis SCAN operations
+    - Partial search cache stores results from expensive hash field scanning
+    - Used to avoid repeated expensive Redis HGETALL operations
     - Cleared during index rebuild to ensure fresh results
     - Pattern: {history}:cache:partial:{search_term}
     """
@@ -143,36 +143,56 @@ def create_search_index():
                 logger.info("No history data found for indexing")
                 return
 
-            # First, clear existing search indexes and caches
-            def clear_search_keys_with_scan(pattern):
-                keys_to_delete = []
-                cursor = 0
-                while True:
-                    cursor, keys = history_redis.scan(cursor, match=pattern, count=100)
-                    keys_to_delete.extend(keys)
-                    if cursor == 0:
-                        break
-                return keys_to_delete
+            # OPTIMIZED: Clear all search indexes efficiently with single SCAN operation
+            def clear_all_search_keys_efficiently():
+                """Clear all old SET-based search keys in one optimized operation"""
+                all_keys_to_delete = []
+                patterns = [
+                    f'{history_key_manager.history_prefix}:search:title:*',
+                    f'{history_key_manager.history_prefix}:search:date:*',
+                    f'{history_key_manager.history_prefix}:search:editor:*'
+                ]
+                
+                # Single SCAN operation for all patterns
+                for pattern in patterns:
+                    cursor = 0
+                    while True:
+                        cursor, keys = history_redis.scan(cursor, match=pattern, count=200)
+                        all_keys_to_delete.extend(keys)
+                        if cursor == 0:
+                            break
+                
+                return all_keys_to_delete
 
+            # Get all old keys to delete in single operation
+            old_keys = clear_all_search_keys_efficiently()
+            
+            # OPTIMIZED: Single pipeline for all clearing operations
+            title_index_key = f'{history_key_manager.history_prefix}:search_index:title'
+            date_index_key = f'{history_key_manager.history_prefix}:search_index:date'
+            editor_index_key = f'{history_key_manager.history_prefix}:search_index:editor'
+            
+            # Clear old keys in batches (Redis DELETE has limits)
+            if old_keys:
+                logger.debug(f"Clearing {len(old_keys)} old SET-based search keys")
+                for i in range(0, len(old_keys), 1000):  # Process in batches of 1000
+                    batch_keys = old_keys[i:i+1000]
+                    history_redis.delete(*batch_keys)
+            
+            # Clear new hash indexes and caches in single operation
             with history_redis.pipeline() as pipe:
-                search_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:title:*')
-                date_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:date:*')
-                editor_keys = clear_search_keys_with_scan(f'{history_key_manager.history_prefix}:search:editor:*')
-                if search_keys:
-                    pipe.delete(*search_keys)
-                    logger.debug(f"Cleared {len(search_keys)} title search keys")
-                if date_keys:
-                    pipe.delete(*date_keys)
-                    logger.debug(f"Cleared {len(date_keys)} date search keys")
-                if editor_keys:
-                    pipe.delete(*editor_keys)
-                    logger.debug(f"Cleared {len(editor_keys)} editor search keys")
-                # Clear search caches when rebuilding index
-                clear_partial_search_cache()
-                clear_failed_search_cache()
+                pipe.delete(title_index_key, date_index_key, editor_index_key)
                 pipe.execute()
+            
+            # Clear search caches (done outside pipeline for efficiency)
+            clear_partial_search_cache()
+            clear_failed_search_cache()
 
-            # Page through ZSET to avoid loading everything into memory at once
+            # HASH-BASED OPTIMIZATION: Build index structures in memory, then store as hashes
+            title_index = {}  # {word: [timestamp1, timestamp2, ...]}
+            date_index = {}   # {date: [timestamp1, timestamp2, ...]}
+            editor_index = {} # {editor: [timestamp1, timestamp2, ...]}
+            
             indexed_count = 0
             page_size = 500
             for start in range(0, total_count, page_size):
@@ -181,57 +201,89 @@ def create_search_index():
                 if not page:
                     continue
 
-                with history_redis.pipeline() as pipe:
-                    for metadata_json, score in page:
-                        # Use score as the timestamp
-                        timestamp = score
-                        # Get the full item to extract title and date
-                        # Import here to avoid circular dependency
-                        from ..routes.history import get_history_item_by_timestamp
-                        item = get_history_item_by_timestamp(timestamp)
-                        if not item:
-                            continue
+                # OPTIMIZATION: Batch fetch all items for this page
+                timestamps = [score for metadata_json, score in page]
+                from ..routes.history import get_history_items_batch
+                items = get_history_items_batch(timestamps)
+                
+                # Build indexes in memory for this page
+                for item in items:
+                    timestamp = item.get('timestamp')
+                    if not timestamp or not item:
+                        continue
 
-                        title = item.get('title', '').lower().strip()
-                        date = item.get('date', '').lower().strip()
+                    title = item.get('title', '').lower().strip()
+                    date = item.get('date', '').lower().strip()
 
-                        last_edited_by = ''
-                        if item.get('data') and item['data'].get('last_edited_by'):
-                            last_edited_by = item['data']['last_edited_by'].lower().strip()
+                    last_edited_by = ''
+                    if item.get('data') and item['data'].get('last_edited_by'):
+                        last_edited_by = item['data']['last_edited_by'].lower().strip()
 
-                        if not timestamp:
-                            continue
+                    if not timestamp:
+                        continue
 
-                        if title:
-                            for word in title.split():
-                                if word:
-                                    search_key = history_key_manager.get_search_key('title', word)
-                                    pipe.sadd(search_key, timestamp)
+                    # Index title words
+                    if title:
+                        for word in title.split():
+                            if word:
+                                if word not in title_index:
+                                    title_index[word] = []
+                                title_index[word].append(str(timestamp))
 
-                        if date:
-                            date_search_key = history_key_manager.get_search_key('date', date)
-                            pipe.sadd(date_search_key, timestamp)
+                    # Index date and date parts
+                    if date:
+                        if date not in date_index:
+                            date_index[date] = []
+                        date_index[date].append(str(timestamp))
 
-                            date_parts = date.split('-')
-                            for part in date_parts:
-                                if part:
-                                    part_search_key = history_key_manager.get_search_key('date', part)
-                                    pipe.sadd(part_search_key, timestamp)
+                        date_parts = date.split('-')
+                        for part in date_parts:
+                            if part:
+                                if part not in date_index:
+                                    date_index[part] = []
+                                date_index[part].append(str(timestamp))
 
-                        if last_edited_by:
-                            editor_search_key = history_key_manager.get_search_key('editor', last_edited_by)
-                            pipe.sadd(editor_search_key, timestamp)
+                    # Index editor and editor parts
+                    if last_edited_by:
+                        if last_edited_by not in editor_index:
+                            editor_index[last_edited_by] = []
+                        editor_index[last_edited_by].append(str(timestamp))
 
-                            editor_parts = last_edited_by.split()
-                            for part in editor_parts:
-                                if part and len(part) > 2:
-                                    part_search_key = history_key_manager.get_search_key('editor', part)
-                                    pipe.sadd(part_search_key, timestamp)
+                        editor_parts = last_edited_by.split()
+                        for part in editor_parts:
+                            if part and len(part) > 2:
+                                if part not in editor_index:
+                                    editor_index[part] = []
+                                editor_index[part].append(str(timestamp))
 
-                        indexed_count += 1
-                    pipe.execute()
+                    indexed_count += 1
 
-            logger.info(f"Search index rebuild completed - indexed {indexed_count} items")
+            # OPTIMIZED: Store all indexes using bulk hash operations (3 commands vs 100s)
+            title_index_key = f'{history_key_manager.history_prefix}:search_index:title'
+            date_index_key = f'{history_key_manager.history_prefix}:search_index:date'
+            editor_index_key = f'{history_key_manager.history_prefix}:search_index:editor'
+            
+            with history_redis.pipeline() as pipe:
+                # Build title index hash mapping (single HSET with mapping)
+                if title_index:
+                    title_hash_data = {word: ",".join(timestamps) for word, timestamps in title_index.items()}
+                    pipe.hset(title_index_key, mapping=title_hash_data)
+                
+                # Build date index hash mapping (single HSET with mapping)  
+                if date_index:
+                    date_hash_data = {date_term: ",".join(timestamps) for date_term, timestamps in date_index.items()}
+                    pipe.hset(date_index_key, mapping=date_hash_data)
+                
+                # Build editor index hash mapping (single HSET with mapping)
+                if editor_index:
+                    editor_hash_data = {editor_term: ",".join(timestamps) for editor_term, timestamps in editor_index.items()}
+                    pipe.hset(editor_index_key, mapping=editor_hash_data)
+                
+                # Execute all hash creations in single network call (max 3 Redis commands)
+                pipe.execute()
+
+            logger.info(f"Hash-based search index rebuild completed - indexed {indexed_count} items "
+                       f"({len(title_index)} title terms, {len(date_index)} date terms, {len(editor_index)} editor terms)")
         
         except Exception as e:
             logger.error(f"Error creating search index: {str(e)}")
@@ -253,23 +305,29 @@ def search_history_redis_optimized(search_term):
         if len(search_lower) < 1:
             return []
         
-        # Step 1: Use Redis for initial filtering (O(1)) with pipelining
-        title_search_key = history_key_manager.get_search_key('title', search_lower)
-        date_search_key = history_key_manager.get_search_key('date', search_lower)
-        editor_search_key = history_key_manager.get_search_key('editor', search_lower)
+        # Step 1: HASH-BASED OPTIMIZATION - Use hash lookups for O(1) filtering
+        title_index_key = f'{history_key_manager.history_prefix}:search_index:title'
+        date_index_key = f'{history_key_manager.history_prefix}:search_index:date'
+        editor_index_key = f'{history_key_manager.history_prefix}:search_index:editor'
         
-        # Use pipelining to batch Redis operations
+        # Use pipelining to batch Redis hash operations
         with history_redis.pipeline() as pipe:
-            pipe.smembers(title_search_key)
-            pipe.smembers(date_search_key)
-            pipe.smembers(editor_search_key)
+            pipe.hget(title_index_key, search_lower)
+            pipe.hget(date_index_key, search_lower)
+            pipe.hget(editor_index_key, search_lower)
             results = pipe.execute()
-            title_matches = results[0]
-            date_matches = results[1]
-            editor_matches = results[2]
+            title_data = results[0]
+            date_data = results[1]
+            editor_data = results[2]
         
-        # Get all potential matches
-        all_matches = title_matches.union(date_matches).union(editor_matches)
+        # Parse compressed timestamp lists and combine matches
+        all_matches = set()
+        if title_data:
+            all_matches.update(title_data.split(","))
+        if date_data:
+            all_matches.update(date_data.split(","))
+        if editor_data:
+            all_matches.update(editor_data.split(","))
         
         if not all_matches:
             # Try Redis-based partial matching (O(k) instead of O(n))
@@ -283,20 +341,20 @@ def search_history_redis_optimized(search_term):
         # NEW: Pre-sort matches by timestamp (newest first) and limit before loading
         sorted_matches = sorted(list(all_matches), key=lambda ts: float(ts), reverse=True)[:PROCESS_BUFFER]
         
-        # Step 2: Get only matching entries and apply intelligent scoring
+        # Step 2: OPTIMIZATION - Batch fetch all matching entries, then apply scoring
+        # Import here to avoid circular dependency
+        from ..routes.history import get_history_items_batch
+        entries = get_history_items_batch(sorted_matches)
+        
         matching_entries = []
-        for timestamp in sorted_matches:
-            # Import here to avoid circular dependency
-            from ..routes.history import get_history_item_by_timestamp
-            entry = get_history_item_by_timestamp(timestamp)
-            if entry:
-                # Apply intelligent scoring
-                scored_entry = apply_search_scoring(entry, search_lower)
-                if scored_entry:
-                    matching_entries.append(scored_entry)
-                    # NEW: Early termination if we have enough results
-                    if len(matching_entries) >= MAX_RESULTS:
-                        break
+        for entry in entries:
+            # Apply intelligent scoring (same logic as before)
+            scored_entry = apply_search_scoring(entry, search_lower)
+            if scored_entry:
+                matching_entries.append(scored_entry)
+                # Early termination if we have enough results (same logic as before)
+                if len(matching_entries) >= MAX_RESULTS:
+                    break
         
         # NEW: If we have more than MAX_RESULTS after scoring, trim after final sort
         # Sort by relevance score (highest first), then by timestamp (newest first)
@@ -445,40 +503,49 @@ def search_history_redis_partial(search_lower):
             logger.debug(f"Returning cached partial search result for: {search_lower}")
             return json.loads(cached_result)
 
-        # Generate search patterns for title/date/editor (FULL KEY PATTERNS)
-        patterns = generate_search_patterns(search_lower)
-
-        # Search using SCAN across all fields to resolve wildcards
-        def scan_keys(match_pattern: str):
-            found_keys = []
-            cursor = 0
-            while True:
-                cursor, keys = history_redis.scan(cursor, match=match_pattern, count=200)
-                if keys:
-                    found_keys.extend(keys)
-                if cursor == 0:
-                    break
-            return found_keys
+        # HASH-BASED PARTIAL SEARCH - Scan hash fields instead of keys
+        title_index_key = f'{history_key_manager.history_prefix}:search_index:title'
+        date_index_key = f'{history_key_manager.history_prefix}:search_index:date'
+        editor_index_key = f'{history_key_manager.history_prefix}:search_index:editor'
 
         all_matches = set()
 
-        # Collect matching set keys for each field
-        matching_keys = []
-        for pattern in patterns['title']:
-            matching_keys.extend(scan_keys(pattern))
-        for pattern in patterns['date']:
-            matching_keys.extend(scan_keys(pattern))
-        for pattern in patterns['editor']:
-            matching_keys.extend(scan_keys(pattern))
+        # Scan hash fields for partial matches using HSCAN + MATCH (streaming, bounded)
+        def scan_hash_fields(hash_key, search_pattern, limit=300, count=500):
+            """Stream hash fields with HSCAN and server-side MATCH, with early exit.
+            - limit: max timestamps to collect from this hash
+            - count: hint for HSCAN batch size
+            """
+            matching_timestamps = set()
+            try:
+                cursor = 0
+                pattern_contains = f"*{search_pattern}*"  # contains
+                # Stream through the hash until we either exhaust it or reach the limit
+                while True:
+                    cursor, data = history_redis.hscan(name=hash_key, cursor=cursor, match=pattern_contains, count=count)
+                    if data:
+                        for _, timestamp_csv in data.items():
+                            if timestamp_csv:
+                                matching_timestamps.update(timestamp_csv.split(","))
+                                if len(matching_timestamps) >= limit:
+                                    return matching_timestamps
+                    if cursor == 0:
+                        break
+            except Exception as e:
+                logger.error(f"Error scanning hash fields in {hash_key}: {str(e)}")
+            return matching_timestamps
 
-        # Union timestamps from all matched keys
-        if matching_keys:
-            with history_redis.pipeline() as pipe:
-                for k in matching_keys:
-                    pipe.smembers(k)
-                results = pipe.execute()
-            for members in results:
-                all_matches.update(members)
+        # Search in title index (cap matches to keep work bounded)
+        title_matches = scan_hash_fields(title_index_key, search_lower, limit=300, count=500)
+        all_matches.update(title_matches)
+
+        # Search in date index
+        date_matches = scan_hash_fields(date_index_key, search_lower, limit=300, count=500)
+        all_matches.update(date_matches)
+
+        # Search in editor index
+        editor_matches = scan_hash_fields(editor_index_key, search_lower, limit=300, count=500)
+        all_matches.update(editor_matches)
 
         if not all_matches:
             # Cache failed search
@@ -491,16 +558,17 @@ def search_history_redis_partial(search_lower):
 
         sorted_matches = sorted(list(all_matches), key=lambda ts: float(ts), reverse=True)[:PROCESS_BUFFER]
 
+        # OPTIMIZATION: Batch fetch all matching entries
+        from ..routes.history import get_history_items_batch
+        entries = get_history_items_batch(sorted_matches)
+        
         matching_entries = []
-        for timestamp in sorted_matches:
-            from ..routes.history import get_history_item_by_timestamp
-            entry = get_history_item_by_timestamp(timestamp)
-            if entry:
-                scored_entry = apply_search_scoring(entry, search_lower)
-                if scored_entry:
-                    matching_entries.append(scored_entry)
-                    if len(matching_entries) >= MAX_RESULTS:
-                        break
+        for entry in entries:
+            scored_entry = apply_search_scoring(entry, search_lower)
+            if scored_entry:
+                matching_entries.append(scored_entry)
+                if len(matching_entries) >= MAX_RESULTS:
+                    break
 
         # Sort by relevance score
         matching_entries.sort(key=lambda x: (x.get('_search_score', 0), x.get('timestamp', 0)), reverse=True)

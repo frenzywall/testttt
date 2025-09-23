@@ -35,6 +35,48 @@ def get_history_item_by_timestamp(timestamp):
         logger.error(f"Error getting history item {timestamp}: {str(e)}")
         return None
 
+def get_history_items_batch(timestamps):
+    """Get multiple history items in a single Redis pipeline call (OPTIMIZATION)"""
+    if not timestamps:
+        return []
+    
+    try:
+        if not history_redis or not history_key_manager:
+            logger.error("History Redis client not available")
+            return []
+        
+        # Use pipeline to fetch all items at once
+        with history_redis.pipeline() as pipe:
+            timestamp_to_key = {}
+            for timestamp in timestamps:
+                item_key = history_key_manager.get_history_item_key(timestamp)
+                timestamp_to_key[timestamp] = item_key
+                pipe.get(item_key)
+            results = pipe.execute()
+        
+        # Parse results, maintaining the same order and error handling as single function
+        items = []
+        for i, (timestamp, item_data) in enumerate(zip(timestamps, results)):
+            if item_data:
+                try:
+                    parsed_item = json.loads(item_data)
+                    items.append(parsed_item)
+                    logger.debug(f"Retrieved history item: {timestamp_to_key[timestamp]}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parsing history item {timestamp}: {str(e)}")
+                    # Continue processing other items, same behavior as single function
+                    continue
+            else:
+                logger.warning(f"History item not found: {timestamp_to_key[timestamp]}")
+                # Don't append None, maintain same behavior as single function filtering
+                continue
+        
+        return items
+        
+    except Exception as e:
+        logger.error(f"Error getting batch history items: {str(e)}")
+        return []
+
 def get_paginated_history_optimized(page, per_page):
     """Get paginated history using Redis ZREVRANGE for O(1) performance"""
     try:
@@ -54,12 +96,9 @@ def get_paginated_history_optimized(page, per_page):
         # Get metadata for this page using ZREVRANGE (newest first)
         metadata_items = history_redis.zrevrange(metadata_key, start_idx, end_idx, withscores=True)
         
-        # Fetch only the needed items
-        items = []
-        for metadata_json, timestamp in metadata_items:
-            item = get_history_item_by_timestamp(timestamp)
-            if item:
-                items.append(item)
+        # OPTIMIZATION: Batch fetch all needed items instead of individual calls
+        timestamps = [timestamp for metadata_json, timestamp in metadata_items]
+        items = get_history_items_batch(timestamps)
         
         total_pages = (total_count + per_page - 1) // per_page
         
