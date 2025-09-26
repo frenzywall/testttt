@@ -1,6 +1,6 @@
 services:
   web:
-    build:  ghcr.io/frenzywall/testttt:ai
+    image: ghcr.io/frenzywall/testttt:ai
     ports:
       - "5000:5000"
     environment:
@@ -104,7 +104,7 @@ services:
 volumes:
   redis_data:
     name: ChangeData  # ← your chosen volume name
-    #external: true  # ← uncomment if volume already exists outside this compose
+    external: true  # ← uncomment if volume already exists outside this compose
 
 networks:
   change_management:
