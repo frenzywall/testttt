@@ -4095,13 +4095,13 @@ function showOfflineNotch(backOnline = false) {
         // Explicitly remove any animation
         wifiIcon.style.animation = 'none';
     } else {
-        // Weak WiFi icon when offline
+        // WiFi icon when offline (moderate brightness for visible pulse)
         wifiIcon.innerHTML = `
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 9C4.5 5.5 7.75 4 12 4C16.25 4 19.5 5.5 23 9" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round"/>
-                <path d="M5 13C7.5 10.5 9.75 9.5 12 9.5C14.25 9.5 16.5 10.5 19 13" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
-                <path d="M8.5 16.5C10 15 11 14.5 12 14.5C13 14.5 14 15 15.5 16.5" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="12" cy="19" r="1.5" fill="rgba(255,255,255,0.6)"/>
+                <path d="M1 9C4.5 5.5 7.75 4 12 4C16.25 4 19.5 5.5 23 9" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M5 13C7.5 10.5 9.75 9.5 12 9.5C14.25 9.5 16.5 10.5 19 13" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8.5 16.5C10 15 11 14.5 12 14.5C13 14.5 14 15 15.5 16.5" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="19" r="1.5" fill="rgba(255,255,255,0.9)"/>
             </svg>
         `;
         wifiIcon.classList.add('offline-notch-wifi-pulse');
