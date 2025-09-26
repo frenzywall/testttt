@@ -113,17 +113,24 @@ function showProfileModal(user) {
                 visibility: hidden;
             `;
             settingsNotch.innerHTML = `
-                <div class="settings-title" style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff;">Sign Up Settings</div>
+                <div class="settings-title" style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff;">Access Settings</div>
                 <div class="setting-option" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 0.5rem;">
                     <div class="setting-label" style="color: #e2e8f0; font-size: 0.9rem;">Enable Public Sign Up</div>
                     <div class="toggle-switch" id="signupToggle" style="position: relative; width: 44px; height: 24px; background: #475569; border-radius: 12px; cursor: pointer; transition: background 0.3s;">
                         <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; transition: transform 0.3s;"></div>
                     </div>
                 </div>
+                <div class="setting-option" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 0.5rem;">
+                    <div class="setting-label" style="color: #e2e8f0; font-size: 0.9rem;">Enable Guest Access (Skip Login)</div>
+                    <div class="toggle-switch" id="guestToggle" style="position: relative; width: 44px; height: 24px; background: #475569; border-radius: 12px; cursor: pointer; transition: background 0.3s;">
+                        <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; transition: transform 0.3s;"></div>
+                    </div>
+                </div>
                 <div class="setting-description" style="color: #94a3b8; font-size: 0.8rem; line-height: 1.4; text-align: left;">
-                    When enabled, new users can create accounts on the login page
+                    When enabled, new users can create accounts or enter as guest from login
                 </div>
                 <div id="signupToggleMsg" class="profile-msg" style="display: none; margin-top: 0.5rem;"></div>
+                <div id="guestToggleMsg" class="profile-msg" style="display: none; margin-top: 0.5rem;"></div>
             `;
             document.body.appendChild(settingsNotch);
         }
@@ -917,6 +924,8 @@ function showProfileModal(user) {
             const adminSettingsNotch = document.getElementById('adminSettingsNotch');
             const signupToggle = document.getElementById('signupToggle');
             const signupToggleMsg = document.getElementById('signupToggleMsg');
+            const guestToggle = document.getElementById('guestToggle');
+            const guestToggleMsg = document.getElementById('guestToggleMsg');
             let settingsTimeout;
             
             if (signupToggleIcon && adminSettingsNotch) {
@@ -925,7 +934,7 @@ function showProfileModal(user) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // Load current signup status
+                    // Load current signup and guest status
                     fetch('/signup-enabled')
                         .then(r => r.json())
                         .then(data => {
@@ -941,6 +950,22 @@ function showProfileModal(user) {
                         })
                         .catch(err => {
                             console.error('Failed to load signup status:', err);
+                        });
+                    fetch('/guest-enabled')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.enabled) {
+                                guestToggle.classList.add('active');
+                                guestToggle.style.background = '#3b82f6';
+                                guestToggle.querySelector('.toggle-slider').style.transform = 'translateX(20px)';
+                            } else {
+                                guestToggle.classList.remove('active');
+                                guestToggle.style.background = '#475569';
+                                guestToggle.querySelector('.toggle-slider').style.transform = 'translateX(0)';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Failed to load guest status:', err);
                         });
                     
                     adminSettingsNotch.classList.add('active');
@@ -1009,6 +1034,45 @@ function showProfileModal(user) {
                             }, 3000);
                         });
                     };
+                }
+
+                // Guest toggle functionality
+                if (guestToggle) {
+                    guestToggle.onclick = function() {
+                        const willEnable = !guestToggle.classList.contains('active');
+                        guestToggleMsg.style.display = '';
+                        guestToggleMsg.textContent = 'Updating...';
+                        guestToggleMsg.className = 'profile-msg info-msg';
+                        fetch('/toggle-guest', {method: 'POST'})
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    if (data.enabled) {
+                                        guestToggle.classList.add('active');
+                                        guestToggle.style.background = '#3b82f6';
+                                        guestToggle.querySelector('.toggle-slider').style.transform = 'translateX(20px)';
+                                        guestToggleMsg.textContent = 'Guest access enabled!';
+                                        guestToggleMsg.className = 'profile-msg success-msg';
+                                    } else {
+                                        guestToggle.classList.remove('active');
+                                        guestToggle.style.background = '#475569';
+                                        guestToggle.querySelector('.toggle-slider').style.transform = 'translateX(0)';
+                                        guestToggleMsg.textContent = 'Guest access disabled!';
+                                        guestToggleMsg.className = 'profile-msg info-msg';
+                                    }
+                                } else {
+                                    guestToggleMsg.textContent = data.message || 'Failed to update setting';
+                                    guestToggleMsg.className = 'profile-msg error-msg';
+                                }
+                            })
+                            .catch(() => {
+                                guestToggleMsg.textContent = 'Network error';
+                                guestToggleMsg.className = 'profile-msg error-msg';
+                            })
+                            .finally(() => {
+                                setTimeout(() => { guestToggleMsg.style.display = 'none'; }, 1500);
+                            });
+                    }
                 }
                 
                 // Hide settings notch when clicking outside

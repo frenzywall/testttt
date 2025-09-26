@@ -14,7 +14,7 @@ import logging
 from ..config import (
     SESSION_TIMEOUT_SECONDS, REAUTH_TIMEOUT_SECONDS, LOGOUT_VERSION_HASH_KEY,
     ADMIN_USERNAME, ADMIN_PASSWORD, USERS_KEY, SIGNUP_ENABLED, SIGNUP_REDIS_KEY,
-    EXISTING_USER_MATCH_MESSAGE, PASSKEY_HASH
+    EXISTING_USER_MATCH_MESSAGE, PASSKEY_HASH, GUEST_ACCESS_ENABLED, GUEST_ACCESS_REDIS_KEY
 )
 from ..utils.redis_client import redis_client
 from ..utils.decorators import rate_limit
@@ -203,6 +203,80 @@ def logout():
             logger.error(f"Error clearing logout version for {username}: {str(e)}")
     session.clear()
     return jsonify({'status': 'success'})
+
+@auth_bp.route('/guest-enabled', methods=['GET'])
+def guest_enabled():
+    """Get current guest access status"""
+    try:
+        with redis_client.pipeline() as pipe:
+            pipe.watch(GUEST_ACCESS_REDIS_KEY)
+            guest_setting = redis_client.get(GUEST_ACCESS_REDIS_KEY)
+            if guest_setting is not None:
+                global GUEST_ACCESS_ENABLED
+                GUEST_ACCESS_ENABLED = guest_setting == '1'
+            else:
+                pipe.multi()
+                pipe.set(GUEST_ACCESS_REDIS_KEY, '1' if GUEST_ACCESS_ENABLED else '0')
+                pipe.execute()
+    except Exception as e:
+        logger.error(f"Error checking guest status from Redis: {str(e)}")
+        pass
+    return jsonify({'enabled': GUEST_ACCESS_ENABLED})
+
+@auth_bp.route('/toggle-guest', methods=['POST'])
+@rate_limit
+def toggle_guest():
+    """Admin endpoint to toggle guest access feature"""
+    if session.get('role') != 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'}), 403
+    try:
+        with redis_client.pipeline() as pipe:
+            pipe.watch(GUEST_ACCESS_REDIS_KEY)
+            global GUEST_ACCESS_ENABLED
+            GUEST_ACCESS_ENABLED = not GUEST_ACCESS_ENABLED
+            pipe.multi()
+            pipe.set(GUEST_ACCESS_REDIS_KEY, '1' if GUEST_ACCESS_ENABLED else '0')
+            pipe.execute()
+        logger.info(f"Guest access feature {'enabled' if GUEST_ACCESS_ENABLED else 'disabled'} by admin {session.get('username')}")
+        return jsonify({'status': 'success', 'enabled': GUEST_ACCESS_ENABLED})
+    except Exception as e:
+        logger.error(f"Error toggling guest access: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@auth_bp.route('/guest-login', methods=['POST'])
+@rate_limit
+def guest_login():
+    """Create a guest session with a generated username when guest access is enabled"""
+    try:
+        # Ensure feature flag reflects Redis
+        try:
+            val = redis_client.get(GUEST_ACCESS_REDIS_KEY)
+            if val is not None:
+                global GUEST_ACCESS_ENABLED
+                GUEST_ACCESS_ENABLED = val == '1'
+        except Exception:
+            pass
+
+        if not GUEST_ACCESS_ENABLED:
+            return jsonify({'status': 'error', 'message': 'Guest access is disabled'}), 403
+
+        # Generate a functional guest username
+        suffix = secrets.token_hex(3)
+        guest_username = f"guest-{suffix}"
+
+        # Set up a limited session (role 'guest')
+        session.permanent = True
+        session['username'] = guest_username
+        session['role'] = 'guest'
+        session['login_time'] = datetime.now(timezone.utc).isoformat()
+        session['last_activity'] = datetime.now(timezone.utc).isoformat()
+        session['logout_version'] = secrets.token_hex(8)
+
+        logger.info(f"Guest session started: {guest_username}")
+        return jsonify({'status': 'success', 'username': guest_username, 'role': 'guest'})
+    except Exception as e:
+        logger.error(f"Error during guest login: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to start guest session'}), 500
 
 @auth_bp.route('/current-user', methods=['GET'])
 def current_user():

@@ -83,7 +83,7 @@ def create_app():
     @app.before_request
     def require_login():
         allowed = [
-            '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
+            '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/guest-enabled', '/toggle-guest', '/guest-login', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
             '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
         ]
         if request.path.startswith('/static/') or request.path.startswith('/misc/'):
@@ -92,6 +92,12 @@ def create_app():
             return
         if not session.get('username'):
             return redirect(url_for('auth.login_page'))
+        
+        # --- Deny POST for guest role (except allowlisted endpoints) ---
+        if session.get('role') == 'guest' and request.method == 'POST':
+            guest_post_allow = ['/logout']
+            if not any(request.path.startswith(p) for p in guest_post_allow):
+                return jsonify({'status': 'error', 'message': 'Guest not allowed to modify'}), 403
         
         # --- Session Timeout Check (skip for admin users) ---
         if session.get('role') != 'admin':  # Only check timeout for non-admin users
@@ -127,22 +133,23 @@ def create_app():
                 return resp
             
             # --- User Existence and Role Validation Check ---
-            # Verify that the user exists and their role in session matches their actual role in database
+            # Skip for guest role; otherwise verify user exists and role matches database
             try:
-                from .routes.auth import get_users
-                users = get_users()
-                if users and username in users:
-                    actual_role = users[username].get('role', 'user')
-                    session_role = session.get('role', 'user')
-                    if actual_role != session_role:
-                        logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
-                        # Update session with correct role
-                        session['role'] = actual_role
-                else:
-                    # User doesn't exist in database - invalidate session
-                    logger.warning(f"User {username} not found in database - invalidating session")
-                    session.clear()
-                    return jsonify({'status': 'error', 'message': 'User not found'}), 401
+                if session.get('role') != 'guest':
+                    from .routes.auth import get_users
+                    users = get_users()
+                    if users and username in users:
+                        actual_role = users[username].get('role', 'user')
+                        session_role = session.get('role', 'user')
+                        if actual_role != session_role:
+                            logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
+                            # Update session with correct role
+                            session['role'] = actual_role
+                    else:
+                        # User doesn't exist in database - invalidate session (not for guests)
+                        logger.warning(f"User {username} not found in database - invalidating session")
+                        session.clear()
+                        return jsonify({'status': 'error', 'message': 'User not found'}), 401
             except Exception as e:
                 logger.error(f"Error validating user {username}: {str(e)}")
                 # On error, invalidate session for security
@@ -184,7 +191,7 @@ def create_app():
         from .routes.auth import get_users
         
         allowed = [
-            '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
+            '/login', '/logout', '/current-user', '/ai-chat-enabled', '/signup-enabled', '/toggle-signup', '/signup', '/guest-enabled', '/toggle-guest', '/guest-login', '/static/', '/favicon.ico', '/misc/', '/users', '/change-password', '/admin-logout-user', '/update-user-role', '/events',
             '/get-history', '/load-from-history', '/delete-from-history', '/rebuild-search-index'
         ]
         if request.path.startswith('/static/') or request.path.startswith('/misc/'):
@@ -193,6 +200,12 @@ def create_app():
             return
         if not session.get('username'):
             return redirect(url_for('auth.login_page'))
+        
+        # --- Deny POST for guest role (except allowlisted endpoints) ---
+        if session.get('role') == 'guest' and request.method == 'POST':
+            guest_post_allow = ['/logout']
+            if not any(request.path.startswith(p) for p in guest_post_allow):
+                return jsonify({'status': 'error', 'message': 'Guest not allowed to modify'}), 403
         
         # --- Session Timeout Check (skip for admin users) ---
         if session.get('role') != 'admin':  # Only check timeout for non-admin users
@@ -228,21 +241,22 @@ def create_app():
                 return resp
             
             # --- User Existence and Role Validation Check ---
-            # Verify that the user exists and their role in session matches their actual role in database
+            # Skip validation for guest role; otherwise ensure user exists and role matches
             try:
-                users = get_users()
-                if users and username in users:
-                    actual_role = users[username].get('role', 'user')
-                    session_role = session.get('role', 'user')
-                    if actual_role != session_role:
-                        logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
-                        # Update session with correct role
-                        session['role'] = actual_role
-                else:
-                    # User doesn't exist in database - invalidate session
-                    logger.warning(f"User {username} not found in database - invalidating session")
-                    session.clear()
-                    return jsonify({'status': 'error', 'message': 'User not found'}), 401
+                if session.get('role') != 'guest':
+                    users = get_users()
+                    if users and username in users:
+                        actual_role = users[username].get('role', 'user')
+                        session_role = session.get('role', 'user')
+                        if actual_role != session_role:
+                            logger.warning(f"Role mismatch for user {username}: session has {session_role}, database has {actual_role}")
+                            # Update session with correct role
+                            session['role'] = actual_role
+                    else:
+                        # User doesn't exist in database - invalidate session (not for guests)
+                        logger.warning(f"User {username} not found in database - invalidating session")
+                        session.clear()
+                        return jsonify({'status': 'error', 'message': 'User not found'}), 401
             except Exception as e:
                 logger.error(f"Error validating user {username}: {str(e)}")
                 # On error, invalidate session for security

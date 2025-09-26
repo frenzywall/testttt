@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 # GEMINI_API_KEY: Google Gemini API key
 # GEMINI_MODEL: Google Gemini model name
 # SIGNUP_ENABLED: Enable sign-up feature (true/false)
+# GUEST_ACCESS_ENABLED: Enable guest skip-login feature (true/false)
 
 # --- Load config from environment variables ---
 SESSION_TIMEOUT_SECONDS = int(os.environ.get('SESSION_TIMEOUT_SECONDS', 20))
@@ -62,6 +63,8 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
 SIGNUP_ENABLED = os.environ.get('SIGNUP_ENABLED', 'false').lower() == 'true'
 SIGNUP_REDIS_KEY = 'signup_enabled'
+GUEST_ACCESS_ENABLED = os.environ.get('GUEST_ACCESS_ENABLED', 'false').lower() == 'true'
+GUEST_ACCESS_REDIS_KEY = 'guest_access_enabled'
 EXISTING_USER_MATCH_MESSAGE = 'existing_user_match'
 
 # Add environment variable for Redis connection pool size
