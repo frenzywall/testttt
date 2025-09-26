@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-guest="{{ (current_role|default('') == 'guest') | tojson }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,16 +17,20 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    
     <script>
-(function() {
-  try {
-    var theme = localStorage.getItem('theme');
-    if (!theme) {
-      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    document.documentElement.setAttribute('data-theme', theme);
-  } catch(e) {}
-})();
+        // Get guest status from data attribute
+        window.IS_GUEST = document.documentElement.dataset.guest === 'true';
+        
+        (function() {
+          try {
+            var theme = localStorage.getItem('theme');
+            if (!theme) {
+              theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+          } catch(e) {}
+        })();
     </script>
 </head>
 <body>
@@ -534,14 +538,41 @@
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var icon = document.getElementById('profileIcon');
-        if (icon) {
-            icon.addEventListener('click', function() {
-                // open modal immediately (placeholders), then fetch user in background
-                showProfileModal();
-            });
-        }
+        const profileIcon = document.getElementById('profileIcon');
+        if (!profileIcon) return;
+
+        profileIcon.addEventListener('click', function() {
+            window.IS_GUEST === true ? showGuestAccessModal() : showProfileModal();
+        });
     });
+
+    function showGuestAccessModal() {
+        // Remove existing modal
+        document.getElementById('guestInfoOverlay')?.remove();
+
+        // Create and show modal
+        const overlay = document.createElement('div');
+        overlay.id = 'guestInfoOverlay';
+        overlay.className = 'guest-modal-overlay';
+        
+        overlay.innerHTML = `
+            <div class="guest-modal-content">
+                <div class="guest-modal-icon">
+                    <i class="fas fa-user-lock"></i>
+                </div>
+                <h3 class="guest-modal-title">Limited Access</h3>
+                <p class="guest-modal-text">Temporary session: <a href="/login" class="guest-modal-link" style="color:#3b82f6;text-decoration:underline;font-weight:600;">Sign in</a> to access full suite.</p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        
+        // Auto-close and click-outside-to-close
+        setTimeout(() => overlay.remove(), 2500);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+    }
 </script>
 </body>
 </html>

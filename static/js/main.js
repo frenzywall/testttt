@@ -4115,11 +4115,16 @@ function showOfflineNotch(backOnline = false) {
     if (backOnline) {
         textSpan.textContent = 'Back online!';
     } else {
-        textSpan.innerHTML = `
-            Lost connection. Retrying<span class="dots">
-                <span class="offline-notch-dot" style="animation-delay:0s;">.</span><span class="offline-notch-dot" style="animation-delay:0.2s;">.</span><span class="offline-notch-dot" style="animation-delay:0.4s;">.</span>
-            </span>
-        `;
+        // If user is a guest, show a different message
+        if (typeof window !== 'undefined' && window.IS_GUEST === true) {
+            textSpan.textContent = 'Temporary session!';
+        } else {
+            textSpan.innerHTML = `
+                Lost connection. Retrying<span class="dots">
+                    <span class="offline-notch-dot" style="animation-delay:0s;">.</span><span class="offline-notch-dot" style="animation-delay:0.2s;">.</span><span class="offline-notch-dot" style="animation-delay:0.4s;">.</span>
+                </span>
+            `;
+        }
     }
     
     // Assemble the notch

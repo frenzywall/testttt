@@ -4214,6 +4214,53 @@ background-color: rgba(245, 158, 11, 0.4);
   .history-search-placeholder span {
     color: #94a3b8;
   }
+  .guest-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.guest-modal-content {
+    width: 340px;
+    max-width: 95vw;
+    background: #0f172a;
+    border: 1px solid rgba(59,130,246,0.45);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(59,130,246,0.35);
+    border-radius: 15px;
+    padding: 24px;
+    box-sizing: border-box;
+    color: #e5e7eb;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.guest-modal-icon {
+    font-size: 2.5rem;
+    color: #3b82f6;
+    margin-bottom: 0.75rem;
+}
+
+.guest-modal-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.guest-modal-text {
+    margin: 0;
+    line-height: 1.5;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+}
   
   [data-theme="dark"] .history-search-placeholder {
     background: rgba(59, 130, 246, 0.12);
