@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
 FROM python:3.13-alpine AS final
 ENV PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
-    FLASK_APP=app.py \
+    FLASK_APP=run_app.py \
     FLASK_DEBUG=0 \
     TEMP_DIR=/app/temp
 RUN addgroup -g 1000 appuser && adduser -D -s /bin/sh -u 1000 -G appuser appuser && \
@@ -28,8 +28,9 @@ RUN pip install --no-cache-dir --disable-pip-version-check /wheels/* && rm -rf /
     
 COPY --chown=appuser:appuser static/ ./static/
 COPY --chown=appuser:appuser templates/ ./templates/
+COPY --chown=appuser:appuser app/ ./app/
 COPY --chown=appuser:appuser *.py .
 
 USER appuser
 EXPOSE 5000
-CMD ["gunicorn", "-k", "gevent", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-k", "gevent", "-w", "2", "-b", "0.0.0.0:5000", "run_app:app"]

@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const switchLink = document.getElementById('switchLink');
     
     let isSignupMode = false;
+    const guestSwitch = document.getElementById('guestSwitch');
+    const guestLink = document.getElementById('guestLink');
     
     // Check if signup is enabled
     fetch('/signup-enabled')
@@ -28,6 +30,39 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
             console.error('Failed to check signup status:', err);
         });
+
+    // Check if guest access is enabled (show Skip link row)
+    fetch('/guest-enabled')
+        .then(res => res.json())
+        .then(data => {
+            if (data.enabled && guestSwitch) {
+                guestSwitch.style.display = 'block';
+            }
+        })
+        .catch(() => {});
+
+    if (guestLink) {
+        guestLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch('/guest-login', { method: 'POST' })
+                .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                .then(({ ok, d }) => {
+                    if (ok && d.status === 'success') {
+                        window.location.href = '/';
+                    } else {
+                        const msg = (d && d.message) || 'Guest login failed';
+                        errorDiv.textContent = msg;
+                        errorDiv.className = 'login-error';
+                        errorDiv.style.display = 'block';
+                    }
+                })
+                .catch(() => {
+                    errorDiv.textContent = 'Network error. Please try again.';
+                    errorDiv.className = 'login-error';
+                    errorDiv.style.display = 'block';
+                });
+        });
+    }
     
     function toggleAuthMode() {
         isSignupMode = !isSignupMode;
