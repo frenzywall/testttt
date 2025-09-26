@@ -977,9 +977,34 @@ function showProfileModal(user) {
                     });
                     
                     clearTimeout(settingsTimeout);
-                    settingsTimeout = setTimeout(() => {
-                        hideAdminSettingsNotch();
-                    }, 5000);
+                    
+                    // Add hover pause functionality
+                    let isHoveringSettings = false;
+                    
+                    const scheduleSettingsHide = () => {
+                        if (!isHoveringSettings) {
+                            settingsTimeout = setTimeout(() => {
+                                hideAdminSettingsNotch();
+                            }, 3000);
+                        }
+                    };
+                    
+                    // Pause hide timer on hover
+                    adminSettingsNotch.addEventListener('mouseenter', () => {
+                        isHoveringSettings = true;
+                        if (settingsTimeout) {
+                            clearTimeout(settingsTimeout);
+                        }
+                    });
+                    
+                    // Resume hide timer when mouse leaves
+                    adminSettingsNotch.addEventListener('mouseleave', () => {
+                        isHoveringSettings = false;
+                        scheduleSettingsHide();
+                    });
+                    
+                    // Start the initial timer
+                    scheduleSettingsHide();
                 });
                 
                 // Signup toggle functionality
@@ -1039,6 +1064,9 @@ function showProfileModal(user) {
                 // Guest toggle functionality
                 if (guestToggle) {
                     guestToggle.onclick = function() {
+                        // Prevent spam clicking
+                        this.style.pointerEvents = 'none';
+                        
                         const willEnable = !guestToggle.classList.contains('active');
                         guestToggleMsg.style.display = '';
                         guestToggleMsg.textContent = 'Updating...';
@@ -1070,6 +1098,8 @@ function showProfileModal(user) {
                                 guestToggleMsg.className = 'profile-msg error-msg';
                             })
                             .finally(() => {
+                                // Re-enable clicking after action completes
+                                this.style.pointerEvents = '';
                                 setTimeout(() => { guestToggleMsg.style.display = 'none'; }, 1500);
                             });
                     }
