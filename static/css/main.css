@@ -4217,7 +4217,12 @@ background-color: rgba(245, 158, 11, 0.4);
   }
   .guest-modal-overlay {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0,0,0,0.45);
     z-index: 10000;
     display: flex;
@@ -4225,6 +4230,7 @@ background-color: rgba(245, 158, 11, 0.4);
     justify-content: center;
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    overflow: hidden;
 }
 
 .guest-modal-content {
